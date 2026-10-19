@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The lavender pill behind the month widget's "+". A shape for the same API 29/30 reason as the card. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/widget_month_pill" />
+    <corners android:radius="100dp" />
+</shape>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The month widget's picker entry on API 29 and 30, where `previewLayout` does not exist. Anything
+  from 31 up gets layout/month_widget_preview.xml instead, which has real numerals; this is the same
+  grid reduced to blocks, because a vector has no text.
+
+  Coordinates are the widget's own: a 250×180 card with 12dp side padding, so the seven columns are
+  32.28dp wide and the six weeks are 21dp apart. Colours track the theme through @color, except the
+  four bands, which are event colours from EventColorPalette and belong to the event either way.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="250dp"
+    android:height="180dp"
+    android:viewportWidth="250"
+    android:viewportHeight="180">
+
+    <!-- The card -->
+    <path
+        android:fillColor="@color/widget_preview_surface"
+        android:pathData="M16,0 h218 a16,16 0 0 1 16,16 v148 a16,16 0 0 1 -16,16 h-218 a16,16 0 0 1 -16,-16 v-148 a16,16 0 0 1 16,-16 z" />
+
+    <!-- Month title -->
+    <path
+        android:fillColor="@color/widget_preview_text"
+        android:pathData="M12,14 h84 v16 h-84 z" />
+
+    <!-- The three header buttons -->
+    <path
+        android:fillColor="@color/widget_preview_accent"
+        android:pathData="M190,17h10v10h-10z M208,17h10v10h-10z M226,17h10v10h-10z" />
+
+    <!-- Weekday initials -->
+    <path
+        android:fillColor="@color/widget_preview_muted"
+        android:pathData="M24,40h8v4h-8z M56,40h8v4h-8z M89,40h8v4h-8z M121,40h8v4h-8z M153,40h8v4h-8z M186,40h8v4h-8z M218,40h8v4h-8z" />
+
+    <!-- One hairline across the top of each week -->
+    <path
+        android:fillColor="@color/widget_preview_rule"
+        android:pathData="M12,52h226v1h-226z M12,73h226v1h-226z M12,94h226v1h-226z M12,115h226v1h-226z M12,136h226v1h-226z M12,157h226v1h-226z" />
+
+    <!-- The ring behind today, under its number -->
+    <path
+        android:fillColor="@color/widget_month_pill"
+        android:pathData="M100.7,81 a8,8 0 1 1 -16,0 a8,8 0 1 1 16,0 z" />
+
+    <!-- Days of the month on show -->
+    <path
+        android:fillColor="@color/widget_preview_text"
+        android:pathData="M185,56h10v8h-10z M217,56h10v8h-10z
+                          M23,77h10v8h-10z M55,77h10v8h-10z M88,77h10v8h-10z M120,77h10v8h-10z M152,77h10v8h-10z M185,77h10v8h-10z M217,77h10v8h-10z
+                          M23,98h10v8h-10z M55,98h10v8h-10z M88,98h10v8h-10z M120,98h10v8h-10z M152,98h10v8h-10z M185,98h10v8h-10z M217,98h10v8h-10z
+                          M23,119h10v8h-10z M55,119h10v8h-10z M88,119h10v8h-10z M120,119h10v8h-10z M152,119h10v8h-10z M185,119h10v8h-10z M217,119h10v8h-10z
+                          M23,140h10v8h-10z M55,140h10v8h-10z M88,140h10v8h-10z M120,140h10v8h-10z M152,140h10v8h-10z M185,140h10v8h-10z M217,140h10v8h-10z
+                          M23,161h10v8h-10z" />
+
+    <!-- Days spilling in from the months either side -->
+    <path
+        android:fillColor="@color/widget_preview_muted"
+        android:pathData="M23,56h10v8h-10z M55,56h10v8h-10z M88,56h10v8h-10z M120,56h10v8h-10z M152,56h10v8h-10z
+                          M55,161h10v8h-10z M88,161h10v8h-10z M120,161h10v8h-10z M152,161h10v8h-10z M185,161h10v8h-10z M217,161h10v8h-10z" />
+
+    <!-- A three-day band, a fortnight-long one crossing the week boundary, and a single day -->
+    <path android:fillColor="#1E88C7" android:pathData="M77,87h96v5h-96z" />
+    <path android:fillColor="#D9A441" android:pathData="M12,108h226v5h-226z M12,129h226v5h-226z" />
+    <path android:fillColor="#B05A4E" android:pathData="M44,150h32v5h-32z" />
+
+</vector>

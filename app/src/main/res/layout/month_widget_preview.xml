@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What the launcher's widget picker shows before the widget is placed.
+
+  This is a still of MonthWidget at its two-chip-row size, written in plain views: Glance 1.1.1 has
+  no preview API (`providePreview` / `setWidgetPreviews` both landed after it), so a Glance widget
+  cannot render its own picker entry and something has to stand in. It is `previewLayout`, used from
+  API 31; `previewImage` in month_widget_info.xml covers 29 and 30, which is why both exist.
+
+  Drawn in the widget's fixed dark plum palette (widget_month_* / widget_preview_* colours), sans
+  serif, with the lavender "+" pill. The month is August 2026 with Sunday first — a real month, so the columns line up the way they do
+  in the app, rather than a made-up grid where the 1st lands wherever it fits. Keep it in step with
+  MonthWidget.kt by eye when the widget's design moves; nothing checks it, and a preview that shows
+  something the widget stopped doing is worse than a plain one.
+
+  This project otherwise has no res/layout/ — `initialLayout` points at Glance's bundled placeholder.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/widget_month_background"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    tools:ignore="HardcodedText">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="12dp"
+        android:paddingBottom="6dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-medium"
+            android:textSize="22sp"
+            android:textFontWeight="500"
+            android:maxLines="1"
+            android:textColor="@color/widget_preview_text"
+            android:text="August" />
+
+        <TextView style="@style/WidgetPreview.HeaderButton" android:text="‹" />
+        <TextView style="@style/WidgetPreview.HeaderButton" android:text="›" />
+        <TextView style="@style/WidgetPreview.AddPill" android:text="+" />
+    </LinearLayout>
+
+    <!-- Weekday initials -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingBottom="2dp">
+
+        <TextView style="@style/WidgetPreview.Weekday" android:text="S" />
+        <TextView style="@style/WidgetPreview.Weekday" android:text="M" />
+        <TextView style="@style/WidgetPreview.Weekday" android:text="T" />
+        <TextView style="@style/WidgetPreview.Weekday" android:text="W" />
+        <TextView style="@style/WidgetPreview.Weekday" android:text="T" />
+        <TextView style="@style/WidgetPreview.Weekday" android:text="F" />
+        <TextView style="@style/WidgetPreview.Weekday" android:text="S" />
+    </LinearLayout>
+
+    <!-- Week 1 — July spilling in -->
+    <View style="@style/WidgetPreview.Rule" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView style="@style/WidgetPreview.Day.Outside" android:text="26" />
+        <TextView style="@style/WidgetPreview.Day.Outside" android:text="27" />
+        <TextView style="@style/WidgetPreview.Day.Outside" android:text="28" />
+        <TextView style="@style/WidgetPreview.Day.Outside" android:text="29" />
+        <TextView style="@style/WidgetPreview.Day.Outside" android:text="30" />
+        <TextView style="@style/WidgetPreview.Day.Outside" android:text="31" />
+        <TextView style="@style/WidgetPreview.Day" android:text="1" />
+    </LinearLayout>
+
+    <!-- Week 2 — today (the 5th), and a three-day band -->
+    <View style="@style/WidgetPreview.Rule" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView style="@style/WidgetPreview.Day" android:text="2" />
+        <TextView style="@style/WidgetPreview.Day" android:text="3" />
+        <TextView style="@style/WidgetPreview.Day" android:text="4" />
+        <FrameLayout style="@style/WidgetPreview.DayCell">
+            <TextView style="@style/WidgetPreview.Today" android:text="5" />
+        </FrameLayout>
+        <TextView style="@style/WidgetPreview.Day" android:text="6" />
+        <TextView style="@style/WidgetPreview.Day" android:text="7" />
+        <TextView style="@style/WidgetPreview.Day" android:text="8" />
+
+        <FrameLayout style="@style/WidgetPreview.DayCell">
+            <TextView style="@style/WidgetPreview.Today" android:text="5" />
+        </FrameLayout>
+
+        <TextView style="@style/WidgetPreview.Day" android:text="6" />
+        <TextView style="@style/WidgetPreview.Day" android:text="7" />
+        <TextView style="@style/WidgetPreview.Day" android:text="8" />
+        <TextView style="@style/WidgetPreview.Day" android:text="9" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="1dp">
+
+        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="2" />
+        <TextView
+            style="@style/WidgetPreview.Chip"
+            android:layout_weight="3"
+            android:background="#1E88C7"
+            android:text="Work" />
+        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="2" />
+    </LinearLayout>
+
+    <!-- Week 3 — a band running the whole week -->
+    <View style="@style/WidgetPreview.Rule" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView style="@style/WidgetPreview.Day" android:text="9" />
+        <TextView style="@style/WidgetPreview.Day" android:text="10" />
+        <TextView style="@style/WidgetPreview.Day" android:text="11" />
+        <TextView style="@style/WidgetPreview.Day" android:text="12" />
+        <TextView style="@style/WidgetPreview.Day" android:text="13" />
+        <TextView style="@style/WidgetPreview.Day" android:text="14" />
+        <TextView style="@style/WidgetPreview.Day" android:text="15" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="1dp">
+
+        <TextView
+            style="@style/WidgetPreview.Chip"
+            android:layout_weight="7"
+            android:background="#D9A441"
+            android:text="Segamat Mission Trip" />
+    </LinearLayout>
+
+    <!-- Week 4 — the same band, titled again because layout is packed per week -->
+    <View style="@style/WidgetPreview.Rule" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView style="@style/WidgetPreview.Day" android:text="16" />
+        <TextView style="@style/WidgetPreview.Day" android:text="17" />
+        <TextView style="@style/WidgetPreview.Day" android:text="18" />
+        <TextView style="@style/WidgetPreview.Day" android:text="19" />
+        <TextView style="@style/WidgetPreview.Day" android:text="20" />
+        <TextView style="@style/WidgetPreview.Day" android:text="21" />
+        <TextView style="@style/WidgetPreview.Day" android:text="22" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="1dp">
+
+        <TextView
+            style="@style/WidgetPreview.Chip"
+            android:layout_weight="7"
+            android:background="#D9A441"
+            android:text="Segamat Mission Trip" />
+    </LinearLayout>
+
+    <!-- Week 5 — one day, so this is the chip that gets rounded -->
+    <View style="@style/WidgetPreview.Rule" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView style="@style/WidgetPreview.Day" android:text="23" />
+        <TextView style="@style/WidgetPreview.Day" android:text="24" />
+        <TextView style="@style/WidgetPreview.Day" android:text="25" />
+        <TextView style="@style/WidgetPreview.Day" android:text="26" />
+        <TextView style="@style/WidgetPreview.Day" android:text="27" />
+        <TextView style="@style/WidgetPreview.Day" android:text="28" />
+        <TextView style="@style/WidgetPreview.Day" android:text="29" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="1dp">
+
+        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+        <TextView
+            style="@style/WidgetPreview.Chip.OnDark"
+            android:layout_weight="1"
+            android:layout_marginStart="1dp"
+            android:layout_marginEnd="1dp"
+            android:background="@drawable/widget_preview_chip"
+            android:backgroundTint="#B05A4E"
+            android:text="Proposal" />
+        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="5" />
+    </LinearLayout>
+
+    <!-- Week 6 — September spilling in -->
+    <View style="@style/WidgetPreview.Rule" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView style="@style/WidgetPreview.Day" android:text="30" />
+        <TextView style="@style/WidgetPreview.Day" android:text="31" />
+        <TextView style="@style/WidgetPreview.Day.Outside" android:text="1" />
+        <TextView style="@style/WidgetPreview.Day.Outside" android:text="2" />
+        <TextView style="@style/WidgetPreview.Day.Outside" android:text="3" />
+        <TextView style="@style/WidgetPreview.Day.Outside" android:text="4" />
+        <TextView style="@style/WidgetPreview.Day.Outside" android:text="5" />
+    </LinearLayout>
+
+</LinearLayout>

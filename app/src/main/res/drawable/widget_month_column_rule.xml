@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A 1dp rule down the start edge of a month-widget day column.
+
+  A background rather than a child view: a Glance Row holds at most ten children, and seven days
+  plus six separating views would be thirteen — the last three days would silently vanish.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:gravity="start|fill_vertical" android:width="1dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/widget_month_grid" />
+        </shape>
+    </item>
+</layer-list>

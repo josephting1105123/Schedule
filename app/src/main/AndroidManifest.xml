@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <!-- Install-time, no prompt: read whether the account auto-syncs and whether a sync is running,
+         for the Settings sync card. -->
+    <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
+    <uses-permission android:name="android.permission.READ_SYNC_STATS" />
+
+    <!--
+      Used for the assistant's cloud calls (Gemini) and for downloading the optional on-device
+      model. No calendar data leaves the device except the text typed into the
+      assistant while a Gemini key is set, and no telemetry is ever sent.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Makes the calendar sync adapter's package visible, which Android 14+ requires before it
+         honours requestSync for an authority (ContentService.hasAuthorityAccess). -->
+    <queries>
+        <intent>
+            <action android:name="android.content.SyncAdapter" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".ScheduleApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Schedule">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          The month widget's day pop-up. Its own task (empty affinity) so it floats over the home
+          screen instead of bringing a running app forward behind it; out of Recents and out of
+          history because it is a glance, not a place to return to.
+        -->
+        <activity
+            android:name=".widget.DayAgendaActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Schedule.Popup" />
+
+        <receiver
+            android:name=".widget.TodayWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/today_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.MonthWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/month_widget_info" />
+        </receiver>
+    </application>
+</manifest>

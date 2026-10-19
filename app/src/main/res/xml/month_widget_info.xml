@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A month grid needs real width before the day numbers stop colliding, hence a 4x3 target rather
+  than the Today widget's 3x2. initialLayout points at Glance's own bundled placeholder: this
+  project has one res/layout/ file and it is the picker preview, not a widget layout.
+
+  The preview is declared twice on purpose. `previewLayout` is API 31+ and is the one that matters —
+  the picker inflates it and scales it to the cell size the widget will actually occupy.
+  `previewImage` is the fallback for 29 and 30, which this app still supports. Both are needed
+  because Glance 1.1.1 cannot render a preview of the widget itself, so neither comes for free.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="180dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="3"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/month_widget_description"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:previewLayout="@layout/month_widget_preview"
+    android:previewImage="@drawable/widget_month_preview"
+    android:updatePeriodMillis="1800000" />
