@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The month widget's card. A drawable rather than Glance's `cornerRadius`, which is API 31+ only:
+  on 29 and 30 the card would otherwise be a square slab on the wallpaper.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/widget_month_card" />
+    <corners android:radius="24dp" />
+</shape>

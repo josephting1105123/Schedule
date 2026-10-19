@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A tear-off calendar page reading "28", with two binder rings and a curled corner, after the
+     reference the user supplied (2026-09-28) minus its tick. Everything sits inside the adaptive
+     icon's 66dp safe circle (21..87), so no launcher mask clips it.
+
+     The number is fixed: a launcher icon is a static resource, and only the system's own calendar
+     gets a launcher hook to redraw today's date. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Shadow under the page. -->
+    <path
+        android:fillColor="#403730A3"
+        android:pathData="M37,37h36a7,7 0 0,1 7,7v28l-10,10h-33a7,7 0 0,1 -7,-7v-31a7,7 0 0,1 7,-7z" />
+
+    <!-- The page, its bottom-right corner cut where it curls. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M37,34h34a7,7 0 0,1 7,7v28l-11,11h-30a7,7 0 0,1 -7,-7v-32a7,7 0 0,1 7,-7z" />
+
+    <!-- Header band. -->
+    <path
+        android:fillColor="#FFE0E7FF"
+        android:pathData="M37,34h34a7,7 0 0,1 7,7v5h-48v-5a7,7 0 0,1 7,-7z" />
+
+    <!-- The curl. -->
+    <path
+        android:fillColor="#FFC7D2FE"
+        android:pathData="M78,69l-11,11v-7a4,4 0 0,1 4,-4z" />
+
+    <!-- Binder rings. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:strokeColor="#FF6366F1"
+        android:strokeWidth="1.6"
+        android:pathData="M42.5,28a2.5,2.5 0 0,1 2.5,2.5v8a2.5,2.5 0 0,1 -5,0v-8a2.5,2.5 0 0,1 2.5,-2.5z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:strokeColor="#FF6366F1"
+        android:strokeWidth="1.6"
+        android:pathData="M65.5,28a2.5,2.5 0 0,1 2.5,2.5v8a2.5,2.5 0 0,1 -5,0v-8a2.5,2.5 0 0,1 2.5,-2.5z" />
+
+    <!-- "2" -->
+    <path
+        android:strokeColor="#FF5B5BD6"
+        android:strokeWidth="4.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M38.5,56.5C38.5,53.2 41.2,51 44.5,51C47.8,51 50.5,53.2 50.5,56.3C50.5,59.3 48.6,61.2 46.2,63.4L38.5,72L50.8,72" />
+
+    <!-- "8" -->
+    <path
+        android:strokeColor="#FF5B5BD6"
+        android:strokeWidth="4.2"
+        android:pathData="M58.6,56.2a5,5 0 1,0 10,0a5,5 0 1,0 -10,0z" />
+    <path
+        android:strokeColor="#FF5B5BD6"
+        android:strokeWidth="4.2"
+        android:pathData="M57.8,66.4a5.8,5.8 0 1,0 11.6,0a5.8,5.8 0 1,0 -11.6,0z" />
+</vector>

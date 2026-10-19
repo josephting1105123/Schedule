@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Styles for layout/month_widget_preview.xml only.
+
+  The preview is a still of the widget written in plain views, because the widget itself is Glance
+  and Glance 1.1.1 has no way to render a preview (`providePreview` and `setWidgetPreviews` arrived
+  after it). Forty-two day cells written out longhand would be six attributes each; these carry the
+  repetition so the layout stays readable enough to keep in step with MonthWidget.kt by eye.
+
+  The dots are AAPT's implicit inheritance — `WidgetPreview.Day` extends `WidgetPreview` — so the
+  base below has to exist even though it sets only the one thing every child shares.
+-->
+<resources>
+
+    <style name="WidgetPreview">
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="WidgetPreview.Day">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/widget_preview_text</item>
+    </style>
+
+    <!-- A day spilling in from the neighbouring month: visible, receding. -->
+    <style name="WidgetPreview.Day.Outside">
+        <item name="android:textColor">@color/widget_preview_muted</item>
+    </style>
+
+    <!--
+      Today keeps its column's weight on the wrapper and puts the ring on the number inside it, the
+      same two-box arrangement DayNumber uses in the widget: a ring stretched to the full width of a
+      cell is an ellipse, not the circle the Month page draws.
+    -->
+    <style name="WidgetPreview.DayCell">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+    <style name="WidgetPreview.Today">
+        <item name="android:layout_width">20dp</item>
+        <item name="android:layout_height">20dp</item>
+        <item name="android:layout_gravity">center</item>
+        <item name="android:gravity">center</item>
+        <item name="android:background">@drawable/widget_month_today</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/widget_month_on_pill</item>
+    </style>
+
+    <style name="WidgetPreview.Weekday">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/widget_month_muted</item>
+    </style>
+
+    <style name="WidgetPreview.Chip">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">13dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:textSize">10sp</item>
+        <!-- The two ends of onChipColor's WCAG crossover, picked per band by hand here because a
+             still has no luminance to test. -->
+        <item name="android:textColor">#FFFAFAFA</item>
+        <item name="android:paddingStart">3dp</item>
+        <item name="android:paddingEnd">3dp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <style name="WidgetPreview.Chip.OnDark">
+        <item name="android:textColor">#FFFAFAFA</item>
+    </style>
+
+    <style name="WidgetPreview.Rule">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">1dp</item>
+        <item name="android:background">@color/widget_preview_rule</item>
+    </style>
+
+    <style name="WidgetPreview.HeaderButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:paddingStart">6dp</item>
+        <item name="android:paddingEnd">6dp</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:textColor">@color/widget_month_text</item>
+    </style>
+
+    <!-- The lavender "+" pill. -->
+    <style name="WidgetPreview.AddPill">
+        <item name="android:layout_width">52dp</item>
+        <item name="android:layout_height">30dp</item>
+        <item name="android:layout_marginStart">8dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:background">@drawable/widget_month_add_pill</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:textColor">@color/widget_month_on_pill</item>
+    </style>
+
+</resources>

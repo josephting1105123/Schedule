@@ -1,0 +1,29 @@
+# Build output
+build/
+app/build/
+.gradle/
+.kotlin/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# The model is 529 MB and deliberately not shipped — see NOTICE.md.
+*.task
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local tooling
+.impeccable/
+skill-observations/

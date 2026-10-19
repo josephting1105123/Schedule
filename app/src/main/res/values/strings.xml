@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Schedule</string>
+    <string name="widget_description">Today\'s remaining events at a glance.</string>
+    <string name="month_widget_description">The month, with your events on it.</string>
+</resources>

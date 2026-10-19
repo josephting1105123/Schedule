@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose-only app: this style exists solely for the manifest/window startup frame.
+         All real theming happens in ui/theme/Theme.kt (AppTheme). -->
+    <style name="Theme.Schedule" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+
+    <!-- The month widget's day pop-up: a transparent window that draws its own scrim and card
+         (DayAgendaActivity), so the home screen stays visible behind it. No window animation: the
+         card fades and scales in and out in Compose, and a system transition on top of that would
+         either double it or, on close, cut it short. -->
+    <style name="Theme.Schedule.Popup" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+</resources>

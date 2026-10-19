@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches AppColors LightBackground; night variant overrides. -->
+    <color name="window_background">#F8FAFC</color>
+
+    <!--
+      Widget colours that a shape drawable needs and WidgetTokens can't supply: Glance hands a
+      ColorProvider to a view, not to a drawable, so anything drawn as a shape resolves its day/night
+      pair through the resource system instead. Keep in step with WidgetTokens / ui/theme/Color.kt.
+    -->
+    <!-- What the widget preview is drawn in: the month widget's own fixed palette (see the
+         widget_month_* block below), as resources a static layout and a vector can both reach.
+         No night override — the widget is the same dark card in both themes. -->
+    <color name="widget_preview_surface">#FF352C3D</color>
+    <color name="widget_preview_text">#FFE8E0EA</color>
+    <color name="widget_preview_muted">#FF8E8794</color>
+    <color name="widget_preview_rule">#FF564D60</color>
+    <color name="widget_preview_accent">#FFD7BAF4</color>
+
+    <!--
+      The month widget's own palette, sampled from the reference design (a dark plum card with a
+      lavender "+" pill). Fixed rather than day/night: the reference is dark on a phone in light mode,
+      so the widget is one card on the wallpaper whatever the system theme. MonthWidgetColors in
+      WidgetTokens.kt carries the same values for Glance text; keep the two in step.
+    -->
+    <color name="widget_month_card">#FF352C3D</color>
+    <color name="widget_month_text">#FFE8E0EA</color>
+    <color name="widget_month_muted">#FFCFC4D3</color>
+    <color name="widget_month_grid">#FF564D60</color>
+    <color name="widget_month_pill">#FFD7BAF4</color>
+    <color name="widget_month_on_pill">#FF3C2454</color>
+</resources>
