@@ -27,3 +27,6 @@ Thumbs.db
 # Local tooling
 .impeccable/
 skill-observations/
+
+# Local release build output
+app/release/
