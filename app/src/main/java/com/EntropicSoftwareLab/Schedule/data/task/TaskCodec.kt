@@ -30,6 +30,25 @@ object TaskCodec {
         }.getOrDefault(emptyList())
     }
 
+    /**
+     * Like [decode], but refuses to guess: null when the blob is non-blank and doesn't parse, or any
+     * entry fails to decode. [decode] is right for showing the list, where dropping a bad entry is
+     * kinder than showing nothing. A sync must not do that: it reads "no tasks" as "the user deleted
+     * every task" and would delete them from the calendar (and from Jarvis) too.
+     */
+    fun decodeStrict(json: String?): List<Task>? {
+        if (json.isNullOrBlank()) return emptyList()
+        return runCatching {
+            val array = JSONArray(json)
+            val out = ArrayList<Task>(array.length())
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i) ?: return@runCatching null
+                out += decodeOne(obj) ?: return@runCatching null
+            }
+            out
+        }.getOrNull()
+    }
+
     private fun encodeOne(t: Task) = JSONObject()
         .put("id", t.id)
         .put("title", t.title)
@@ -37,6 +56,9 @@ object TaskCodec {
         .put("dueSecond", t.dueTime?.toSecondOfDay() ?: JSONObject.NULL)
         .put("notes", t.notes ?: JSONObject.NULL)
         .put("done", t.done)
+        .put("syncId", t.syncId ?: JSONObject.NULL)
+        .put("editedAt", t.editedAt)
+        .put("tickedAt", t.tickedAt)
 
     private fun decodeOne(o: JSONObject): Task? {
         val title = o.stringOrNull("title")?.takeIf { it.isNotBlank() } ?: return null
@@ -56,6 +78,9 @@ object TaskCodec {
                 ?.let { LocalTime.ofSecondOfDay(it.toLong()) },
             notes = o.stringOrNull("notes"),
             done = o.optBoolean("done", false),
+            syncId = o.stringOrNull("syncId"),
+            editedAt = o.optLong("editedAt", 0L),
+            tickedAt = o.optLong("tickedAt", 0L),
         )
     }
 

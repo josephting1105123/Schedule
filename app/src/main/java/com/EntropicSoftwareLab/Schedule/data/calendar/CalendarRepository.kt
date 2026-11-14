@@ -15,6 +15,8 @@ import com.EntropicSoftwareLab.Schedule.data.accounts.CalendarFilter
 import com.EntropicSoftwareLab.Schedule.data.birthday.Birthday
 import com.EntropicSoftwareLab.Schedule.data.birthday.BirthdayEventRow
 import com.EntropicSoftwareLab.Schedule.data.birthday.BirthdayEvents
+import com.EntropicSoftwareLab.Schedule.data.task.TaskEventFields
+import com.EntropicSoftwareLab.Schedule.data.task.TaskEventRow
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -338,9 +340,14 @@ class CalendarRepository(
         // Filtered before the dedupe on purpose: hiding one account's copy of a shared holiday must
         // leave the other account's copy, and collapsing first could keep the hidden one.
         // Rows of a calendar the phone does not sync are dropped even with no filter: they are stale,
-        // and left in they would show as ordinary events that a birthday hide cannot reach.
+        // and left in they would show as ordinary events that a birthday hide cannot reach. The same
+        // goes for the Tasks calendar: its rows are tasks, which never clash or take a lane, so they
+        // are dropped even with no filter set (CalendarFilter.usable leaves it out of `allowed`).
         val calendars = listCalendars()
-        if (!prefs.isUnfiltered || calendars.any { !CalendarFilter.synced(it) }) {
+        if (!prefs.isUnfiltered ||
+            calendars.any { !CalendarFilter.synced(it) } ||
+            calendars.any { CalendarFilter.isTaskCalendar(it) }
+        ) {
             val allowed = (if (includeUnticked) CalendarFilter.usable(calendars, prefs)
             else CalendarFilter.shown(calendars, prefs)).map { it.id }.toSet()
             out.retainAll { it.calendarId in allowed }
@@ -898,6 +905,153 @@ class CalendarRepository(
             if (ok) onWrite()
             ok
         }
+
+    // ---- the Tasks calendar (Jarvis sync) ----------------------------------
+
+    /**
+     * The calendar tasks are mirrored to: one named "Tasks" ([CalendarFilter.isTaskCalendar]) that
+     * the user can write to, on an added account. Null when there is none, and tasks stay on the
+     * phone until there is.
+     *
+     * Its own Calendars query, not [listCalendars], which only returns `VISIBLE = 1` rows: the user
+     * may untick the calendar in Google Calendar to keep it off their screen, and it must still
+     * sync. A calendar the phone does not sync ([CalendarFilter.synced], i.e. `SYNC_EVENTS = 0` on a
+     * Google account) is skipped: its rows never travel, so mirroring to it would report success
+     * while nothing reached Jarvis. If several match, a synced account's beats a LOCAL one, then
+     * the lowest id.
+     */
+    suspend fun taskCalendar(): CalendarInfo? = withContext(io) {
+        val projection = arrayOf(
+            CalendarContract.Calendars._ID,
+            CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+            CalendarContract.Calendars.ACCOUNT_NAME,
+            CalendarContract.Calendars.CALENDAR_COLOR,
+            CalendarContract.Calendars.IS_PRIMARY,
+            CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL,
+            CalendarContract.Calendars.ACCOUNT_TYPE,
+            CalendarContract.Calendars.OWNER_ACCOUNT,
+            CalendarContract.Calendars.SYNC_EVENTS,
+        )
+        val found = mutableListOf<CalendarInfo>()
+        resolver.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            projection,
+            "${CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL} >= ?",
+            arrayOf(CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR.toString()),
+            "${CalendarContract.Calendars._ID} ASC",
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val access = c.getInt(5)
+                val info = CalendarInfo(
+                    id = c.getLong(0),
+                    displayName = c.getString(1) ?: "(unnamed)",
+                    accountName = c.getString(2) ?: "",
+                    accountType = c.getString(6) ?: "",
+                    color = c.getInt(3),
+                    isPrimary = c.getInt(4) == 1,
+                    isWritable = access >= CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR,
+                    ownerAccount = c.getString(7) ?: "",
+                    syncEvents = c.getInt(8) == 1,
+                )
+                if (CalendarFilter.isTaskCalendar(info)) found += info
+            }
+        }
+        CalendarFilter.inAddedAccounts(found, accountPrefs.first())
+            .filter { CalendarFilter.synced(it) }
+            .sortedWith(
+                compareBy<CalendarInfo> { it.accountType == CalendarContract.ACCOUNT_TYPE_LOCAL }
+                    .thenBy { it.id },
+            )
+            .firstOrNull()
+    }
+
+    /**
+     * Every live task row on [calendarId], or null when the provider could not be read. The Events
+     * table, because a task is one row with no recurrence. **Null is not empty**: the caller aborts
+     * on null, since reading "no tasks" after a failed query would look like every task having been
+     * deleted in Google and wipe them all from the phone.
+     */
+    suspend fun taskEventRows(calendarId: Long): List<TaskEventRow>? = withContext(io) {
+        runCatching {
+            val projection = arrayOf(
+                CalendarContract.Events._ID,
+                CalendarContract.Events.TITLE,
+                CalendarContract.Events.DESCRIPTION,
+                CalendarContract.Events.ALL_DAY,
+                CalendarContract.Events.DTSTART,
+                CalendarContract.Events.EVENT_TIMEZONE,
+            )
+            val out = mutableListOf<TaskEventRow>()
+            val cursor = resolver.query(
+                CalendarContract.Events.CONTENT_URI,
+                projection,
+                "${CalendarContract.Events.CALENDAR_ID} = ? AND ${CalendarContract.Events.DELETED} = 0",
+                arrayOf(calendarId.toString()),
+                "${CalendarContract.Events._ID} ASC",
+            ) ?: return@runCatching null
+            cursor.use { c ->
+                while (c.moveToNext()) {
+                    out += TaskEventRow(
+                        eventId = c.getLong(0),
+                        title = c.getString(1).orEmpty(),
+                        description = c.getString(2)?.takeIf { it.isNotBlank() },
+                        allDay = c.getInt(3) == 1,
+                        startMillis = c.getLong(4),
+                        timezone = c.getString(5)?.takeIf { it.isNotBlank() },
+                    )
+                }
+            }
+            out.toList()
+        }.getOrNull()
+    }
+
+    /**
+     * Writes a task to [calendarId] as a one-off event and returns its id, or null if the provider
+     * rejected it. A one-off carries `DTEND` and no `RRULE`/`DURATION`; writing both is rejected.
+     *
+     * The three task writes do **not** call `onWrite`: it redraws the widgets and requests a sync
+     * per call, tasks are not on any widget, and `TaskSync` asks for one sync after the whole pass.
+     */
+    suspend fun insertTaskEvent(calendarId: Long, fields: TaskEventFields): Long? = withContext(io) {
+        val values = ContentValues().apply {
+            put(CalendarContract.Events.CALENDAR_ID, calendarId)
+            put(CalendarContract.Events.TITLE, fields.title)
+            putOrNull(CalendarContract.Events.DESCRIPTION, fields.description)
+            put(CalendarContract.Events.ALL_DAY, if (fields.allDay) 1 else 0)
+            put(CalendarContract.Events.DTSTART, fields.startMillis)
+            put(CalendarContract.Events.DTEND, fields.endMillis)
+            put(CalendarContract.Events.EVENT_TIMEZONE, fields.timezone)
+        }
+        resolver.insert(CalendarContract.Events.CONTENT_URI, values)?.lastPathSegment?.toLongOrNull()
+    }
+
+    /**
+     * Rewrites the columns a task owns on its event. Never [eventValues], which nulls every optional
+     * column and would wipe a place or colour the user gave the event in Google Calendar. Does not
+     * call `onWrite`; see [insertTaskEvent].
+     */
+    suspend fun updateTaskEvent(eventId: Long, fields: TaskEventFields): Boolean = withContext(io) {
+        val values = ContentValues().apply {
+            put(CalendarContract.Events.TITLE, fields.title)
+            putOrNull(CalendarContract.Events.DESCRIPTION, fields.description)
+            put(CalendarContract.Events.ALL_DAY, if (fields.allDay) 1 else 0)
+            put(CalendarContract.Events.DTSTART, fields.startMillis)
+            put(CalendarContract.Events.DTEND, fields.endMillis)
+            put(CalendarContract.Events.EVENT_TIMEZONE, fields.timezone)
+            // A task is a one-off: if someone made its event recurring in Google, write it back as
+            // one. DTEND beside a leftover DURATION is rejected, so one of the pair is always null.
+            putNull(CalendarContract.Events.RRULE)
+            putNull(CalendarContract.Events.DURATION)
+        }
+        val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId)
+        resolver.update(uri, values, null, null) > 0
+    }
+
+    /** Deletes a task's event; true if a row was removed. Does not call `onWrite`; see [insertTaskEvent]. */
+    suspend fun deleteTaskEvent(eventId: Long): Boolean = withContext(io) {
+        val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId)
+        resolver.delete(uri, null, null) > 0
+    }
 
     /**
      * Emits once immediately, then whenever what a read would return may have changed: any calendar

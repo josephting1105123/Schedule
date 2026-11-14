@@ -105,14 +105,15 @@ class TaskEditorViewModel(
         _state.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
             val task = Task(
-                id = editId ?: System.currentTimeMillis(),
+                // A new task gets its id from the repository, which knows which are taken.
+                id = editId ?: 0L,
                 title = current.title.trim(),
                 due = current.due,
                 dueTime = current.time.takeIf { current.hasTime },
                 notes = current.notes.trim().takeIf { it.isNotBlank() },
                 done = current.done,
             )
-            runCatching { repository.upsert(task) }
+            runCatching { if (editId == null) repository.add(task) else repository.upsert(task) }
                 .onSuccess { _state.update { it.copy(saving = false, finished = true) } }
                 .onFailure { e ->
                     _state.update { it.copy(saving = false, error = e.message ?: "Couldn't save it.") }
