@@ -15,8 +15,10 @@ data class PaletteColor(val name: String, val argb: Int)
  * The six [brand] entries back the automatic per-day assignment, chosen as six clearly different
  * Google hues. Google's paler colours (Banana, Citron, Mango, Avocado, Cherry Blossom, Birch) are
  * left out of this list because they barely stand off a white card; they remain pickable in the
- * editor, where the user chooses them knowingly. Text on every fill is black or white by
- * `onChipColor`, and [EventColorPaletteTest] requires the better of the two to clear 4.5:1.
+ * editor, where the user chooses them knowingly. Events are drawn as a tint with ink text
+ * (`ChipColors.eventTint`/`eventInk`), and [EventColorPaletteTest] pins that ink to 4.5:1 on its
+ * tint; the same test still checks solid-fill contrast (black or white by `onChipColor`) for the
+ * widget and dots.
  */
 object EventColorPalette {
 

@@ -1,5 +1,10 @@
 package com.EntropicSoftwareLab.Schedule.ui.theme
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import com.EntropicSoftwareLab.Schedule.data.calendar.GoogleCalendarColors
+import com.EntropicSoftwareLab.Schedule.ui.components.eventInk
+import com.EntropicSoftwareLab.Schedule.ui.components.eventTint
 import kotlin.math.pow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -11,8 +16,10 @@ import org.junit.Test
  *
  * Pins that brand leads the picker, that consecutive brand colours differ enough to tell apart, that
  * no two colours collide, that every colour is fully opaque, that `nameFor` round-trips, that the
- * ink `onChipColor` picks clears 4.5:1 (WCAG AA) on every colour, and that every colour still stands
- * off the white card. White text itself is no longer required to clear 4.5:1 — see EventColorPalette.
+ * ink `onChipColor` picks clears 4.5:1 (WCAG AA) on every colour as a solid fill (the widget and
+ * dots), that `eventInk` clears 4.5:1 on its own `eventTint` (how event chips and blocks are drawn),
+ * and that every colour still stands off the white card. White text itself is no longer required to
+ * clear 4.5:1 — see EventColorPalette.
  */
 class EventColorPaletteTest {
 
@@ -60,9 +67,10 @@ class EventColorPaletteTest {
 
     @Test
     fun `text on every colour reads at AA`() {
-        // Every surface that writes on an event fill picks black or white ink by `onChipColor`, so
-        // what has to clear WCAG AA (4.5:1) is the better of the two inks, not white specifically.
-        // Holding white to 4.5:1 is what used to force every hue down to a dark shade.
+        // Solid fills (the month widget, dots) pick black or white ink by `onChipColor`, so what has
+        // to clear WCAG AA (4.5:1) is the better of the two inks, not white specifically. Holding
+        // white to 4.5:1 is what used to force every hue down to a dark shade. Event chips and
+        // blocks are tints, covered by the next test.
         EventColorPalette.colors.forEach { colour ->
             val fill = relativeLuminance(colour.argb)
             val best = maxOf(
@@ -74,6 +82,33 @@ class EventColorPaletteTest {
                     "${"%.2f".format(best)}:1 — must be >= 4.5. Move it lighter or darker along its hue.",
                 best >= 4.5,
             )
+        }
+    }
+
+    @Test
+    fun `event ink on its own tint reads at AA`() {
+        // Chips draw eventTint(c, 0.22f), the Week/Today blocks 0.18f; the label is eventInk(c).
+        // Colours checked: the palette, every one of Google's 24 (by name, via the public
+        // PALETTE_ORDER/argbForName, since DRAWN_RGB itself is private) and each of those after
+        // displayShade, which is what EventColorResolver actually hands the drawing code (the
+        // softer drawn tones of the classic 11).
+        val candidates = (
+            EventColorPalette.colors.map { it.argb } +
+                GoogleCalendarColors.PALETTE_ORDER.mapNotNull { GoogleCalendarColors.argbForName(it) }
+            ).flatMap { listOf(it, GoogleCalendarColors.displayShade(it)) }.distinct()
+        assertTrue(candidates.size >= 24)
+        candidates.forEach { argb ->
+            val colour = Color(argb)
+            listOf(0.18f, 0.22f).forEach { fraction ->
+                val ratio = contrastRatio(
+                    relativeLuminance(eventInk(colour).toArgb()),
+                    relativeLuminance(eventTint(colour, fraction).toArgb()),
+                )
+                assertTrue(
+                    "#${hex(argb)} ink on its $fraction tint is only ${"%.2f".format(ratio)}:1, must be >= 4.5",
+                    ratio >= 4.5,
+                )
+            }
         }
     }
 

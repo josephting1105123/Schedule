@@ -23,14 +23,14 @@ import androidx.compose.ui.graphics.Color
 internal object WidgetTokens {
     val LightCard = Color(0xFFFFFFFF)
 
-    private val LightTextPrimary = Color(0xFF0F172A)
-    private val LightTextSecondary = Color(0xFF475569)
+    private val LightTextPrimary = Color(0xFF18202B)
+    private val LightTextSecondary = Color(0xFF4F5A6B)
 
-    /** WCAG-safe indigo accent text on the card (>=4.5:1). Matches `AppColors.greenText`. */
-    private val LightGreenText = Color(0xFF4338CA)
+    /** WCAG-safe blue accent text on the card (>=4.5:1). Matches `AppColors.greenText`. */
+    private val LightGreenText = Color(0xFF1F5AE6)
 
-    /** Indigo accent fill. Matches `AppColors.green`. Name is historical, see `AppColors.green`. */
-    val LightGreen = Color(0xFF4F46E5)
+    /** Blue accent fill. Matches `AppColors.green`. Name is historical, see `AppColors.green`. */
+    val LightGreen = Color(0xFF2F6BFF)
 
     /**
      * Deprecated alias for [LightGreen], kept only because `MonthWidget.kt` still reads it as the
@@ -42,11 +42,11 @@ internal object WidgetTokens {
 
     // 1dp glass border on the app's cards; on the widget it rules one week off from the next, the
     // same job MonthChipLayer gives it on the Month page.
-    private val LightHairline = Color(0x0F0F172A)   // slate-900 @ 6%
+    private val LightHairline = Color(0x1418202B)   // ink @ 8%
 
     // A day from the neighbouring month stays readable and recedes — DayCell's
     // `textSecondary.copy(alpha = 0.4f)`, flattened here because Glance has no alpha modifier.
-    private val LightOutOfMonth = Color(0x66475569)
+    private val LightOutOfMonth = Color(0x664F5A6B)
 
     // Text drawn *on* an event's own colour, which is not the card colour. A band can be any colour
     // the user picked, so the month widget chooses between these by the fill's luminance rather than

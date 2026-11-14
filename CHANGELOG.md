@@ -2,6 +2,14 @@
 
 The newest version is at the top.
 
+## 1.3.5
+
+### Colours
+- New palette: a softer off-white background, darker ink text and a bright blue accent.
+- Events are drawn as a pale wash of their colour with a solid stripe down the left edge and dark
+  text, on Today, Week and Month.
+- Today's hour grid puts each hour's number inside its cell, with the events in a bar beneath.
+
 ## 1.3.4
 
 ### Tasks

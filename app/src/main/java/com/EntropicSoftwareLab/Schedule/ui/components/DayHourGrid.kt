@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -40,11 +41,24 @@ import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
 import kotlin.math.floor
 
 /**
- * Twelve cells across a phone leaves each one around 25dp wide, so a taller cell would read as a
- * column rather than a square. Below the 48dp touch guidance, like the month grid's day cells —
- * the details sheet and the agenda below both give the same events a full-size target.
+ * Lane 0 is one 40dp row: the two-digit hour number sits at the top-left of the cell and a 16dp
+ * event bar near the bottom, so a cell reads as a labelled slot rather than needing a scale above
+ * it. Below the 48dp touch guidance, like the month grid's day cells — the details sheet and the agenda
+ * below both give the same events a full-size target.
  */
-private val CELL_HEIGHT = 32.dp
+private val LANE0_HEIGHT = 40.dp
+
+/**
+ * A further lane (a clash row) has no label, only a centred bar, so it is 22dp: the bar's height
+ * plus a little air.
+ */
+private val EXTRA_LANE_HEIGHT = 22.dp
+
+/** Height of an event bar. Lane 0 puts it under the hour number; further lanes centre it. */
+private val BAR_HEIGHT = 16.dp
+
+/** Space between the bottom of a lane-0 cell and its bar. */
+private val BAR_BOTTOM_INSET = 3.dp
 
 /** A deadline is a moment, so its mark is a hairline. Wide enough to see on a ~25dp cell, no more. */
 private val DEADLINE_TICK_WIDTH = 3.dp
@@ -56,12 +70,14 @@ private val CELL_GAP = 2.dp
 private val MIN_TITLED_BAR_WIDTH = 30.dp
 
 /**
- * A day as 24 hour cells: midnight to noon on the top half, noon to midnight below.
+ * A day as 24 hour cells: midnight to noon on the top half, noon to midnight below. Each cell
+ * carries its own two-digit hour number inside it, top-left.
  *
  * Events that clash get their own lane — a second row of the same 12 hours — rather than splitting
  * an hour between them. Within a lane, an event is one bar from its start to its end, crossing the
  * gaps between cells (see [HourGrid.runs]), and titled where it's wide enough; a meeting ending at
- * half past stops halfway across that hour's cell. The two rules keep
+ * half past stops halfway across that hour's cell. A bar is a pale tint of the event's colour with a
+ * solid bar on its leading edge and dark text, rather than a solid fill. The two rules keep
  * the reading unambiguous: horizontal extent always means time, and a stacked row always means a
  * clash.
  *
@@ -88,29 +104,11 @@ fun DayHourGrid(
     currentHour: Int? = null,
 ) {
     val d = AppThemeTokens.dimens
-    // Each half carries its own scale, sitting directly above the cells it describes. One shared
-    // scale between the two rows reads as a single 24-hour axis, which makes both rows look like
-    // they span the whole day.
+    // Two separate half-day rows. One 24-cell row would read as one axis; two rows of twelve make
+    // it plain that each spans half the day.
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(d.spaceMd)) {
-        HalfDaySection(lanes, colorFor, onHourTap, taskMarks, hours = 0 until 12, currentHour = currentHour)
-        HalfDaySection(lanes, colorFor, onHourTap, taskMarks, hours = 12 until 24, currentHour = currentHour)
-    }
-}
-
-/** One half of the day: its hour scale, then the lane rows beneath it. */
-@Composable
-private fun HalfDaySection(
-    lanes: List<List<List<HourGrid.HourSlice>>>,
-    colorFor: (EventInstance) -> Color,
-    onHourTap: (hour: Int, cellIsFree: Boolean) -> Unit,
-    taskMarks: List<List<TaskGrid.Mark>>,
-    hours: IntRange,
-    currentHour: Int?,
-) {
-    val d = AppThemeTokens.dimens
-    Column(verticalArrangement = Arrangement.spacedBy(d.spaceXxs)) {
-        HalfDayLabels(hours, currentHour)
-        HalfDay(lanes, colorFor, onHourTap, taskMarks, hours = hours, currentHour = currentHour)
+        HalfDay(lanes, colorFor, onHourTap, taskMarks, hours = 0 until 12, currentHour = currentHour)
+        HalfDay(lanes, colorFor, onHourTap, taskMarks, hours = 12 until 24, currentHour = currentHour)
     }
 }
 
@@ -143,7 +141,7 @@ private fun HalfDay(
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(CELL_HEIGHT),
+                    .height(if (laneIndex == 0) LANE0_HEIGHT else EXTRA_LANE_HEIGHT),
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
@@ -155,6 +153,10 @@ private fun HalfDay(
                             slices = slices,
                             marks = laneMarks.getOrElse(hour) { emptyList() },
                             hour = hour,
+                            // Only the top lane is numbered: the further lanes repeat the same twelve
+                            // hours directly beneath it.
+                            showLabel = laneIndex == 0,
+                            isNow = hour == currentHour,
                             // The *cell's* own emptiness, not the hour's. An hour covered by an
                             // all-day camp in lane 0 still has empty cells in the lanes above it,
                             // and tapping one of those means "put something here" — answering that
@@ -176,6 +178,7 @@ private fun HalfDay(
                     hours = hours,
                     colorFor = colorFor,
                     nowOffset = currentHour?.let { it - hours.first }?.takeIf { it in 0 until hours.count() },
+                    isTopLane = laneIndex == 0,
                     modifier = Modifier.matchParentSize(),
                 )
             }
@@ -188,6 +191,10 @@ private fun HalfDay(
  * ends — across the gaps between cells, so a two-hour lecture reads as one block and not two — then
  * the deadline ticks, then the outline marking the current hour.
  *
+ * A bar is [BAR_HEIGHT] tall, not the lane's height: in the top lane it sits at the foot of the cell
+ * under the hour number, in a further lane it is centred. It is a pale tint of the event's colour
+ * with a solid [EVENT_EDGE_WIDTH] bar on its left edge and ink text, left-aligned.
+ *
  * Nothing here takes pointer input, so a tap goes straight through to the cell underneath.
  */
 @Composable
@@ -197,11 +204,13 @@ private fun LaneOverlay(
     hours: IntRange,
     colorFor: (EventInstance) -> Color,
     nowOffset: Int?,
+    isTopLane: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
     val shape = RoundedCornerShape(d.radiusXs)
+    val barShape = RoundedCornerShape(4.dp)
     val count = hours.count()
     BoxWithConstraints(modifier) {
         val cellWidth = (maxWidth - CELL_GAP * (count - 1)) / count
@@ -221,23 +230,36 @@ private fun LaneOverlay(
             val fill = colorFor(run.event)
             Box(
                 Modifier
+                    .align(if (isTopLane) Alignment.BottomStart else Alignment.CenterStart)
                     .offset(x = left)
+                    .padding(bottom = if (isTopLane) BAR_BOTTOM_INSET else 0.dp)
                     .width(width)
-                    .fillMaxHeight()
-                    .clip(shape)
-                    .background(fill),
-                contentAlignment = Alignment.Center,
+                    .height(BAR_HEIGHT)
+                    .clip(barShape)
+                    .background(eventTint(fill)),
+                contentAlignment = Alignment.CenterStart,
             ) {
+                // The solid edge, clipped by the bar's own shape so its left corners stay round.
+                Box(
+                    Modifier
+                        .width(EVENT_EDGE_WIDTH)
+                        .fillMaxHeight()
+                        .background(fill),
+                )
                 // Only where there's room for a few letters: an 8dp sliver with "…" in it is noise.
                 if (width >= MIN_TITLED_BAR_WIDTH) {
                     Text(
                         text = run.event.title,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
-                        color = onChipColor(fill),
-                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 10.5.sp,
+                            lineHeight = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                        color = colors.textPrimary,
+                        textAlign = TextAlign.Start,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 4.dp),
+                        modifier = Modifier.padding(start = 6.dp, end = 3.dp),
                     )
                 }
             }
@@ -270,7 +292,7 @@ private fun LaneOverlay(
                     .offset(x = (cellWidth + CELL_GAP) * offset)
                     .width(cellWidth)
                     .fillMaxHeight()
-                    .border(d.hairlineWidth * 1.5f, colors.greenText, shape),
+                    .border(d.hairlineWidth * 1.5f, colors.green, shape),
             )
         }
     }
@@ -281,6 +303,8 @@ private fun HourCell(
     slices: List<HourGrid.HourSlice>,
     marks: List<TaskGrid.Mark>,
     hour: Int,
+    showLabel: Boolean,
+    isNow: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -304,38 +328,28 @@ private fun HourCell(
         }
     }
 
-    // The empty hour only: the event bars and ticks are drawn over it by LaneOverlay.
+    // The empty hour only: the event bars and ticks are drawn over it by LaneOverlay. The grid sits
+    // in a white card, so the page background gives the faint cell; the current hour takes the tint.
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(d.radiusXs))
-            .background(colors.accentMuted)
+            .background(if (isNow) colors.accentMuted else colors.background)
             .clickable(onClick = onClick)
             .semantics { contentDescription = label },
-    )
-}
-
-/**
- * The scale for one half-day row: every hour numbered, each label sharing its cell's weight so it
- * sits directly over the cell it names. Numbers run 0–23 rather than am/pm pairs, matching the
- * 24-hour clock the agenda and the details sheet use — and making it impossible to read a row as
- * anything but the twelve hours it covers.
- */
-@Composable
-private fun HalfDayLabels(hours: IntRange, currentHour: Int?) {
-    val colors = AppThemeTokens.colors
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        hours.forEach { hour ->
+        if (showLabel) {
             Text(
-                text = hour.toString(),
-                style = MaterialTheme.typography.bodySmall.merge(TabularFigures),
-                color = if (hour == currentHour) colors.greenText else colors.textSecondary,
-                textAlign = TextAlign.Center,
+                text = "%02d".format(hour),
+                style = MaterialTheme.typography.bodySmall.merge(TabularFigures).copy(
+                    fontSize = 9.5.sp,
+                    lineHeight = 10.sp,
+                ),
+                color = if (isNow) colors.greenText else colors.textSecondary,
+                fontWeight = if (isNow) FontWeight.SemiBold else null,
                 maxLines = 1,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 3.dp, top = 3.dp),
             )
         }
     }

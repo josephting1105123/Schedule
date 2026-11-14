@@ -22,13 +22,13 @@ data class AppColors(
     val bottomSheet: Color,
     /**
      * The app's one accent fill. The name is historical — this used to be a brand green; the accent
-     * is indigo now (`#4F46E5`) and green is reserved for [success] alone. Renaming this property
+     * is blue now (`#2F6BFF`) and green is reserved for [success] alone. Renaming this property
      * would touch every screen that reads it, so the name stays and the colour changed underneath it.
      */
     val green: Color,
     /**
-     * The WCAG-safe form of [green] for text / small icons (7.9:1 on white). Same historical-name
-     * caveat as [green] — this is indigo text, not green text.
+     * The WCAG-safe form of [green] for text / small icons (blue `#1F5AE6`, ~5.7:1 on white). Same
+     * historical-name caveat as [green] — this is blue text, not green text.
      */
     val greenText: Color,
     val success: Color,
@@ -43,7 +43,7 @@ data class AppColors(
     val gradientBottom: Color,  // root surface gradient stop B
     /**
      * [green] at low alpha for chip / halo backgrounds. Historical name, same as [green] — this is
-     * indigo-50 now, not a green tint.
+     * blue at 12% on white (`#E6EDFF`) now, not a green tint.
      */
     val accentMuted: Color,
 )

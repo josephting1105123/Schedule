@@ -43,6 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -75,7 +77,9 @@ import com.EntropicSoftwareLab.Schedule.ui.components.ScreenHeader
 import com.EntropicSoftwareLab.Schedule.ui.components.SectionCard
 import com.EntropicSoftwareLab.Schedule.ui.components.TodayPill
 import com.EntropicSoftwareLab.Schedule.ui.components.asCalendarColor
-import com.EntropicSoftwareLab.Schedule.ui.components.onChipColor
+import com.EntropicSoftwareLab.Schedule.ui.components.EVENT_EDGE_WIDTH
+import com.EntropicSoftwareLab.Schedule.ui.components.eventInk
+import com.EntropicSoftwareLab.Schedule.ui.components.eventTint
 import com.EntropicSoftwareLab.Schedule.ui.screens.dashboard.EventsSheet
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
@@ -605,7 +609,9 @@ private fun TimetableGrid(
  * breaks as "Orien- / tation" rather than mid-syllable without a mark.
  *
  * Times read "1300 / - / 1400" on three lines: a column is too narrow for "13:00–14:00", and wrapped
- * it read as "13:00–14" over ":00". Text on the fill is black or white by [onChipColor].
+ * it read as "13:00–14" over ":00". The block is a pale tint of the event colour with a solid edge bar
+ * on its left; the title is in ink, the times and place in the event's own hue darkened toward ink
+ * ([eventInk]).
  */
 @Composable
 private fun EventBlock(
@@ -615,7 +621,8 @@ private fun EventBlock(
     modifier: Modifier = Modifier,
 ) {
     val event = block.event
-    val ink = onChipColor(fill)
+    val ink = AppThemeTokens.colors.textPrimary
+    val detailInk = eventInk(fill)
     val start = clockLabel(block.startMinute)
     val end = clockLabel(block.endMinute)
     val titleStyle = MaterialTheme.typography.bodySmall.merge(BLOCK_TITLE_STYLE)
@@ -625,10 +632,19 @@ private fun EventBlock(
     BoxWithConstraints(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(fill)
+            .background(eventTint(fill, 0.18f))
+            // The solid edge, drawn inside the clip so its outer corners follow the block's.
+            .drawBehind {
+                drawRect(fill, size = Size(EVENT_EDGE_WIDTH.toPx(), size.height))
+            }
             .clickable(onClickLabel = "Show ${event.title}", onClick = onClick)
             .semantics { contentDescription = "${event.title}, $start to $end" }
-            .padding(horizontal = 2.dp, vertical = BLOCK_VERTICAL_PADDING),
+            .padding(
+                start = EVENT_EDGE_WIDTH + 2.dp,
+                end = 2.dp,
+                top = BLOCK_VERTICAL_PADDING,
+                bottom = BLOCK_VERTICAL_PADDING,
+            ),
     ) {
         val density = LocalDensity.current
         val titleLine = with(density) { BLOCK_TITLE_STYLE.lineHeight.toDp() }
@@ -664,7 +680,7 @@ private fun EventBlock(
                 Text(
                     text = line,
                     style = timeStyle,
-                    color = ink.copy(alpha = 0.85f),
+                    color = detailInk,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                 )
@@ -675,7 +691,7 @@ private fun EventBlock(
                     Text(
                         text = it,
                         style = textStyle,
-                        color = ink.copy(alpha = 0.85f),
+                        color = detailInk,
                         textAlign = TextAlign.Center,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),

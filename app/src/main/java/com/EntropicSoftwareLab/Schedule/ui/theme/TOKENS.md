@@ -1,7 +1,7 @@
 # Design Tokens — Source of Truth (Schedule)
 
-Light-only, indigo accent on a light slate base — "glass" design system (Linear/Vercel aesthetic),
-built on the 60-30-10 rule: neutral background/card ≈60%, slate text/structure ≈30%, one indigo
+Light-only, blue accent on a light ink base — "glass" design system, palette taken from the user's Jarvis app (2026-11-15),
+built on the 60-30-10 rule: neutral background/card ≈60%, ink text/structure ≈30%, one blue
 accent ≈10%. The app had a dark theme; it was removed (the user's call) rather than kept unused, so
 there is exactly one palette now. This file is the **single human-readable source of truth**.
 
@@ -45,8 +45,8 @@ family — `brand` (`Blue`, `Vermillion`, `Teal`, `Plum`, `Ochre`, `Slate`) lead
 the automatic per-day assignment, followed by `Sky`, `Rose`, `Maroon`, `Green`, `Olive`, `Violet`.
 Hues are drawn from two colour-blind-aware categorical sources — Okabe & Ito's "Color Universal
 Design" set and IBM Carbon's data-visualisation palette — rather than tuned by eye, and deliberately
-include only one green (`#15803D`, identical to `success`), never a green ramp: the app's one green
-is reserved for that semantic meaning, and no other event colour competes with the indigo accent for
+include only one green (`#15803D`, a close neighbour of `success` `#0A7F5C`), never a green ramp: the app's one green
+is reserved for that semantic meaning, and no other event colour competes with the blue accent for
 attention either.
 
 The app is light-only, so an event fill only ever sits on one card, `#FFFFFF`, and every colour clears
@@ -75,32 +75,32 @@ no dark theme.
 
 | Token | Value | Compose val | Clipboard Share XML attr |
 |---|---|---|---|
-| background | `#F8FAFC` | `Light*` | `appBackgroundColor` |
+| background | `#F7F8FC` | `Light*` | `appBackgroundColor` |
 | card | `#FFFFFF` | `Light*` | `appCardColor` |
-| surfaceElevated | `#F8FAFC` | `Light*` | `appSurfaceElevated` |
-| textPrimary | `#0F172A` | `Light*` | `appTextPrimaryColor` |
-| textSecondary | `#475569` | `Light*` | `appTextSecondaryColor` |
-| divider | `#E2E8F0` | `Light*` | `appDividerColor` |
-| hairline | `#0F172A @6%` (`0x0F0F172A`) | `Light*` | `appHairline` |
+| surfaceElevated | `#F7F8FC` | `Light*` | `appSurfaceElevated` |
+| textPrimary | `#18202B` | `Light*` | `appTextPrimaryColor` |
+| textSecondary | `#4F5A6B` | `Light*` | `appTextSecondaryColor` |
+| divider | `#ECEDEE` | `Light*` | `appDividerColor` |
+| hairline | `#18202B @8%` (`0x1418202B`) | `Light*` | `appHairline` |
 | scrim | `#000000 @40%` (`0x66000000`) | `Light*` | `appScrim` |
 | navBar | `#FFFFFF` | `Light*` | `appNavBarColor` |
-| navIcon | `#475569` | `Light*` | `appNavIconColor` |
+| navIcon | `#4F5A6B` | `Light*` | `appNavIconColor` |
 | bottomSheet | `#FFFFFF` | `Light*` | `appBottomSheetColor` |
 | gradientTop | `#FFFFFF` | `Light*` | — (Compose-only) |
-| gradientBottom | `#F1F5F9` | `Light*` | — (Compose-only) |
-| green (fill) — **indigo accent, name is historical** | `#4F46E5` | `LightGreen` | `appGreen` |
-| greenText (WCAG) — **indigo, name is historical** | `#4338CA` | `LightGreenText` | `appGreenText` |
-| accentMuted — **indigo-50, name is historical** | `#EEF2FF` | `LightAccentMuted` | — (Compose-only) |
-| success | `#15803D` | `LightSuccess` | `appSuccess` |
-| info | `#0369A1` | `LightInfo` | `appInfo` |
-| warning | `#B45309` | `LightWarning` | `appWarning` |
-| error / destructive | `#B91C1C` | `LightError` | `appError` |
+| gradientBottom | `#F1F3F9` | `Light*` | — (Compose-only) |
+| green (fill) — **blue accent, name is historical** | `#2F6BFF` | `LightGreen` | `appGreen` |
+| greenText (WCAG) — **blue, name is historical** | `#1F5AE6` | `LightGreenText` | `appGreenText` |
+| accentMuted — **blue @12% on white, name is historical** | `#E6EDFF` | `LightAccentMuted` | — (Compose-only) |
+| success | `#0A7F5C` | `LightSuccess` | `appSuccess` |
+| info | `#1F5AE6` | `LightInfo` | `appInfo` |
+| warning | `#A8650A` | `LightWarning` | `appWarning` |
+| error / destructive | `#D93636` | `LightError` | `appError` |
 
-**The accent is indigo, not green.** `green`/`greenText`/`accentMuted` keep their names — renaming
+**The accent is blue, not green.** `green`/`greenText`/`accentMuted` keep their names — renaming
 them would touch every screen that reads `AppThemeTokens.colors.green` — but the colour underneath is
-indigo (`#4F46E5` fill, `4338CA` text, 7.9:1 on white). Green now names exactly one thing in this app,
-`success` (`#15803D`), and nothing else. **Accent discipline (unchanged in shape):** `green` = fill
-(white text ON it); `greenText` = text/link/small-icon form (≥4.5:1, here 7.9:1).
+blue (`#2F6BFF` fill, `#1F5AE6` text, ~5.7:1 on white). Green now names exactly one thing in this app,
+`success` (`#0A7F5C`), and nothing else. **Accent discipline (unchanged in shape):** `green` = fill
+(white text ON it); `greenText` = text/link/small-icon form (≥4.5:1, here ~5.7:1).
 
 ## Dimens
 

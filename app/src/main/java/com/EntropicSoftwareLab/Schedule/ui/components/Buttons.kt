@@ -37,7 +37,7 @@ fun AppButton(
         shape = RoundedCornerShape(d.radiusMd),
         colors = ButtonDefaults.buttonColors(
             containerColor = AppThemeTokens.colors.green,
-            // White on the indigo accent (6.3:1); the old dark ink was chosen for the green fill.
+            // White on the blue accent #2F6BFF (4.5:1); the old dark ink was chosen for the green fill.
             contentColor = Color.White,
         ),
         modifier = modifier
