@@ -38,8 +38,7 @@ class AgendaBuilderTest {
         birthdaysByDate: Map<LocalDate, List<Birthday>> = emptyMap(),
         month: YearMonth = july,
         selected: LocalDate = today,
-        mode: CalendarMode = CalendarMode.Events,
-    ) = MonthViewModel.buildAgenda(eventsByDate, birthdaysByDate, month, selected, mode, today)
+    ) = MonthViewModel.buildAgenda(eventsByDate, birthdaysByDate, month, selected, today)
 
     @Test
     fun `days come back in ascending order regardless of map order`() {
@@ -143,42 +142,70 @@ class AgendaBuilderTest {
         assertTrue(agenda.single().events.isEmpty())
     }
 
-    // --- birthday mode -------------------------------------------------------------------------
+    // --- birthdays ride alongside events ---------------------------------------------------------
 
     @Test
-    fun `birthday mode carries birthdays and no events`() {
+    fun `a day with only a birthday is listed`() {
         val day = today.plusDays(2)
         val agenda = build(
-            eventsByDate = mapOf(day to listOf(event(1))),
+            eventsByDate = emptyMap(),
             birthdaysByDate = mapOf(day to listOf(birthday(1))),
-            mode = CalendarMode.Birthdays,
         )
+        assertEquals(listOf(today, day), agenda.map { it.date })
         val entry = agenda.single { it.date == day }
         assertEquals(listOf(birthday(1)), entry.birthdays)
         assertTrue(entry.events.isEmpty())
     }
 
     @Test
-    fun `events mode carries events and no birthdays`() {
+    fun `a day with both carries both lists`() {
         val day = today.plusDays(2)
         val agenda = build(
             eventsByDate = mapOf(day to listOf(event(1))),
             birthdaysByDate = mapOf(day to listOf(birthday(1))),
-            mode = CalendarMode.Events,
         )
         val entry = agenda.single { it.date == day }
         assertEquals(listOf(event(1)), entry.events)
-        assertTrue(entry.birthdays.isEmpty())
+        assertEquals(listOf(birthday(1)), entry.birthdays)
     }
 
     @Test
-    fun `birthday mode drops days that only have events`() {
+    fun `an event day and a birthday day are both listed`() {
         val agenda = build(
             eventsByDate = mapOf(today.plusDays(3) to listOf(event(1))),
-            birthdaysByDate = emptyMap(),
-            mode = CalendarMode.Birthdays,
+            birthdaysByDate = mapOf(today.plusDays(5) to listOf(birthday(1))),
         )
-        // today is still forced in; the event-only day is not, since this is birthday mode.
+        assertEquals(listOf(today, today.plusDays(3), today.plusDays(5)), agenda.map { it.date })
+    }
+
+    @Test
+    fun `birthdays outside the month are dropped`() {
+        val agenda = build(
+            eventsByDate = emptyMap(),
+            birthdaysByDate = mapOf(
+                LocalDate.of(2026, 6, 30) to listOf(birthday(1)),
+                LocalDate.of(2026, 8, 1) to listOf(birthday(2)),
+            ),
+        )
         assertEquals(listOf(today), agenda.map { it.date })
+    }
+
+    @Test
+    fun `selected day and today are forced in when only a birthday is on show`() {
+        val selected = today.plusDays(10)
+        val agenda = build(
+            eventsByDate = emptyMap(),
+            birthdaysByDate = mapOf(today.plusDays(4) to listOf(birthday(1))),
+            selected = selected,
+        )
+        assertEquals(listOf(today, today.plusDays(4), selected), agenda.map { it.date })
+    }
+
+    @Test
+    fun `an empty month with no birthdays either gets its first day`() {
+        val august = YearMonth.of(2026, 8)
+        val agenda = build(emptyMap(), emptyMap(), month = august, selected = today)
+        assertEquals(listOf(LocalDate.of(2026, 8, 1)), agenda.map { it.date })
+        assertTrue(agenda.single().birthdays.isEmpty())
     }
 }

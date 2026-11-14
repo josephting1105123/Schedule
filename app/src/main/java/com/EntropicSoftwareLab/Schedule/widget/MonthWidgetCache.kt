@@ -1,6 +1,9 @@
 package com.EntropicSoftwareLab.Schedule.widget
 
 import android.content.Context
+import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefsRepository
+import com.EntropicSoftwareLab.Schedule.data.birthday.Birthday
+import com.EntropicSoftwareLab.Schedule.data.birthday.BirthdayRepository
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarRepository
 import com.EntropicSoftwareLab.Schedule.data.calendar.EventInstance
 import com.EntropicSoftwareLab.Schedule.data.calendar.MonthChips
@@ -76,8 +79,16 @@ internal object MonthWidgetCache {
         // The visible 42 days rather than the calendar month — the days spilling in from either side
         // have to carry their own events or they render bare.
         val days = MonthGrid.days(month, firstDayOfWeek)
-        val events = CalendarRepository(context.contentResolver)
-            .eventsInRange(days.first(), days.last().plusDays(1), zone)
+        val accounts = AccountPrefsRepository(context)
+        val calendar = CalendarRepository(context.contentResolver, accountPrefs = accounts.prefs)
+        val suppressed = runCatching {
+            BirthdayRepository(context, calendar, accounts).suppressed()
+        }.getOrDefault(emptyList())
+        // Birthdays the user hides or unticks are not drawn, so their provider rows go too.
+        val events = Birthday.withoutBirthdayEvents(
+            calendar.eventsInRange(days.first(), days.last().plusDays(1), zone),
+            suppressed,
+        )
         val byDate = MonthChips.byDate(events, zone)
         entries[key] = Entry(nowMillis, byDate)
         trim(month)

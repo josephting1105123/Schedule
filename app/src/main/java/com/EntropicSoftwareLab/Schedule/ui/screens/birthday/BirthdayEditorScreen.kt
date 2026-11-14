@@ -71,6 +71,7 @@ fun BirthdayEditorScreen(
 
     var showDatePicker by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
+    var confirmingHide by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.finished) {
         if (state.finished) onFinished()
@@ -165,6 +166,16 @@ fun BirthdayEditorScreen(
                     color = colors.textSecondary,
                 )
             }
+            item {
+                AppTintedButton(
+                    text = "Hide this birthday",
+                    onClick = { confirmingHide = true },
+                    tint = colors.error,
+                    filled = false,
+                    enabled = !state.saving,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
 
         state.error?.let { message ->
@@ -207,12 +218,63 @@ fun BirthdayEditorScreen(
         )
     }
 
+    if (confirmingHide) {
+        ConfirmHideDialog(
+            name = state.name,
+            onDismiss = { confirmingHide = false },
+            onConfirm = { confirmingHide = false; vm.hide() },
+        )
+    }
+
     if (confirmingDelete) {
         ConfirmDeleteDialog(
             name = state.name,
             onDismiss = { confirmingDelete = false },
             onConfirm = { confirmingDelete = false; vm.delete() },
         )
+    }
+}
+
+@Composable
+private fun ConfirmHideDialog(name: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    val d = AppThemeTokens.dimens
+    val colors = AppThemeTokens.colors
+    Dialog(onDismissRequest = onDismiss) {
+        AppCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(d.spaceLg)) {
+                Text(
+                    text = "Hide this birthday?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.textPrimary,
+                )
+                Spacer(Modifier.height(d.spaceXs))
+                Text(
+                    text = "${name.ifBlank { "This birthday" }} stays in Google Contacts. It won't show in " +
+                        "this app again until you choose Show them again in Settings.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = colors.textSecondary,
+                )
+                Spacer(Modifier.height(d.spaceMd))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
+                ) {
+                    AppTintedButton(
+                        text = "Keep it",
+                        onClick = onDismiss,
+                        tint = colors.textSecondary,
+                        filled = false,
+                        modifier = Modifier.weight(1f),
+                    )
+                    AppTintedButton(
+                        text = "Hide",
+                        onClick = onConfirm,
+                        tint = colors.error,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
     }
 }
 

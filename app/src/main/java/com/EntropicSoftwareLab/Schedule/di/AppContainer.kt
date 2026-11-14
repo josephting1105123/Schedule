@@ -9,6 +9,8 @@ import com.EntropicSoftwareLab.Schedule.ai.ConversationPrompt
 import com.EntropicSoftwareLab.Schedule.ai.GeminiAgent
 import com.EntropicSoftwareLab.Schedule.ai.RoutingAssistant
 import com.EntropicSoftwareLab.Schedule.ai.ScheduleAssistant
+import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefsRepository
+import com.EntropicSoftwareLab.Schedule.data.accounts.ReadKey
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorRepository
 import com.EntropicSoftwareLab.Schedule.data.assistant.AssistantMemoryRepository
 import com.EntropicSoftwareLab.Schedule.data.birthday.BirthdayRepository
@@ -20,6 +22,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -37,6 +41,9 @@ data class WidgetLaunch(val date: LocalDate, val addEvent: Boolean)
 class AppContainer(context: Context) {
     val appContext: Context = context.applicationContext
 
+    /** Which phone accounts the app uses and what is ticked; every calendar read honours it. */
+    val accountPrefsRepository: AccountPrefsRepository by lazy { AccountPrefsRepository(appContext) }
+
     val calendarRepository: CalendarRepository by lazy {
         CalendarRepository(
             resolver = appContext.contentResolver,
@@ -50,6 +57,7 @@ class AppContainer(context: Context) {
                 refreshWidgets(appContext)
                 runCatching { calendarRepository.requestSync() }
             },
+            accountPrefs = accountPrefsRepository.prefs,
         )
     }
 
@@ -64,7 +72,7 @@ class AppContainer(context: Context) {
     }
 
     val birthdayRepository: BirthdayRepository by lazy {
-        BirthdayRepository(appContext, calendarRepository)
+        BirthdayRepository(appContext, calendarRepository, accountPrefsRepository)
     }
 
     /** Tasks — deadlines with a checkbox, stored beside birthdays and never in the calendar. */
@@ -123,6 +131,36 @@ class AppContainer(context: Context) {
      */
     val calendarDirectory: CalendarDirectory by lazy {
         CalendarDirectory(calendarRepository, appScope)
+    }
+
+    /**
+     * Placed after [appScope] and [calendarDirectory] on purpose: Kotlin initialises in textual
+     * order, and this block uses both.
+     *
+     * When the user changes which accounts are used or ticks something, the warm calendar list is
+     * dropped, the widgets are redrawn and a sync is asked for. Android cannot sync one named Google
+     * account for a third-party app (see [CalendarRepository.requestSync]), so a change of accounts
+     * asks every account to sync. The first value DataStore replays on collection is ignored.
+     */
+    init {
+        appScope.launch {
+            // The widgets read the Birthday tick and the hidden birthdays, so those redraw them; only
+            // a change to which accounts or calendars are read invalidates the directory and syncs.
+            var seen: Triple<ReadKey, Boolean, Set<String>>? = null
+            accountPrefsRepository.prefs
+                .map { Triple(it.readKey, it.birthdaysShown, it.hiddenBirthdayKeys) }
+                .distinctUntilChanged()
+                .collect { now ->
+                    val before = seen
+                    seen = now
+                    if (before == null) return@collect // the value DataStore replays on collection
+                    if (before.first != now.first) {
+                        calendarDirectory.invalidate()
+                        runCatching { calendarRepository.requestSync() }
+                    }
+                    runCatching { refreshWidgets(appContext) }
+                }
+        }
     }
 
     /**

@@ -45,8 +45,10 @@ data class DashboardUiState(
     val eventsByDate: Map<LocalDate, List<EventInstance>> = emptyMap(),
     val calendarsById: Map<Long, CalendarInfo> = emptyMap(),
     val loadingDates: Set<LocalDate> = emptySet(),
-    /** Every birthday, unfiltered — resolved onto a specific date only where it's actually asked for. */
+    /** Every birthday, unfiltered — used only to strip their provider rows out of the events. */
     val birthdays: List<Birthday> = emptyList(),
+    /** The birthdays to show: empty when the Birthday tick is off, minus hidden ones. */
+    val shownBirthdays: List<Birthday> = emptyList(),
     /** Every task, unfiltered — the whole list is small and each day page filters it for itself. */
     val tasks: List<Task> = emptyList(),
     /**
@@ -73,7 +75,7 @@ data class DashboardUiState(
 
     /** Birthdays landing on [date] this year (or whichever year [date] itself falls in). */
     fun birthdaysOn(date: LocalDate): List<Birthday> =
-        Birthday.byDate(birthdays, date, date.plusDays(1))[date].orEmpty()
+        Birthday.byDate(shownBirthdays, date, date.plusDays(1))[date].orEmpty()
 
     /** Tasks due on [date], in display order. */
     fun tasksOn(date: LocalDate): List<Task> = Task.on(tasks, date)
@@ -151,6 +153,9 @@ class DashboardViewModel(
         }
         viewModelScope.launch {
             birthdayRepository.birthdays.collect { list -> _state.update { it.copy(birthdays = list) } }
+        }
+        viewModelScope.launch {
+            birthdayRepository.shownBirthdays.collect { list -> _state.update { it.copy(shownBirthdays = list) } }
         }
         viewModelScope.launch {
             taskRepository.tasks.collect { list -> _state.update { it.copy(tasks = list) } }

@@ -2,6 +2,40 @@
 
 The newest version is at the top.
 
+## 1.3.3
+
+### Today
+- Each task is its own card: a date badge on the left (red when overdue, amber when due today),
+  the title and its time in the middle, and the tick box on the right.
+
+## 1.3.2
+
+### Accounts
+- Settings has an **Accounts** card. Add the phone accounts you want the app to use and give each
+  a short name, so "Personal" shows instead of a long email. With none added, every account shows,
+  as before.
+- A three-dots button on Today, Week and Month opens a list of your accounts, their other
+  calendars (Formula 1, Family…) and Birthday. Untick one to hide it everywhere, widgets included.
+  A hidden calendar still counts as busy when the editor checks for clashes.
+- The calendar picker in the event editor and in Settings is grouped by account and names
+  calendars by their short names, instead of listing every email twice.
+
+### Month
+- The header switch now changes between the grid and the list. Birthdays show on the grid and in
+  the list next to events, in pink, instead of on a separate birthday calendar.
+
+### Birthdays
+- Birthdays from Google Contacts can be hidden from their editor; Settings can show them again.
+- Birthdays from a calendar whose sync is switched off, or from an account you haven't added, are
+  no longer shown.
+
+### Sync
+- The **Sync with Google** card folds to one line; tap the arrow for each account's details.
+
+## 1.3.1
+
+- A malformed date sent to the app by another app is ignored instead of crashing it.
+
 ## 1.3.0
 
 ### Month

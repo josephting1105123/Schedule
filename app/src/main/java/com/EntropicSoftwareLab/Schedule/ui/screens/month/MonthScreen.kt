@@ -13,11 +13,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +24,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -39,16 +34,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.outlined.Cake
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CalendarViewMonth
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,7 +52,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -73,7 +62,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -88,6 +76,7 @@ import com.EntropicSoftwareLab.Schedule.di.LocalAppContainer
 import com.EntropicSoftwareLab.Schedule.ui.components.AppCard
 import com.EntropicSoftwareLab.Schedule.ui.components.AppDivider
 import com.EntropicSoftwareLab.Schedule.ui.components.BirthdayRow
+import com.EntropicSoftwareLab.Schedule.ui.components.CalendarFilterButton
 import com.EntropicSoftwareLab.Schedule.ui.components.EmptyState
 import com.EntropicSoftwareLab.Schedule.ui.components.DayAgendaDialog
 import com.EntropicSoftwareLab.Schedule.ui.components.EventRow
@@ -96,7 +85,6 @@ import com.EntropicSoftwareLab.Schedule.ui.components.ScreenHeader
 import com.EntropicSoftwareLab.Schedule.ui.components.TodayPill
 import com.EntropicSoftwareLab.Schedule.ui.components.asCalendarColor
 import com.EntropicSoftwareLab.Schedule.ui.components.sortForAgenda
-import com.EntropicSoftwareLab.Schedule.ui.components.pressScale
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
 import kotlinx.coroutines.launch
@@ -285,9 +273,9 @@ fun MonthScreen(
         }
     }
 
-    // Memoised: in birthday mode the getter builds a fresh map on every read, and a fresh map is a
-    // new key for every week's chip layout on every composed month.
-    val gridEventsByDate = remember(state.mode, state.eventsByDate, state.birthdaysByDate) {
+    // Memoised: the getter builds a fresh map on every read, and a fresh map is a new key for every
+    // week's chip layout on every composed month.
+    val gridEventsByDate = remember(state.eventsByDate, state.birthdaysByDate) {
         state.gridEventsByDate
     }
 
@@ -314,33 +302,26 @@ fun MonthScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
                     ) {
-                        ModeSlider(
-                            selectedFirst = state.mode == CalendarMode.Events,
-                            firstIcon = Icons.Outlined.CalendarMonth,
-                            firstDescription = "Events calendar",
-                            secondIcon = Icons.Outlined.Cake,
-                            secondDescription = "Birthday calendar",
-                            onSelect = { first ->
-                                vm.setMode(if (first) CalendarMode.Events else CalendarMode.Birthdays)
-                            },
-                        )
                         // Only where there is room for a full-page grid — the landscape branch below
                         // keeps its small calendar above the list instead.
                         if (pinCalendar) {
-                            ViewToggleButton(
-                                gridShown = gridMode,
-                                onClick = { gridMode = !gridMode },
+                            ModeSlider(
+                                selectedFirst = gridMode,
+                                firstIcon = Icons.Outlined.CalendarViewMonth,
+                                firstDescription = "Show as a grid",
+                                secondIcon = Icons.AutoMirrored.Outlined.ViewList,
+                                secondDescription = "Show as a list",
+                                onSelect = { first -> gridMode = first },
                             )
                         }
+                        CalendarFilterButton()
                     }
                 },
             )
         }
+        // Birthday chips are counted in with the events, so the spoken count says "events" for both.
         val describeCount: (Int) -> String = { count ->
-            when (state.mode) {
-                CalendarMode.Events -> if (count == 1) "1 event" else "$count events"
-                CalendarMode.Birthdays -> if (count == 1) "1 birthday" else "$count birthdays"
-            }
+            if (count == 1) "1 event" else "$count events"
         }
         val calendar: @Composable (Modifier) -> Unit = { cardModifier ->
             CalendarCard(
@@ -388,7 +369,6 @@ fun MonthScreen(
                             agenda = state.agenda,
                             today = today,
                             zone = zone,
-                            mode = state.mode,
                             colorOverrides = state.chipColors,
                             listState = listState,
                             onEditEvent = onEditEvent,
@@ -431,7 +411,6 @@ fun MonthScreen(
                 agenda = state.agenda,
                 today = today,
                 zone = zone,
-                mode = state.mode,
                 colorOverrides = state.chipColors,
                 listState = listState,
                 onEditEvent = onEditEvent,
@@ -490,7 +469,7 @@ fun MonthScreen(
 /**
  * A long-pressed day's agenda over the page, from the data the page already holds — the loaded
  * window reaches two months either side of the one on show, which covers every day the grid draws.
- * Events or birthdays to match the page's mode, as the agenda underneath does.
+ * Birthdays first, then events, as the agenda underneath does.
  */
 @Composable
 private fun DayAgendaPopup(
@@ -508,32 +487,30 @@ private fun DayAgendaPopup(
         sortForAgenda(state.eventsByDate[date].orEmpty().distinctBy { it.instanceId })
     }
     val birthdays = state.birthdaysByDate[date].orEmpty()
-    val isEvents = state.mode == CalendarMode.Events
 
     DayAgendaDialog(
         date = date,
         today = today,
-        isEmpty = if (isEvents) events.isEmpty() else birthdays.isEmpty(),
-        emptyMessage = if (isEvents) "Nothing scheduled." else "No birthdays.",
+        isEmpty = events.isEmpty() && birthdays.isEmpty(),
+        emptyMessage = "Nothing scheduled.",
         onDismiss = onDismiss,
         onOpenDay = onOpenDay,
         onAddEvent = onAddEvent,
     ) {
-        if (isEvents) {
-            items(events, key = { it.instanceId }) { event ->
-                EventRow(
-                    event = event,
-                    zone = zone,
-                    barColor = (EventColorResolver.argbFor(event, state.eventColors) ?: 0)
-                        .asCalendarColor(AppThemeTokens.colors.green),
-                    showNotes = true,
-                    onClick = { onEditEvent(event) },
-                )
-            }
-        } else {
-            items(birthdays, key = { it.id }) { birthday ->
-                BirthdayRow(birthday = birthday, on = date, onClick = { onEditBirthday(birthday) })
-            }
+        // One lazy list keys both groups, and a birthday id can equal an event's instance id, so
+        // birthdays take the negative side (ids are positive, instance ids never negative).
+        items(birthdays, key = { -it.id - 1 }) { birthday ->
+            BirthdayRow(birthday = birthday, on = date, onClick = { onEditBirthday(birthday) })
+        }
+        items(events, key = { it.instanceId }) { event ->
+            EventRow(
+                event = event,
+                zone = zone,
+                barColor = (EventColorResolver.argbFor(event, state.eventColors) ?: 0)
+                    .asCalendarColor(AppThemeTokens.colors.green),
+                showNotes = true,
+                onClick = { onEditEvent(event) },
+            )
         }
     }
 }
@@ -703,25 +680,25 @@ private fun FullMonthGrid(
     }
 }
 
-private fun monthSubtitle(state: MonthUiState): String = when (state.mode) {
-    CalendarMode.Events -> {
-        // eventsByDate spans three months, so the header counts only the visible one — and counts
-        // each occurrence once, because the map repeats a multi-day event on every day it covers and
-        // summing the lists would report a three-week trip as twenty-one events.
-        val count = state.eventsByDate
-            .filterKeys { YearMonth.from(it) == state.visibleMonth }
-            .values.flatten()
-            .distinctBy { it.instanceId }
-            .size
-        if (count == 1) "1 event this month" else "$count events this month"
-    }
-    CalendarMode.Birthdays -> {
-        val count = state.birthdaysByDate
-            .filterKeys { YearMonth.from(it) == state.visibleMonth }
-            .values.flatten()
-            .distinctBy { it.id }
-            .size
-        if (count == 1) "1 birthday this month" else "$count birthdays this month"
+private fun monthSubtitle(state: MonthUiState): String {
+    // eventsByDate spans five months, so the header counts only the visible one — and counts
+    // each occurrence once, because the map repeats a multi-day event on every day it covers and
+    // summing the lists would report a three-week trip as twenty-one events.
+    val events = state.eventsByDate
+        .filterKeys { YearMonth.from(it) == state.visibleMonth }
+        .values.flatten()
+        .distinctBy { it.instanceId }
+        .size
+    val birthdays = state.birthdaysByDate
+        .filterKeys { YearMonth.from(it) == state.visibleMonth }
+        .values.flatten()
+        .distinctBy { it.id }
+        .size
+    val eventText = if (events == 1) "1 event this month" else "$events events this month"
+    return when (birthdays) {
+        0 -> eventText
+        1 -> "$eventText · 1 birthday"
+        else -> "$eventText · $birthdays birthdays"
     }
 }
 
@@ -730,7 +707,6 @@ private fun AgendaList(
     agenda: List<AgendaDay>,
     today: LocalDate,
     zone: ZoneId,
-    mode: CalendarMode,
     listState: LazyListState,
     colorOverrides: Map<Long, Int>,
     onEditEvent: (EventInstance) -> Unit,
@@ -760,7 +736,6 @@ private fun AgendaList(
                 // day's rather than running into the next. Nothing above the first day to divide.
                 showDivider = index > 0,
                 zone = zone,
-                mode = mode,
                 colorOverrides = colorOverrides,
                 onEditEvent = onEditEvent,
                 onEditBirthday = onEditBirthday,
@@ -775,7 +750,6 @@ private fun AgendaDayBlock(
     isToday: Boolean,
     showDivider: Boolean,
     zone: ZoneId,
-    mode: CalendarMode,
     colorOverrides: Map<Long, Int>,
     onEditEvent: (EventInstance) -> Unit,
     onEditBirthday: (Birthday) -> Unit,
@@ -809,30 +783,24 @@ private fun AgendaDayBlock(
             Spacer(Modifier.width(d.spaceSm))
 
             Column(Modifier.weight(1f)) {
-                when (mode) {
-                    CalendarMode.Events -> if (day.events.isEmpty()) {
-                        EmptyState("Nothing scheduled.")
-                    } else {
-                        day.events.forEach {
-                            EventRow(
-                                event = it,
-                                zone = zone,
-                                barColor = (EventColorResolver.argbFor(it, colorOverrides) ?: 0)
-                                    .asCalendarColor(AppThemeTokens.colors.green),
-                                onClick = { onEditEvent(it) },
-                            )
-                        }
+                if (day.events.isEmpty() && day.birthdays.isEmpty()) {
+                    EmptyState("Nothing scheduled.")
+                } else {
+                    day.birthdays.forEach { birthday ->
+                        BirthdayRow(
+                            birthday = birthday,
+                            on = day.date,
+                            onClick = { onEditBirthday(birthday) },
+                        )
                     }
-                    CalendarMode.Birthdays -> if (day.birthdays.isEmpty()) {
-                        EmptyState("No birthdays.")
-                    } else {
-                        day.birthdays.forEach { birthday ->
-                            BirthdayRow(
-                                birthday = birthday,
-                                on = day.date,
-                                onClick = { onEditBirthday(birthday) },
-                            )
-                        }
+                    day.events.forEach {
+                        EventRow(
+                            event = it,
+                            zone = zone,
+                            barColor = (EventColorResolver.argbFor(it, colorOverrides) ?: 0)
+                                .asCalendarColor(AppThemeTokens.colors.green),
+                            onClick = { onEditEvent(it) },
+                        )
                     }
                 }
             }
@@ -852,38 +820,5 @@ private fun WeekdayHeader(firstDayOfWeek: DayOfWeek, modifier: Modifier = Modifi
                 modifier = Modifier.weight(1f),
             )
         }
-    }
-}
-
-/**
- * Switches the page between the full month grid and the list of its days. The icon shows what the
- * *next* tap gives, as a toolbar toggle does: a list icon over the grid, a grid icon over the list.
- */
-@Composable
-private fun ViewToggleButton(gridShown: Boolean, onClick: () -> Unit) {
-    val colors = AppThemeTokens.colors
-    val d = AppThemeTokens.dimens
-    val interaction = remember { MutableInteractionSource() }
-    Box(
-        modifier = Modifier
-            .pressScale(interaction)
-            .size(d.touchTarget)
-            .clip(CircleShape)
-            .background(colors.card)
-            .border(d.hairlineWidth, colors.hairline, CircleShape)
-            .clickable(
-                interactionSource = interaction,
-                indication = ripple(),
-                role = Role.Button,
-                onClick = onClick,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = if (gridShown) Icons.AutoMirrored.Outlined.ViewList else Icons.Outlined.CalendarViewMonth,
-            contentDescription = if (gridShown) "Show as a list" else "Show as a grid",
-            tint = colors.textPrimary,
-            modifier = Modifier.size(d.iconSm),
-        )
     }
 }

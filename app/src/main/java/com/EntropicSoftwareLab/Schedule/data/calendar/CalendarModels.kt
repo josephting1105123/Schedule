@@ -15,7 +15,14 @@ data class CalendarInfo(
     val color: Int,
     val isPrimary: Boolean,
     val isWritable: Boolean,
+    /** The calendar's `OWNER_ACCOUNT`; Google Contacts' birthdays end in `#contacts@group.v.calendar.google.com`. */
+    val ownerAccount: String = "",
+    /** Whether the phone syncs this calendar (`SYNC_EVENTS`); a calendar left off keeps stale rows. */
+    val syncEvents: Boolean = true,
 )
+
+/** An account that owns at least one calendar on the phone. */
+data class CalendarAccount(val name: String, val type: String)
 
 /**
  * One occurrence of an event. Comes from the Instances table, so a weekly recurring event yields one

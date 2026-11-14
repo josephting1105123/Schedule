@@ -1,12 +1,17 @@
 package com.EntropicSoftwareLab.Schedule.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
@@ -14,77 +19,118 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.EntropicSoftwareLab.Schedule.data.task.Task
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
 
 private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 private val OVERDUE_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM")
 
+/** How urgent a task looks, which decides only the badge's tint. */
+private enum class Tone { Overdue, Today, Neutral }
+
 /**
- * One task: a checkbox, the deadline, and the title struck through once it's done.
+ * One task as its own small card: a date badge on the left, the title over a monospace meta line in
+ * the middle, and a checkbox on the right.
  *
- * The time column is the same 56dp as [EventRow]'s, so a Tasks section and an Agenda section line up
- * down the same edge — a deadline and a meeting read against each other rather than as two unrelated
- * lists. It carries one time rather than a start over an end, which is the visible form of the rule
- * that a task is a point and an event is a span.
+ * The badge always shows the deadline's weekday and day of month, tinted by urgency — red once it's
+ * overdue, amber when it's due [today], neutral otherwise (and neutral for anything already done, so
+ * a ticked task stops asking for attention). The meta line carries the time when there is one; an
+ * overdue task also gets its date there ("14 Nov"), because the badge's day number alone is
+ * ambiguous across months. A task due today with no time has nothing to add, so the line is just the
+ * "TASK" tag.
  *
- * The checkbox and the row are separate targets on purpose: the checkbox ticks, the row opens the
+ * The checkbox and the card are separate targets on purpose: the checkbox ticks, the card opens the
  * task. Folding them together would mean editing a task required first learning not to tap the
  * obvious thing.
- *
- * [showDueDate] prints the deadline's date under the time. Used only for an overdue task carried
- * onto today, where "09:00" alone would claim the deadline is today.
  */
 @Composable
 fun TaskRow(
     task: Task,
+    today: LocalDate,
     onToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
-    showDueDate: Boolean = false,
 ) {
     val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
+    val shape = RoundedCornerShape(d.radiusMd)
+
+    val tone = when {
+        task.done -> Tone.Neutral
+        task.due.isBefore(today) -> Tone.Overdue
+        task.due == today -> Tone.Today
+        else -> Tone.Neutral
+    }
+    val badgeBackground = when (tone) {
+        Tone.Overdue -> colors.error.copy(alpha = 0.12f)
+        Tone.Today -> colors.warning.copy(alpha = 0.10f)
+        Tone.Neutral -> colors.divider
+    }
+    val weekdayColor = when (tone) {
+        Tone.Overdue -> colors.error
+        Tone.Today -> colors.warning
+        Tone.Neutral -> colors.textSecondary
+    }
+    val dayColor = when (tone) {
+        Tone.Overdue -> colors.error
+        Tone.Today -> colors.warning
+        Tone.Neutral -> colors.textPrimary
+    }
+
+    val whenText = when {
+        tone == Tone.Overdue -> buildString {
+            append(task.due.format(OVERDUE_DATE))
+            task.dueTime?.let { append(' ').append(it.format(TIME_FORMAT)) }
+        }
+        else -> task.dueTime?.format(TIME_FORMAT).orEmpty()
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clip(shape)
+            .background(colors.card)
+            .border(d.hairlineWidth, colors.hairline, shape)
             .let { if (onClick != null) it.clickable(onClick = onClick) else it }
-            .padding(vertical = d.spaceXs),
+            .padding(horizontal = d.spaceMd, vertical = d.spaceSm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Checkbox(
-            checked = task.done,
-            onCheckedChange = onToggle,
-            colors = CheckboxDefaults.colors(checkedColor = colors.green),
-        )
-        Spacer(Modifier.width(d.spaceSm))
-
-        Column(Modifier.width(56.dp)) {
-            if (task.dueTime != null) {
-                Text(
-                    text = task.dueTime.format(TIME_FORMAT),
-                    style = MaterialTheme.typography.bodyLarge.merge(TabularFigures),
-                    color = if (task.done) colors.textSecondary else colors.textPrimary,
-                )
-            } else {
-                Text(
-                    text = "any time",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary,
-                )
-            }
-            if (showDueDate) {
-                Text(
-                    text = task.due.format(OVERDUE_DATE),
-                    style = MaterialTheme.typography.bodySmall.merge(TabularFigures),
-                    color = colors.error,
-                )
-            }
+        Column(
+            modifier = Modifier
+                .width(44.dp)
+                .height(48.dp)
+                .clip(RoundedCornerShape(d.radiusSm))
+                .background(badgeBackground),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = task.due.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
+                    .take(3)
+                    .uppercase(Locale.ENGLISH),
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.5.sp,
+                color = weekdayColor,
+            )
+            Text(
+                text = task.due.dayOfMonth.toString(),
+                style = MaterialTheme.typography.titleMedium.merge(TabularFigures),
+                color = dayColor,
+            )
         }
         Spacer(Modifier.width(d.spaceMd))
 
@@ -97,16 +143,43 @@ fun TaskRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            Row {
+                Text(
+                    text = "TASK",
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.green,
+                )
+                if (whenText.isNotEmpty()) {
+                    Text(
+                        text = " $whenText",
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = colors.textSecondary,
+                    )
+                }
+            }
             task.notes?.let {
                 Text(
                     text = it,
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary,
                     textDecoration = if (task.done) TextDecoration.LineThrough else null,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
         }
+        Spacer(Modifier.width(d.spaceSm))
+
+        Checkbox(
+            checked = task.done,
+            onCheckedChange = onToggle,
+            colors = CheckboxDefaults.colors(
+                checkedColor = colors.green,
+                uncheckedColor = colors.textSecondary,
+            ),
+        )
     }
 }

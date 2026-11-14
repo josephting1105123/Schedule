@@ -69,6 +69,7 @@ import com.EntropicSoftwareLab.Schedule.data.calendar.WeekPaging
 import com.EntropicSoftwareLab.Schedule.di.LocalAppContainer
 import com.EntropicSoftwareLab.Schedule.ui.components.AppCard
 import com.EntropicSoftwareLab.Schedule.ui.components.BirthdayRow
+import com.EntropicSoftwareLab.Schedule.ui.components.CalendarFilterButton
 import com.EntropicSoftwareLab.Schedule.ui.components.EventRow
 import com.EntropicSoftwareLab.Schedule.ui.components.ScreenHeader
 import com.EntropicSoftwareLab.Schedule.ui.components.SectionCard
@@ -211,7 +212,7 @@ private fun WeekPage(
     val colors = AppThemeTokens.colors
     val density = LocalDensity.current
     val loading = state.isLoading(weekStart)
-    val birthdays = remember(state.birthdays, weekStart) { state.birthdaysIn(weekStart) }
+    val birthdays = remember(state.shownBirthdays, weekStart) { state.birthdaysIn(weekStart) }
     val colorFor = rememberColorAssignment(state.eventColors)
     val days = remember(weekStart) { WeekPaging.days(weekStart) }
     // A tapped block opens its details rather than the editor straight away: the block can only
@@ -272,7 +273,15 @@ private fun WeekPage(
             ScreenHeader(
                 title = title,
                 subtitle = subtitle,
-                trailing = { TimetableToggle(open = timetableOpen, onClick = onToggleTimetable) },
+                trailing = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
+                    ) {
+                        TimetableToggle(open = timetableOpen, onClick = onToggleTimetable)
+                        CalendarFilterButton()
+                    }
+                },
                 modifier = Modifier.padding(bottom = d.spaceLg),
             )
         }

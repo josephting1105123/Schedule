@@ -53,6 +53,9 @@ class BirthdayEditorViewModel(
     )
     val state: StateFlow<BirthdayEditorUiState> = _state.asStateFlow()
 
+    /** The birthday being edited, kept so a read-only one can be hidden without a second lookup. */
+    private var loaded: Birthday? = null
+
     init {
         val id = editId
         if (id != null) {
@@ -62,6 +65,7 @@ class BirthdayEditorViewModel(
                     _state.update { it.copy(loading = false, error = "That birthday is already gone.") }
                     return@launch
                 }
+                loaded = existing
                 _state.update {
                     it.copy(
                         loading = false,
@@ -111,6 +115,19 @@ class BirthdayEditorViewModel(
                 .onSuccess { _state.update { it.copy(saving = false, finished = true) } }
                 .onFailure { e ->
                     _state.update { it.copy(saving = false, error = e.message ?: "Couldn't delete it.") }
+                }
+        }
+    }
+
+    /** For a birthday that can't be deleted (Google Contacts'): stop showing it in this app. */
+    fun hide() {
+        val existing = loaded ?: return
+        _state.update { it.copy(saving = true, error = null) }
+        viewModelScope.launch {
+            runCatching { repository.hide(existing) }
+                .onSuccess { _state.update { it.copy(saving = false, finished = true) } }
+                .onFailure { e ->
+                    _state.update { it.copy(saving = false, error = e.message ?: "Couldn't hide it.") }
                 }
         }
     }

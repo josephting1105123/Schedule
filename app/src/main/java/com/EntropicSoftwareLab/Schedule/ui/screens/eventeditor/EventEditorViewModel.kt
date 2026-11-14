@@ -3,6 +3,8 @@ package com.EntropicSoftwareLab.Schedule.ui.screens.eventeditor
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefs
+import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefsRepository
 import com.EntropicSoftwareLab.Schedule.data.appearance.BrandColorAssignment
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorRepository
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorResolver
@@ -73,6 +75,8 @@ data class EventEditorUiState(
     val notes: String = "",
     val location: String = "",
     val calendars: List<CalendarInfo> = emptyList(),
+    /** Account nicknames, so the calendar row can name an account the way Settings does. */
+    val prefs: AccountPrefs = AccountPrefs(),
     val selectedCalendarId: Long? = null,
     val repeat: RepeatSelection = RepeatSelection.None,
     /**
@@ -169,6 +173,7 @@ class EventEditorViewModel(
     private val settings: SettingsRepository,
     private val eventColors: EventColorRepository,
     private val directory: CalendarDirectory,
+    private val accountPrefs: AccountPrefsRepository,
     private val zoneProvider: () -> ZoneId,
     initialDate: LocalDate? = null,
     initialStartTime: LocalTime? = null,
@@ -192,6 +197,9 @@ class EventEditorViewModel(
     val state: StateFlow<EventEditorUiState> = _state.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            accountPrefs.prefs.collect { p -> _state.update { it.copy(prefs = p) } }
+        }
         viewModelScope.launch {
             // Read once up front rather than collected: the editor needs the app's colours to seed
             // the form and to work out what today already wears, and a live collection here would
@@ -377,11 +385,18 @@ class EventEditorViewModel(
                 // Colour usage is read before either early return below: an all-day event and one
                 // with no calendar chosen yet both still need to know which colours are already
                 // spoken for today, even though neither one runs the time-overlap check.
+                // An event can't clash with itself, and its own colour must not block re-picking
+                // it. Without this, opening any existing event and saving it unchanged reports a
+                // conflict — and a used colour — against its own row.
+                val ownId = current.details?.eventId
+                // Unticking a calendar is a view choice: its events still take the hour, so the
+                // conflict check reads every calendar...
+                val everything = repository.eventsOnDay(current.startDate, zone, includeUnticked = true)
+                    .filterNot { it.eventId == ownId }
+                // ...but colours are about what the user can see on Today, which leaves unticked
+                // calendars out. The Automatic swatch and the used-colour rings use this list.
                 val existing = repository.eventsOnDay(current.startDate, zone)
-                    // An event can't clash with itself, and its own colour must not block
-                    // re-picking it. Without this, opening any existing event and saving it
-                    // unchanged reports a conflict — and a used colour — against its own row.
-                    .filterNot { it.eventId == current.details?.eventId }
+                    .filterNot { it.eventId == ownId }
                 // This event joins the day as if nobody had coloured it, which is what "Automatic"
                 // means, and the brand colours are handed out the way the grid hands them out.
                 // Without it the Automatic swatch could only guess, and always showed Blue.
@@ -432,7 +447,7 @@ class EventEditorViewModel(
                 }
                 _state.update {
                     it.copy(
-                        conflicts = FreeBusy.conflictsWith(draft, existing, zone),
+                        conflicts = FreeBusy.conflictsWith(draft, everything, zone),
                         colorsUsedToday = usedColors,
                         automaticColor = automatic,
                     )
@@ -564,6 +579,7 @@ class EventEditorViewModel(
                     container.settingsRepository,
                     container.eventColorRepository,
                     container.calendarDirectory,
+                    container.accountPrefsRepository,
                     { container.zone },
                     initialDate,
                     initialStartTime,

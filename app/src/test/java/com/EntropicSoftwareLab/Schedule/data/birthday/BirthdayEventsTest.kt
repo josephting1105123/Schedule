@@ -167,4 +167,11 @@ class BirthdayEventsTest {
         val birthdays = listOf(Birthday(1, "A", 1, 2, null, eventId = 9))
         assertEquals(listOf(event(10)), Birthday.withoutBirthdayEvents(events, birthdays))
     }
+
+    @Test
+    fun `hideKey ignores case and surrounding spaces of the name`() {
+        assertEquals(BirthdayEvents.hideKey("Sarah", 3, 4), BirthdayEvents.hideKey("  sARAH ", 3, 4))
+        assertEquals(BirthdayEvents.hideKey("Sarah", 3, 4), BirthdayEvents.hideKey(Birthday(1, " sarah", 3, 4, null)))
+        assertFalse(BirthdayEvents.hideKey("Sarah", 3, 4) == BirthdayEvents.hideKey("Sarah", 3, 5))
+    }
 }

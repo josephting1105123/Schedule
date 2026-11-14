@@ -107,8 +107,11 @@ class MainActivity : ComponentActivity() {
         val epochDay = intent?.getLongExtra(WidgetLaunchIntents.EXTRA_FOCUS_DATE, NO_DATE)
             ?: return
         if (epochDay == NO_DATE) return
+        // The activity is exported, so the extra can come from any app. An out-of-range epoch day
+        // makes LocalDate.ofEpochDay throw; ignore the launch request instead of crashing.
+        val date = runCatching { LocalDate.ofEpochDay(epochDay) }.getOrNull() ?: return
         container.pendingWidgetLaunch.value = WidgetLaunch(
-            date = LocalDate.ofEpochDay(epochDay),
+            date = date,
             addEvent = intent.getBooleanExtra(WidgetLaunchIntents.EXTRA_ADD_EVENT, false),
         )
     }
