@@ -4,8 +4,10 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 /**
- * A task: one deadline and a checkbox, kept entirely out of the calendar provider the same way
- * [com.EntropicSoftwareLab.Schedule.data.birthday.Birthday] is. [id] is app-minted, not a provider id.
+ * A task: one deadline and a checkbox. [id] is app-minted, not a provider id. A task is mirrored to
+ * a calendar named "Tasks" so it can sync with Jarvis, but that calendar is excluded from every event
+ * read (`CalendarFilter`), so a task still never reaches
+ * [com.EntropicSoftwareLab.Schedule.data.calendar.FreeBusy], the hour grid or the clashes.
  *
  * A task is a *point* in time, not a span, and that is the whole difference from an event. It claims
  * no hours, so it never reaches [com.EntropicSoftwareLab.Schedule.data.calendar.FreeBusy], never
@@ -31,6 +33,12 @@ data class Task(
     val dueTime: LocalTime?,
     val notes: String?,
     val done: Boolean,
+    /** The id shared with the Tasks calendar's event; null until this task has first been synced. */
+    val syncId: String? = null,
+    /** Epoch ms of the last change to title, date, time or notes; used only to pick the newer side in a sync. */
+    val editedAt: Long = 0L,
+    /** Epoch ms of the last change to [done]; used only to pick the newer side in a sync. */
+    val tickedAt: Long = 0L,
 ) {
     companion object {
 

@@ -17,6 +17,7 @@ import com.EntropicSoftwareLab.Schedule.data.birthday.BirthdayRepository
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarRepository
 import com.EntropicSoftwareLab.Schedule.data.settings.SettingsRepository
 import com.EntropicSoftwareLab.Schedule.data.task.TaskRepository
+import com.EntropicSoftwareLab.Schedule.data.task.TaskSync
 import com.EntropicSoftwareLab.Schedule.widget.refreshWidgets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,10 +76,21 @@ class AppContainer(context: Context) {
         BirthdayRepository(appContext, calendarRepository, accountPrefsRepository)
     }
 
-    /** Tasks — deadlines with a checkbox, stored beside birthdays and never in the calendar. */
+    /**
+     * Tasks — deadlines with a checkbox, stored beside birthdays. They are mirrored to the calendar
+     * named Tasks by [taskSync], and every event read skips that calendar, so a task still never
+     * shows as an event or a clash. A change to the list kicks off a sync; [appScope] is declared
+     * further down, which is safe because the lambda only runs after construction.
+     */
     val taskRepository: TaskRepository by lazy {
-        TaskRepository(appContext)
+        TaskRepository(appContext, onChange = { appScope.launch { taskSync.sync() } })
     }
+
+    /**
+     * Mirrors tasks to the calendar named Tasks, both ways. That calendar is the go-between with
+     * Jarvis, which reads and writes the same one; nothing here talks to Jarvis directly.
+     */
+    val taskSync: TaskSync by lazy { TaskSync(taskRepository, calendarRepository) }
 
     /**
      * The colour this app shows for an event, which the provider's 24-colour palette no longer
@@ -116,6 +128,9 @@ class AppContainer(context: Context) {
         // right before the first sync request so a new event goes up with it.
         runCatching { birthdayRepository.reconcile() }
         while (true) {
+            // Tasks first, so a task edited since the last pass goes up with this sync request. It
+            // never throws; the result is ignored and the next pass tries again.
+            runCatching { taskSync.sync() }
             runCatching { calendarRepository.requestSync() }
             delay(VISIBLE_SYNC_INTERVAL_MS)
         }

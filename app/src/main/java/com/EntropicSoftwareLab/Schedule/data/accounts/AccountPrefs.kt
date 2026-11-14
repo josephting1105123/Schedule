@@ -93,9 +93,24 @@ object CalendarFilter {
         return calendars.filter { it.accountName in names }
     }
 
-    /** [inAddedAccounts] that can show events: calendars the phone does not sync are left out. */
+    /** The name of the calendar tasks are mirrored to, which Jarvis reads and writes too. */
+    const val TASK_CALENDAR_NAME = "Tasks"
+
+    /**
+     * Whether [c] is the calendar tasks are mirrored to for Jarvis. It holds tasks, not events, so
+     * it is never read as events, offered as a write target, or shown as a chip: a task is a
+     * deadline, and a deadline must not take a lane or clash with anything.
+     */
+    fun isTaskCalendar(c: CalendarInfo): Boolean =
+        c.displayName.trim().equals(TASK_CALENDAR_NAME, ignoreCase = true)
+
+    /**
+     * [inAddedAccounts] that can show events: calendars the phone does not sync are left out, and so
+     * is the Tasks calendar ([isTaskCalendar]). Every event read, write target and chip goes
+     * through here, so this one filter hides it everywhere.
+     */
     fun usable(calendars: List<CalendarInfo>, prefs: AccountPrefs): List<CalendarInfo> =
-        inAddedAccounts(calendars, prefs).filter { synced(it) }
+        inAddedAccounts(calendars, prefs).filter { synced(it) && !isTaskCalendar(it) }
 
     /** [usable] less what the user unticked, by account or by calendar. */
     fun shown(calendars: List<CalendarInfo>, prefs: AccountPrefs): List<CalendarInfo> =

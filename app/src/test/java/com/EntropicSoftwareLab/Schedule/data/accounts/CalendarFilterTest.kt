@@ -27,11 +27,11 @@ class CalendarFilterTest {
     )
 
     private val aMain = cal(1, "a@gmail.com", "a@gmail.com", primary = true)
-    private val aTasks = cal(2, "Tasks", "a@gmail.com")
+    private val aWork = cal(2, "Work", "a@gmail.com")
     private val aBirthdays = cal(3, "Birthdays", "a@gmail.com", owner = "a@gmail.com#contacts@group.v.calendar.google.com")
     private val bMain = cal(4, "b@uni.edu", "b@uni.edu", primary = true)
-    private val bTasks = cal(5, "Tasks", "b@uni.edu")
-    private val all = listOf(aMain, aTasks, aBirthdays, bMain, bTasks)
+    private val bWork = cal(5, "Work", "b@uni.edu")
+    private val all = listOf(aMain, aWork, aBirthdays, bMain, bWork)
 
     private fun added(vararg names: String) = AccountPrefs(added = names.map { AddedAccount(it, "com.google") })
 
@@ -42,7 +42,7 @@ class CalendarFilterTest {
 
     @Test
     fun `usable returns only the added account's calendars`() {
-        assertEquals(listOf(aMain, aTasks, aBirthdays), CalendarFilter.usable(all, added("a@gmail.com")))
+        assertEquals(listOf(aMain, aWork, aBirthdays), CalendarFilter.usable(all, added("a@gmail.com")))
     }
 
     @Test
@@ -57,9 +57,9 @@ class CalendarFilterTest {
     @Test
     fun `contacts birthdays calendar is recognised by its owner`() {
         assertTrue(CalendarFilter.isContactsBirthdays(aBirthdays))
-        assertFalse(CalendarFilter.isContactsBirthdays(aTasks))
+        assertFalse(CalendarFilter.isContactsBirthdays(aWork))
         assertTrue(
-            CalendarFilter.isContactsBirthdays(aTasks.copy(ownerAccount = "X#CONTACTS@GROUP.V.CALENDAR.GOOGLE.COM")),
+            CalendarFilter.isContactsBirthdays(aWork.copy(ownerAccount = "X#CONTACTS@GROUP.V.CALENDAR.GOOGLE.COM")),
         )
     }
 
@@ -99,13 +99,13 @@ class CalendarFilterTest {
     @Test
     fun `duplicate calendar names get the account label suffix`() {
         val chips = CalendarFilter.chips(all, AccountPrefs()).filterIsInstance<CalendarChip.Calendar>()
-        assertEquals(listOf("Tasks · a@gmail.com", "Tasks · b@uni.edu"), chips.map { it.label })
+        assertEquals(listOf("Work · a@gmail.com", "Work · b@uni.edu"), chips.map { it.label })
     }
 
     @Test
     fun `a unique calendar name stays plain`() {
-        val chips = CalendarFilter.chips(listOf(aMain, aTasks), AccountPrefs()).filterIsInstance<CalendarChip.Calendar>()
-        assertEquals(listOf("Tasks"), chips.map { it.label })
+        val chips = CalendarFilter.chips(listOf(aMain, aWork), AccountPrefs()).filterIsInstance<CalendarChip.Calendar>()
+        assertEquals(listOf("Work"), chips.map { it.label })
     }
 
     @Test
@@ -114,13 +114,13 @@ class CalendarFilterTest {
         val chips = CalendarFilter.chips(all, prefs)
         assertEquals("Personal", chips.filterIsInstance<CalendarChip.Account>().single().label)
         assertEquals("Personal", CalendarFilter.label(aMain, all, prefs))
-        assertEquals("Tasks · Personal", CalendarFilter.label(aTasks, all, prefs))
+        assertEquals("Work · Personal", CalendarFilter.label(aWork, all, prefs))
     }
 
     @Test
     fun `label is the account for the primary calendar and name dot account for the rest`() {
         assertEquals("a@gmail.com", CalendarFilter.label(aMain, all, AccountPrefs()))
-        assertEquals("Tasks · b@uni.edu", CalendarFilter.label(bTasks, all, AccountPrefs()))
+        assertEquals("Work · b@uni.edu", CalendarFilter.label(bWork, all, AccountPrefs()))
     }
 
     @Test
@@ -134,7 +134,7 @@ class CalendarFilterTest {
     fun `primaryOf prefers primary then the calendar named after the account then the first`() {
         val named = cal(10, "x@y.z", "x@y.z")
         val other = cal(11, "Other", "x@y.z")
-        assertEquals(aMain, CalendarFilter.primaryOf(listOf(aTasks, aMain)))
+        assertEquals(aMain, CalendarFilter.primaryOf(listOf(aWork, aMain)))
         assertEquals(named, CalendarFilter.primaryOf(listOf(other, named)))
         assertEquals(other, CalendarFilter.primaryOf(listOf(other, cal(12, "More", "x@y.z"))))
         assertEquals(null, CalendarFilter.primaryOf(emptyList()))
@@ -158,7 +158,7 @@ class CalendarFilterTest {
 
     @Test
     fun `a synced-account calendar with sync off is dropped from usable shown and chips`() {
-        val off = aTasks.copy(syncEvents = false)
+        val off = aWork.copy(syncEvents = false)
         val calendars = listOf(aMain, off)
         assertFalse(CalendarFilter.synced(off))
         assertEquals(listOf(aMain), CalendarFilter.usable(calendars, AccountPrefs()))
@@ -166,6 +166,45 @@ class CalendarFilterTest {
         assertTrue(CalendarFilter.chips(calendars, AccountPrefs()).filterIsInstance<CalendarChip.Calendar>().isEmpty())
         // The account itself is still addable, so the sync card can show it.
         assertEquals(calendars, CalendarFilter.inAddedAccounts(calendars, AccountPrefs()))
+    }
+
+    @Test
+    fun `the Tasks calendar is recognised by name, ignoring case and padding`() {
+        assertTrue(CalendarFilter.isTaskCalendar(cal(30, "Tasks", "a@gmail.com")))
+        assertTrue(CalendarFilter.isTaskCalendar(cal(31, " tasks ", "a@gmail.com")))
+        assertTrue(CalendarFilter.isTaskCalendar(cal(32, "TASKS", "a@gmail.com")))
+        assertFalse(CalendarFilter.isTaskCalendar(cal(33, "Tasks list", "a@gmail.com")))
+        assertFalse(CalendarFilter.isTaskCalendar(aMain))
+    }
+
+    @Test
+    fun `the Tasks calendar is not usable shown or a chip, with no account added`() {
+        val tasks = cal(30, "Tasks", "a@gmail.com")
+        val padded = cal(31, " tasks ", "a@gmail.com")
+        val calendars = listOf(aMain, tasks, padded)
+        assertEquals(listOf(aMain), CalendarFilter.usable(calendars, AccountPrefs()))
+        assertEquals(listOf(aMain), CalendarFilter.shown(calendars, AccountPrefs()))
+        assertTrue(CalendarFilter.chips(calendars, AccountPrefs()).filterIsInstance<CalendarChip.Calendar>().isEmpty())
+    }
+
+    @Test
+    fun `the Tasks calendar stays hidden when its account is added`() {
+        val tasks = cal(30, "Tasks", "a@gmail.com")
+        val calendars = listOf(aMain, tasks)
+        val prefs = added("a@gmail.com")
+        assertEquals(listOf(aMain), CalendarFilter.usable(calendars, prefs))
+        assertEquals(listOf(aMain), CalendarFilter.shown(calendars, prefs))
+        assertTrue(CalendarFilter.chips(calendars, prefs).filterIsInstance<CalendarChip.Calendar>().isEmpty())
+        // It is still in the account's calendars, which is how the repository finds it to sync.
+        assertEquals(calendars, CalendarFilter.inAddedAccounts(calendars, prefs))
+    }
+
+    @Test
+    fun `a calendar named Tasks list is an ordinary calendar`() {
+        val list = cal(30, "Tasks list", "a@gmail.com")
+        val calendars = listOf(aMain, list)
+        assertEquals(calendars, CalendarFilter.usable(calendars, AccountPrefs()))
+        assertEquals(listOf(30L), CalendarFilter.chips(calendars, AccountPrefs()).filterIsInstance<CalendarChip.Calendar>().map { it.calendarId })
     }
 
     @Test

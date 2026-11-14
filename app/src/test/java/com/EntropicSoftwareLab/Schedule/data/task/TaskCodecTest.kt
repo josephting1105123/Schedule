@@ -102,6 +102,66 @@ class TaskCodecTest {
     }
 
     @Test
+    fun `round trips the sync fields`() {
+        val task = Task(
+            id = 5, title = "Synced", due = day, dueTime = null, notes = null, done = true,
+            syncId = "0123456789abcdef0123456789abcdef", editedAt = 1_700_000_000_123L, tickedAt = 1_700_000_999_456L,
+        )
+        assertEquals(listOf(task), TaskCodec.decode(TaskCodec.encode(listOf(task))))
+    }
+
+    /** Blobs written before syncing existed carry none of the three fields. */
+    @Test
+    fun `an old blob without sync fields decodes to null and zero`() {
+        val decoded = TaskCodec.decode("""[{"id":1,"title":"Legacy","due":20000,"done":true}]""")
+        assertEquals(null, decoded.first().syncId)
+        assertEquals(0L, decoded.first().editedAt)
+        assertEquals(0L, decoded.first().tickedAt)
+    }
+
+    @Test
+    fun `a null syncId decodes to null, not the text null`() {
+        val decoded = TaskCodec.decode("""[{"id":1,"title":"T","due":20000,"syncId":null}]""")
+        assertEquals(null, decoded.first().syncId)
+    }
+
+    // ---- decodeStrict ----
+
+    @Test
+    fun `decodeStrict reads a good blob like decode does`() {
+        val tasks = listOf(
+            Task(1, "A", day, LocalTime.of(9, 0), "n", true, "abc", 5, 6),
+            Task(2, "B", day, null, null, false),
+        )
+        assertEquals(tasks, TaskCodec.decodeStrict(TaskCodec.encode(tasks)))
+    }
+
+    @Test
+    fun `decodeStrict treats no blob as an empty list`() {
+        assertEquals(emptyList<Task>(), TaskCodec.decodeStrict(null))
+        assertEquals(emptyList<Task>(), TaskCodec.decodeStrict(""))
+        assertEquals(emptyList<Task>(), TaskCodec.decodeStrict("   "))
+        assertEquals(emptyList<Task>(), TaskCodec.decodeStrict("[]"))
+    }
+
+    @Test
+    fun `decodeStrict is null for a corrupt blob`() {
+        assertEquals(null, TaskCodec.decodeStrict("{not json"))
+        assertEquals(null, TaskCodec.decodeStrict("[[["))
+        assertEquals(null, TaskCodec.decodeStrict("{}"))
+    }
+
+    @Test
+    fun `decodeStrict is null when any one entry is bad, where decode drops it`() {
+        val json = """[{"id":1,"title":"Keep me","due":20000},{"nonsense":true}]"""
+        assertEquals(null, TaskCodec.decodeStrict(json))
+        assertEquals(1, TaskCodec.decode(json).size)
+        assertEquals(null, TaskCodec.decodeStrict("""[{"id":1,"title":"","due":1}]"""))
+        assertEquals(null, TaskCodec.decodeStrict("""[{"id":1,"title":"No date"}]"""))
+        assertEquals(null, TaskCodec.decodeStrict("[1]"))
+    }
+
+    @Test
     fun `an empty list round trips`() {
         assertTrue(TaskCodec.decode(TaskCodec.encode(emptyList())).isEmpty())
     }

@@ -2,6 +2,14 @@
 
 The newest version is at the top.
 
+## 1.3.4
+
+### Tasks
+- Tasks sync with Jarvis on the PC. Create a calendar called **Tasks** in Google Calendar; the app
+  keeps one event per task there, and Jarvis does the same, so a task added, edited, ticked or
+  deleted on one shows up on the other. The Tasks calendar never shows as events here, so tasks
+  still never count as busy.
+
 ## 1.3.3
 
 ### Today
