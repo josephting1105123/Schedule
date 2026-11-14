@@ -150,12 +150,12 @@ object BirthdayEvents {
         // Contacts and in the primary calendar, or one row per year) is folded into the first as
         // an extra event id, so the event lists hide every copy rather than only the one kept.
         val seen = HashMap<String, Int>()
-        out.forEachIndexed { index, b -> seen.putIfAbsent(key(b.name, b.month, b.day), index) }
+        out.forEachIndexed { index, b -> seen.putIfAbsent(hideKey(b.name, b.month, b.day), index) }
         for (row in rows.sortedBy { it.eventId }) {
             if (row.eventId in linkedIds || !isBirthday(row)) continue
             val name = nameFrom(row.title)
             if (name.isBlank()) continue
-            val k = key(name, row.date.monthValue, row.date.dayOfMonth)
+            val k = hideKey(name, row.date.monthValue, row.date.dayOfMonth)
             val existing = seen[k]
             if (existing != null) {
                 val kept = out[existing]
@@ -182,5 +182,8 @@ object BirthdayEvents {
         return local.filter { it.eventId != null && it.eventId !in ids }
     }
 
-    private fun key(name: String, month: Int, day: Int) = "${name.trim().lowercase()}|$month|$day"
+    /** Identifies a birthday by name and day, ignoring case and surrounding spaces. */
+    fun hideKey(name: String, month: Int, day: Int) = "${name.trim().lowercase()}|$month|$day"
+
+    fun hideKey(b: Birthday): String = hideKey(b.name, b.month, b.day)
 }

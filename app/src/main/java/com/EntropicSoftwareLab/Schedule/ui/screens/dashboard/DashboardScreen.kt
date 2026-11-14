@@ -3,6 +3,7 @@ package com.EntropicSoftwareLab.Schedule.ui.screens.dashboard
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -46,6 +47,7 @@ import com.EntropicSoftwareLab.Schedule.di.LocalAppContainer
 import com.EntropicSoftwareLab.Schedule.ui.components.AppCard
 import com.EntropicSoftwareLab.Schedule.ui.components.AppDivider
 import com.EntropicSoftwareLab.Schedule.ui.components.BirthdayRow
+import com.EntropicSoftwareLab.Schedule.ui.components.CalendarFilterButton
 import com.EntropicSoftwareLab.Schedule.ui.components.DayHourGrid
 import com.EntropicSoftwareLab.Schedule.ui.components.EmptyState
 import com.EntropicSoftwareLab.Schedule.ui.components.EventRow
@@ -230,7 +232,7 @@ private fun DayPage(
 
     val timed = state.timedEventsOn(date)
     val allDay = state.allDayEventsOn(date)
-    val birthdays = remember(state.birthdays, date) { state.birthdaysOn(date) }
+    val birthdays = remember(state.shownBirthdays, date) { state.birthdaysOn(date) }
     val tasks = remember(state.tasks, date) { state.tasksOn(date) }
     // Only the day's own tasks reach the grid. An overdue one is drawn nowhere: its deadline hour
     // belongs to a different date, and a tick at 09:00 today for something due last Tuesday marks
@@ -253,6 +255,7 @@ private fun DayPage(
             ScreenHeader(
                 title = relativeDayTitle(date, today),
                 subtitle = date.format(HEADER_DATE),
+                trailing = { CalendarFilterButton() },
             )
         }
 
@@ -476,27 +479,30 @@ private fun DayPage(
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.error,
                         )
-                        overdue.forEach { task ->
-                            TaskRow(
-                                task = task,
-                                onToggle = { done -> onToggleTask(task.id, done) },
-                                onClick = { onEditTask(task) },
-                                // Its deadline is another day's, so the date has to be on the row.
-                                showDueDate = true,
-                            )
+                        Spacer(Modifier.height(d.spaceXs))
+                        Column(verticalArrangement = Arrangement.spacedBy(d.spaceSm)) {
+                            overdue.forEach { task ->
+                                TaskRow(
+                                    task = task,
+                                    today = today,
+                                    onToggle = { done -> onToggleTask(task.id, done) },
+                                    onClick = { onEditTask(task) },
+                                )
+                            }
                         }
                         if (tasks.isNotEmpty()) {
                             Spacer(Modifier.height(d.spaceMd))
-                            AppDivider()
-                            Spacer(Modifier.height(d.spaceMd))
                         }
                     }
-                    tasks.forEach { task ->
-                        TaskRow(
-                            task = task,
-                            onToggle = { done -> onToggleTask(task.id, done) },
-                            onClick = { onEditTask(task) },
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(d.spaceSm)) {
+                        tasks.forEach { task ->
+                            TaskRow(
+                                task = task,
+                                today = today,
+                                onToggle = { done -> onToggleTask(task.id, done) },
+                                onClick = { onEditTask(task) },
+                            )
+                        }
                     }
                 }
             }

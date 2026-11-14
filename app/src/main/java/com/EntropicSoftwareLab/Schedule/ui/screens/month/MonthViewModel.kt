@@ -3,6 +3,7 @@ package com.EntropicSoftwareLab.Schedule.ui.screens.month
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.EntropicSoftwareLab.Schedule.data.accounts.BIRTHDAY_CHIP_COLOR
 import com.EntropicSoftwareLab.Schedule.data.birthday.Birthday
 import com.EntropicSoftwareLab.Schedule.data.appearance.BrandColorAssignment
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorRepository
@@ -54,10 +55,7 @@ private const val PUBLISHED_RADIUS = 2L
  */
 private val BRAND_PALETTE: List<Int> = EventColorPalette.assignmentOrder.map { it.argb }
 
-/** Which of the two calendars the Month page is showing. Events and birthdays never mix. */
-enum class CalendarMode { Events, Birthdays }
-
-/** One day in the agenda: the date, plus events or birthdays — never both at once. */
+/** One day in the agenda: the date, plus its birthdays and its events. Either list may be empty. */
 data class AgendaDay(
     val date: LocalDate,
     val events: List<EventInstance> = emptyList(),
@@ -68,7 +66,6 @@ data class MonthUiState(
     /** The month the grid is showing. Only the grid changes it — see [MonthViewModel.onGridSwipedTo]. */
     val visibleMonth: YearMonth = YearMonth.now(),
     val selectedDate: LocalDate = LocalDate.now(),
-    val mode: CalendarMode = CalendarMode.Events,
     /** Event id to its colour: the user's pick, else a brand colour assigned per day. */
     val eventColors: Map<Long, Int> = emptyMap(),
     /**
@@ -78,16 +75,19 @@ data class MonthUiState(
      * the neighbouring months carry their events on the grid too.
      */
     val eventsByDate: Map<LocalDate, List<EventInstance>> = emptyMap(),
-    /** Birthdays, resolved onto real dates, over the same window [eventsByDate] covers. */
+    /**
+     * Birthdays shown on the page (the Birthday tick is on, none hidden), resolved onto real dates,
+     * over the same window [eventsByDate] covers.
+     */
     val birthdaysByDate: Map<LocalDate, List<Birthday>> = emptyMap(),
     /**
-     * Birthday chip id (`-birthday.id`) to a brand colour, assigned per day by the same rule events
-     * use, so two birthdays on one day differ. Birthdays have no calendar colour of their own, and
-     * without this every chip was drawn colourless.
+     * Birthday chip id (`-birthday.id`) to [BIRTHDAY_CHIP_COLOR]. Birthdays have no calendar colour
+     * of their own, and one shared colour is what makes them read as birthdays beside events.
      */
     val birthdayColors: Map<Long, Int> = emptyMap(),
     /**
-     * Days of [visibleMonth] with something on them, ascending, plus the selected day and today.
+     * Days of [visibleMonth] with an event or a birthday on them, ascending, plus the selected day
+     * and today.
      *
      * Bounded to the visible month on purpose: the agenda is the month's detail view, so scrolling
      * it can reach every day of the month and no day outside it. Changing month is the grid's job.
@@ -96,29 +96,22 @@ data class MonthUiState(
     val loading: Boolean = true,
     val error: String? = null,
 ) {
-    /**
-     * What the grid's chip layer actually draws.
-     *
-     * In birthday mode each birthday is projected into a synthetic single-day all-day
-     * [EventInstance] so the grid can reuse [MonthChips]' well-tested packing logic rather than a
-     * birthday-specific fork of it. `eventId = -birthday.id` is the sentinel: a real provider id is
-     * never negative, so nothing downstream — the edit route included — can mistake a birthday chip
-     * for an editable calendar event. Events mode never sees a birthday and birthday mode never sees
-     * an event, by construction.
-     */
-    /** The colours for whatever [gridEventsByDate] holds in the current [mode]. */
+    /** The colours for whatever [gridEventsByDate] holds. Birthday ids are negative, event ids never are. */
     val chipColors: Map<Long, Int>
-        get() = when (mode) {
-            CalendarMode.Events -> eventColors
-            CalendarMode.Birthdays -> birthdayColors
-        }
+        get() = eventColors + birthdayColors
 
+    /**
+     * What the grid's chip layer actually draws: each day's events, then its birthdays.
+     *
+     * Each birthday is projected into a synthetic single-day all-day [EventInstance] so the grid can
+     * reuse [MonthChips]' well-tested packing logic rather than a birthday-specific fork of it (which
+     * sorts all-day chips to the top, so birthdays lead the day). `eventId = -birthday.id` is the
+     * sentinel: a real provider id is never negative, so nothing downstream — the edit route
+     * included — can mistake a birthday chip for an editable calendar event.
+     */
     val gridEventsByDate: Map<LocalDate, List<EventInstance>>
-        get() = when (mode) {
-            CalendarMode.Events -> eventsByDate
-            CalendarMode.Birthdays -> birthdaysByDate.mapValues { (date, list) ->
-                list.map { it.toChipEvent(date) }
-            }
+        get() = (eventsByDate.keys + birthdaysByDate.keys).associateWith { date ->
+            eventsByDate[date].orEmpty() + birthdaysByDate[date].orEmpty().map { it.toChipEvent(date) }
         }
 }
 
@@ -157,8 +150,14 @@ class MonthViewModel(
      */
     private val monthCache = LinkedHashMap<YearMonth, List<EventInstance>>()
 
-    /** Every birthday, unfiltered — the source [birthdaysForWindow] resolves onto real dates. */
+    /**
+     * Every birthday, unfiltered. Used only to strip birthday rows out of the provider's events, so
+     * unticking Birthday hides those rows too instead of turning them back into all-day events.
+     */
     private var allBirthdays: List<Birthday> = emptyList()
+
+    /** The birthdays to draw: empty when the Birthday tick is off, minus hidden ones. */
+    private var shownBirthdays: List<Birthday> = emptyList()
 
     init {
         // observeChanges() emits once immediately, so this covers the initial load too. Every
@@ -181,31 +180,30 @@ class MonthViewModel(
         // Birthdays are a small in-memory list, not a paged fetch — recomputing the window is cheap
         // enough to do synchronously on every change, unlike the event cache above.
         viewModelScope.launch {
-            birthdayRepository.birthdays.collect { list ->
-                allBirthdays = list
+            birthdayRepository.shownBirthdays.collect { list ->
+                shownBirthdays = list
                 val byDate = birthdaysForWindow(windowCenter)
                 _state.update {
                     it.copy(
                         birthdaysByDate = byDate,
                         birthdayColors = birthdayColours(byDate),
-                        agenda = buildAgenda(it.eventsByDate, byDate, it.visibleMonth, it.selectedDate, it.mode),
+                        agenda = buildAgenda(it.eventsByDate, byDate, it.visibleMonth, it.selectedDate),
                     )
                 }
             }
         }
-    }
-
-    /** Swaps which calendar the page shows. The agenda rebuilds against whichever is now current. */
-    fun setMode(mode: CalendarMode) {
-        _state.update { current ->
-            if (current.mode == mode) return@update current
-            current.copy(
-                mode = mode,
-                agenda = buildAgenda(
-                    current.eventsByDate, current.birthdaysByDate, current.visibleMonth,
-                    current.selectedDate, mode,
-                ),
-            )
+        // The full list decides which provider rows are birthdays, so a change to it means the
+        // events have to be stripped again. It re-emits on every provider change too, at the moment
+        // the cache has just been cleared; publishing then would write a blank window, so it only
+        // republishes when the required months are all cached. Otherwise the pending ensureLoaded
+        // publish reads the new list anyway.
+        viewModelScope.launch {
+            birthdayRepository.birthdays.collect { list ->
+                allBirthdays = list
+                val center = windowCenter
+                val required = listOf(center.minusMonths(1), center, center.plusMonths(1))
+                if (required.all(monthCache::containsKey)) publish(center)
+            }
         }
     }
 
@@ -224,7 +222,7 @@ class MonthViewModel(
         if (month == current.visibleMonth) return
         // Land on the month's first day that actually has something on it, so a swipe doesn't dump
         // the user on an empty 1st when the month's content starts on the 12th.
-        selectDate(landingDay(contentDates(current, month), month, forward = true))
+        selectDate(landingDay(contentDates(current), month, forward = true))
     }
 
     /**
@@ -239,13 +237,11 @@ class MonthViewModel(
     fun continueAgenda(forward: Boolean) {
         val current = _state.value
         val month = current.visibleMonth.let { if (forward) it.plusMonths(1) else it.minusMonths(1) }
-        selectDate(landingDay(contentDates(current, month), month, forward))
+        selectDate(landingDay(contentDates(current), month, forward))
     }
 
-    private fun contentDates(state: MonthUiState, month: YearMonth): Set<LocalDate> = when (state.mode) {
-        CalendarMode.Events -> state.eventsByDate.keys
-        CalendarMode.Birthdays -> state.birthdaysByDate.keys
-    }
+    private fun contentDates(state: MonthUiState): Set<LocalDate> =
+        state.eventsByDate.keys + state.birthdaysByDate.keys
 
     /** Puts [month] on the grid with [date] selected, reloading the window if it moved. */
     private fun showMonth(month: YearMonth, date: LocalDate) {
@@ -261,7 +257,7 @@ class MonthViewModel(
                 // Rebuilt rather than patched: the agenda belongs to the month, so a month change
                 // replaces it wholesale, and buildAgenda already forces the selected day in even
                 // when nothing is on it.
-                agenda = buildAgenda(it.eventsByDate, birthdaysByDate, month, date, it.mode),
+                agenda = buildAgenda(it.eventsByDate, birthdaysByDate, month, date),
             )
         }
         if (windowChanged) {
@@ -269,10 +265,10 @@ class MonthViewModel(
         }
     }
 
-    /** [allBirthdays] resolved onto real dates over the same ±[PUBLISHED_RADIUS] months as events. */
+    /** [shownBirthdays] resolved onto real dates over the same ±[PUBLISHED_RADIUS] months as events. */
     private fun birthdaysForWindow(center: YearMonth): Map<LocalDate, List<Birthday>> =
         Birthday.byDate(
-            allBirthdays,
+            shownBirthdays,
             center.minusMonths(PUBLISHED_RADIUS).atDay(1),
             center.plusMonths(PUBLISHED_RADIUS + 1).atDay(1),
         )
@@ -373,8 +369,14 @@ class MonthViewModel(
      * exactly where a dropped frame is noticed.
      */
     private suspend fun publish(center: YearMonth) {
+        val generation = ++publishGeneration
         val months = (-PUBLISHED_RADIUS..PUBLISHED_RADIUS).map { center.plusMonths(it) }
-        val events = months.flatMap { monthCache[it].orEmpty() }
+        // A birthday is always drawn as a birthday, never as the all-day event it is mirrored to, so
+        // the provider's copies are dropped here, for every birthday, shown or not.
+        val events = Birthday.withoutBirthdayEvents(
+            months.flatMap { monthCache[it].orEmpty() },
+            allBirthdays,
+        )
         val zone = zoneProvider()
         val overrides = colorOverrides
         val (byDate, colours) = withContext(Dispatchers.Default) {
@@ -385,19 +387,29 @@ class MonthViewModel(
         }
         // The user may have swiped on while that ran; a stale window must not overwrite theirs.
         if (windowCenter != center) return
+        // Two publishes can overlap on Dispatchers.Default; only the most recently started one may
+        // write, so an older computation can't land last over fresher data.
+        if (generation != publishGeneration) return
         _state.update {
             it.copy(
                 eventsByDate = byDate,
                 eventColors = colours,
-                agenda = buildAgenda(byDate, it.birthdaysByDate, it.visibleMonth, it.selectedDate, it.mode),
+                agenda = buildAgenda(byDate, it.birthdaysByDate, it.visibleMonth, it.selectedDate),
                 loading = false,
                 error = null,
             )
         }
     }
 
+    /** Counts [publish] calls (main thread only); a publish writes state only if it is still the latest. */
+    private var publishGeneration = 0
+
     /** The user's own picks. Held aside so a newly published window can be recoloured from them. */
     private var colorOverrides: Map<Long, Int> = emptyMap()
+
+    /** Every birthday chip is [BIRTHDAY_CHIP_COLOR], keyed by its `-birthday.id` chip id. */
+    private fun birthdayColours(byDate: Map<LocalDate, List<Birthday>>): Map<Long, Int> =
+        byDate.values.flatten().associate { -it.id to BIRTHDAY_CHIP_COLOR }
 
     /**
      * Picks, plus a brand colour for every event nobody coloured.
@@ -406,13 +418,6 @@ class MonthViewModel(
      * in order and never recolours an event it has already placed, which is what keeps a multi-day
      * band one colour where it crosses a month boundary.
      */
-    private fun birthdayColours(byDate: Map<LocalDate, List<Birthday>>): Map<Long, Int> =
-        BrandColorAssignment.forDates(
-            byDate.mapValues { (date, list) -> list.map { it.toChipEvent(date) } },
-            emptyMap(),
-            BRAND_PALETTE,
-        )
-
     private fun recolour(byDate: Map<LocalDate, List<EventInstance>>): Map<Long, Int> =
         BrandColorAssignment.forDates(byDate, colorOverrides, BRAND_PALETTE)
 
@@ -428,37 +433,34 @@ class MonthViewModel(
 
     companion object {
         /**
-         * The days of [month] worth listing: those with content in [mode], plus [selectedDate] and
-         * today when they fall inside it — the agenda needs something to centre on, and an empty
+         * The days of [month] worth listing: those with an event or a birthday, plus [selectedDate]
+         * and today when they fall inside it — the agenda needs something to centre on, and an empty
          * today that silently vanishes reads as a bug.
          *
          * [eventsByDate]/[birthdaysByDate] cover a wider window than [month]; everything outside it
          * is dropped here, which is what stops the agenda scrolling into a month the grid isn't
-         * showing. Exactly one of [AgendaDay.events]/[AgendaDay.birthdays] is ever populated, per
-         * [mode] — events mode never carries a birthday and birthday mode never carries an event.
+         * showing. A day can carry both lists at once.
          */
         fun buildAgenda(
             eventsByDate: Map<LocalDate, List<EventInstance>>,
             birthdaysByDate: Map<LocalDate, List<Birthday>>,
             month: YearMonth,
             selectedDate: LocalDate,
-            mode: CalendarMode,
             today: LocalDate = LocalDate.now(),
         ): List<AgendaDay> {
             val dates = sortedSetOf<LocalDate>()
-            when (mode) {
-                CalendarMode.Events -> eventsByDate.keys.filterTo(dates) { YearMonth.from(it) == month }
-                CalendarMode.Birthdays -> birthdaysByDate.keys.filterTo(dates) { YearMonth.from(it) == month }
-            }
+            eventsByDate.keys.filterTo(dates) { YearMonth.from(it) == month }
+            birthdaysByDate.keys.filterTo(dates) { YearMonth.from(it) == month }
             if (YearMonth.from(selectedDate) == month) dates += selectedDate
             if (YearMonth.from(today) == month) dates += today
             // An empty month still needs one row, or the agenda is a blank panel with no scale.
             if (dates.isEmpty()) dates += month.atDay(1)
             return dates.map { date ->
-                when (mode) {
-                    CalendarMode.Events -> AgendaDay(date, events = eventsByDate[date].orEmpty())
-                    CalendarMode.Birthdays -> AgendaDay(date, birthdays = birthdaysByDate[date].orEmpty())
-                }
+                AgendaDay(
+                    date,
+                    events = eventsByDate[date].orEmpty(),
+                    birthdays = birthdaysByDate[date].orEmpty(),
+                )
             }
         }
 

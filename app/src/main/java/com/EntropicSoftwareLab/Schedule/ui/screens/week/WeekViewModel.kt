@@ -31,8 +31,10 @@ data class WeekUiState(
      */
     val eventsByWeek: Map<LocalDate, Map<LocalDate, List<EventInstance>>> = emptyMap(),
     val loadingWeeks: Set<LocalDate> = emptySet(),
-    /** Every birthday, unfiltered — resolved onto dates only where a page asks. */
+    /** Every birthday, unfiltered — used only to strip their provider rows out of the events. */
     val birthdays: List<Birthday> = emptyList(),
+    /** The birthdays to show: empty when the Birthday tick is off, minus hidden ones. */
+    val shownBirthdays: List<Birthday> = emptyList(),
     /** Event id to its colour: the user's pick, else a brand colour assigned per day. */
     val eventColors: Map<Long, Int> = emptyMap(),
     val error: String? = null,
@@ -45,7 +47,7 @@ data class WeekUiState(
 
     /** The week's birthdays by date, Sunday to Saturday. */
     fun birthdaysIn(weekStart: LocalDate): Map<LocalDate, List<Birthday>> =
-        Birthday.byDate(birthdays, weekStart, weekStart.plusDays(WeekPaging.DAYS_PER_WEEK.toLong()))
+        Birthday.byDate(shownBirthdays, weekStart, weekStart.plusDays(WeekPaging.DAYS_PER_WEEK.toLong()))
 }
 
 /** Contrast order, not picker order — see [EventColorPalette.assignmentOrder]. */
@@ -89,6 +91,9 @@ class WeekViewModel(
         }
         viewModelScope.launch {
             birthdayRepository.birthdays.collect { list -> _state.update { it.copy(birthdays = list) } }
+        }
+        viewModelScope.launch {
+            birthdayRepository.shownBirthdays.collect { list -> _state.update { it.copy(shownBirthdays = list) } }
         }
         // No provider change fires when this app recolours an event, so the list repaints off this.
         viewModelScope.launch {

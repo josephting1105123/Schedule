@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefsRepository
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -40,6 +41,7 @@ private val Context.birthdayStore: DataStore<Preferences> by preferencesDataStor
 class BirthdayRepository(
     private val context: Context,
     private val calendar: CalendarRepository,
+    private val accountPrefs: AccountPrefsRepository,
 ) {
 
     private object Keys {
@@ -61,6 +63,25 @@ class BirthdayRepository(
         combine(local, calendar.observeChanges()) { list, _ -> list }
             .conflate()
             .mapLatest { list -> BirthdayEvents.merge(list, readRows(list)) }
+
+    /** What the screens draw: nothing when the Birthday tick is off, and never one the user hid. */
+    val shownBirthdays: Flow<List<Birthday>> = combine(birthdays, accountPrefs.prefs) { all, p ->
+        if (!p.birthdaysShown) emptyList()
+        else all.filterNot { BirthdayEvents.hideKey(it) in p.hiddenBirthdayKeys }
+    }
+
+    /**
+     * Birthdays not drawn right now, for a surface that strips their provider rows (the widgets):
+     * all of them when the Birthday tick is off, else the ones the user hid.
+     */
+    suspend fun suppressed(): List<Birthday> {
+        val p = accountPrefs.prefs.first()
+        val all = birthdays.first()
+        return if (!p.birthdaysShown) all else all.filter { BirthdayEvents.hideKey(it) in p.hiddenBirthdayKeys }
+    }
+
+    /** Hides a birthday this app cannot delete (Google Contacts'). Undone by clearHiddenBirthdays in Settings. */
+    suspend fun hide(birthday: Birthday) = accountPrefs.hideBirthday(BirthdayEvents.hideKey(birthday))
 
     private suspend fun readRows(list: List<Birthday>): List<BirthdayEventRow>? =
         runCatching { calendar.birthdayEventRows(list.mapNotNull { it.eventId }) }.getOrNull()

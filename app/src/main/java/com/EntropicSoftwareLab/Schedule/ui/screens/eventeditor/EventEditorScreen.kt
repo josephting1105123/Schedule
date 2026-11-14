@@ -21,8 +21,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -56,6 +54,8 @@ import com.EntropicSoftwareLab.Schedule.di.LocalAppContainer
 import com.EntropicSoftwareLab.Schedule.ui.components.AppButton
 import com.EntropicSoftwareLab.Schedule.ui.components.AppCard
 import com.EntropicSoftwareLab.Schedule.ui.components.AppTintedButton
+import com.EntropicSoftwareLab.Schedule.ui.components.CalendarPickerMenu
+import com.EntropicSoftwareLab.Schedule.ui.components.calendarLabel
 import com.EntropicSoftwareLab.Schedule.ui.components.ConflictPanel
 import com.EntropicSoftwareLab.Schedule.ui.components.DatePickerSheet
 import com.EntropicSoftwareLab.Schedule.ui.components.RepeatPickerDialog
@@ -208,23 +208,17 @@ fun EventEditorScreen(
                     Box {
                         FieldRow(
                             label = "Calendar",
-                            value = state.selectedCalendar?.displayName ?: "—",
+                            value = calendarLabel(state.selectedCalendar, state.calendars, state.prefs),
                             enabled = !state.readOnly && !state.editing,
                         ) { showCalendarMenu = true }
-                        DropdownMenu(
+                        CalendarPickerMenu(
                             expanded = showCalendarMenu,
-                            onDismissRequest = { showCalendarMenu = false },
-                        ) {
-                            state.calendars.forEach { calendar ->
-                                DropdownMenuItem(
-                                    text = { Text("${calendar.displayName} · ${calendar.accountName}") },
-                                    onClick = {
-                                        vm.setCalendar(calendar.id)
-                                        showCalendarMenu = false
-                                    },
-                                )
-                            }
-                        }
+                            calendars = state.calendars,
+                            prefs = state.prefs,
+                            selectedId = state.selectedCalendarId,
+                            onDismiss = { showCalendarMenu = false },
+                            onPick = { vm.setCalendar(it.id); showCalendarMenu = false },
+                        )
                     }
 
                     FieldRow(

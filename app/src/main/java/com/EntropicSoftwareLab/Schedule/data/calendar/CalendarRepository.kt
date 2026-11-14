@@ -10,6 +10,8 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.CalendarContract
+import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefs
+import com.EntropicSoftwareLab.Schedule.data.accounts.CalendarFilter
 import com.EntropicSoftwareLab.Schedule.data.birthday.Birthday
 import com.EntropicSoftwareLab.Schedule.data.birthday.BirthdayEventRow
 import com.EntropicSoftwareLab.Schedule.data.birthday.BirthdayEvents
@@ -19,6 +21,12 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -48,6 +56,11 @@ class CalendarRepository(
      * rather than as "off".
      */
     private val accountVisible: (Account) -> Boolean = { true },
+    /**
+     * Which accounts the user chose to use and what they ticked. Every event read honours it; the
+     * default (nothing chosen, nothing unticked) is the whole phone.
+     */
+    private val accountPrefs: Flow<AccountPrefs> = flowOf(AccountPrefs()),
 ) {
 
     /**
@@ -91,7 +104,9 @@ class CalendarRepository(
      */
     suspend fun syncStatus(): List<AccountSyncStatus> = withContext(io) {
         val master = runCatching { ContentResolver.getMasterSyncAutomatically() }.getOrNull()
-        listCalendars()
+        // Not listUsableCalendars: an account whose calendars all have sync off must stay in the
+        // card, since that is what the card is there to show.
+        CalendarFilter.inAddedAccounts(listCalendars(), accountPrefs.first())
             .map { it.accountName to it.accountType }
             .distinct()
             .filter { (_, type) -> type != CalendarContract.ACCOUNT_TYPE_LOCAL }
@@ -133,6 +148,8 @@ class CalendarRepository(
             CalendarContract.Calendars.IS_PRIMARY,
             CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL,
             CalendarContract.Calendars.ACCOUNT_TYPE,
+            CalendarContract.Calendars.OWNER_ACCOUNT,
+            CalendarContract.Calendars.SYNC_EVENTS,
         )
         val out = mutableListOf<CalendarInfo>()
         resolver.query(
@@ -154,13 +171,26 @@ class CalendarRepository(
                     // Holiday and birthday feeds come back read-only; they're fine to display but
                     // must never be offered as a write target.
                     isWritable = access >= CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR,
+                    ownerAccount = c.getString(7) ?: "",
+                    syncEvents = c.getInt(8) == 1,
                 )
             }
         }
         out
     }
 
-    suspend fun listWritableCalendars(): List<CalendarInfo> = listCalendars().filter { it.isWritable }
+    /** The calendars of the accounts the user chose to use ([AccountPrefs.added]); every one when none was chosen. */
+    suspend fun listUsableCalendars(): List<CalendarInfo> =
+        CalendarFilter.usable(listCalendars(), accountPrefs.first())
+
+    suspend fun listWritableCalendars(): List<CalendarInfo> = listUsableCalendars().filter { it.isWritable }
+
+    /** Every account that owns a calendar on the phone, whether or not the user added it here. */
+    suspend fun calendarAccounts(): List<CalendarAccount> =
+        listCalendars()
+            .filter { it.accountName.isNotBlank() }
+            .map { CalendarAccount(it.accountName, it.accountType) }
+            .distinct()
 
     /**
      * The account's event colours, canonicalized by [GoogleCalendarColors.canonicalize] so the
@@ -232,8 +262,17 @@ class CalendarRepository(
      *
      * Queries the Instances table, which expands recurrence rules for us — the Events table would
      * return one row per series and silently hide every repeat.
+     *
+     * Rows are limited to the calendars the user chose and ticked ([CalendarFilter.shown]), or to
+     * the chosen accounts' calendars whether ticked or not when [includeUnticked] is set. Nothing
+     * is filtered when no account was chosen and nothing unticked.
      */
-    suspend fun eventInstances(startMillis: Long, endMillis: Long): List<EventInstance> = withContext(io) {
+    suspend fun eventInstances(
+        startMillis: Long,
+        endMillis: Long,
+        includeUnticked: Boolean = false,
+    ): List<EventInstance> = withContext(io) {
+        val prefs = accountPrefs.first()
         // The Instances URI carries its window as two trailing path segments: .../instances/when/<begin>/<end>
         val builder = CalendarContract.Instances.CONTENT_URI.buildUpon()
         ContentUris.appendId(builder, startMillis)
@@ -296,6 +335,16 @@ class CalendarRepository(
                 )
             }
         }
+        // Filtered before the dedupe on purpose: hiding one account's copy of a shared holiday must
+        // leave the other account's copy, and collapsing first could keep the hidden one.
+        // Rows of a calendar the phone does not sync are dropped even with no filter: they are stale,
+        // and left in they would show as ordinary events that a birthday hide cannot reach.
+        val calendars = listCalendars()
+        if (!prefs.isUnfiltered || calendars.any { !CalendarFilter.synced(it) }) {
+            val allowed = (if (includeUnticked) CalendarFilter.usable(calendars, prefs)
+            else CalendarFilter.shown(calendars, prefs)).map { it.id }.toSet()
+            out.retainAll { it.calendarId in allowed }
+        }
         // Every read in the app funnels through here, so collapsing duplicates once fixes the
         // agenda, the hour grid, the clash detector and the widget together — and stops two copies
         // of one holiday being reported as a double booking.
@@ -303,10 +352,10 @@ class CalendarRepository(
     }
 
     /** Occurrences touching [date] in [zone]. */
-    suspend fun eventsOnDay(date: LocalDate, zone: ZoneId): List<EventInstance> {
+    suspend fun eventsOnDay(date: LocalDate, zone: ZoneId, includeUnticked: Boolean = false): List<EventInstance> {
         val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
         val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        return eventInstances(start, end).filter { it.fallsWithin(date, date.plusDays(1), zone) }
+        return eventInstances(start, end, includeUnticked).filter { it.fallsWithin(date, date.plusDays(1), zone) }
     }
 
     /** Occurrences touching [startDate] up to but not including [endDateExclusive], in [zone]. */
@@ -314,18 +363,23 @@ class CalendarRepository(
         startDate: LocalDate,
         endDateExclusive: LocalDate,
         zone: ZoneId,
+        includeUnticked: Boolean = false,
     ): List<EventInstance> {
         val start = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
         val end = endDateExclusive.atStartOfDay(zone).toInstant().toEpochMilli()
-        return eventInstances(start, end).filter { it.fallsWithin(startDate, endDateExclusive, zone) }
+        return eventInstances(start, end, includeUnticked).filter { it.fallsWithin(startDate, endDateExclusive, zone) }
     }
 
     /** Occurrences touching the whole month containing [anyDayInMonth]. */
-    suspend fun eventsInMonth(anyDayInMonth: LocalDate, zone: ZoneId): List<EventInstance> {
+    suspend fun eventsInMonth(
+        anyDayInMonth: LocalDate,
+        zone: ZoneId,
+        includeUnticked: Boolean = false,
+    ): List<EventInstance> {
         val first = anyDayInMonth.withDayOfMonth(1)
         val start = first.atStartOfDay(zone).toInstant().toEpochMilli()
         val end = first.plusMonths(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        return eventInstances(start, end).filter { it.fallsWithin(first, first.plusMonths(1), zone) }
+        return eventInstances(start, end, includeUnticked).filter { it.fallsWithin(first, first.plusMonths(1), zone) }
     }
 
     /**
@@ -751,6 +805,11 @@ class CalendarRepository(
      * would read the rename as a deletion. Deleted rows (DELETED = 1, waiting for the adapter to
      * upload the delete) are left out, as they are everywhere else.
      *
+     * A row on a calendar whose sync is switched off, or on an account the user did not add, is left
+     * out unless it is in [linkedIds]: such a calendar keeps stale rows on the phone that Google
+     * will never remove, which is the suspected cause of contact birthdays still showing after
+     * being deleted in Google Contacts (unverified on a device).
+     *
      * The Events table, not Instances: a birthday is one yearly series, and its first day is all
      * the merge needs.
      */
@@ -763,7 +822,9 @@ class CalendarRepository(
             CalendarContract.Events.RRULE,
             CalendarContract.Events.OWNER_ACCOUNT,
             CalendarContract.Events.CALENDAR_ACCESS_LEVEL,
+            CalendarContract.Events.CALENDAR_ID,
         )
+        val allowed = CalendarFilter.usable(listCalendars(), accountPrefs.first()).map { it.id }.toSet()
         val idList = linkedIds.joinToString(",")
         val linked = if (idList.isEmpty()) "" else " OR ${CalendarContract.Events._ID} IN ($idList)"
         val selection = "${CalendarContract.Events.DELETED} = 0 AND (" +
@@ -778,6 +839,7 @@ class CalendarRepository(
             while (c.moveToNext()) {
                 val allDay = c.getInt(3) == 1
                 val start = c.getLong(2)
+                if (c.getLong(7) !in allowed && c.getLong(0) !in linkedIds) continue
                 out += BirthdayEventRow(
                     eventId = c.getLong(0),
                     title = c.getString(1).orEmpty(),
@@ -838,11 +900,24 @@ class CalendarRepository(
         }
 
     /**
+     * Emits once immediately, then whenever what a read would return may have changed: any calendar
+     * data changing (see [providerChanges]), or the user choosing accounts or ticking calendars.
+     * The second is merged in so every screen and cache that already reloads on a provider change
+     * reloads on a filter change too. [conflate] keeps a burst from queuing up a re-query per event.
+     */
+    fun observeChanges(): Flow<Unit> =
+        merge(
+            providerChanges(),
+            // Only what changes a read: a nickname or a hidden birthday reloads nothing.
+            accountPrefs.map { it.readKey }.distinctUntilChanged().drop(1).map { },
+        ).conflate()
+
+    /**
      * Emits once immediately, then whenever any calendar data changes — an in-app insert, a Google
      * sync landing, or an edit made in another app. [conflate] keeps a burst of sync notifications
      * from queuing up a re-query per event.
      */
-    fun observeChanges(): Flow<Unit> = callbackFlow {
+    private fun providerChanges(): Flow<Unit> = callbackFlow {
         trySend(Unit)
         val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) { trySend(Unit) }

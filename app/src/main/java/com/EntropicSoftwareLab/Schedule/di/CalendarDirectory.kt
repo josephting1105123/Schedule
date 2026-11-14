@@ -46,6 +46,13 @@ class CalendarDirectory(
     private var warmed = false
 
     /**
+     * Bumped by [invalidate], before it does anything else. A fetch that began under an older
+     * generation was made against the old account choice and must not be written back.
+     */
+    @Volatile
+    private var generation = 0
+
+    /**
      * Fetches the calendar list, then every account palette behind it.
      *
      * Idempotent: repeated calls after the first do nothing, so a screen may call it freely. Failure
@@ -90,18 +97,27 @@ class CalendarDirectory(
     /** The warm calendar list, or a fetch when nothing is warm yet. */
     suspend fun writableCalendars(): List<CalendarInfo> {
         _calendars.value.takeIf { it.isNotEmpty() }?.let { return it }
+        val startedAt = generation
         val list = runCatching { repository.listWritableCalendars() }.getOrDefault(emptyList())
-        if (list.isNotEmpty()) _calendars.value = list
+        // No lock: warm() holds it across every palette read, and this fallback exists precisely for
+        // the moment before warm has finished. The generation check is what keeps a fetch begun
+        // before invalidate() from restoring the old list.
+        if (list.isNotEmpty() && startedAt == generation) _calendars.value = list
         return list
     }
 
     /** Drops the cache so the next read re-queries. For a provider change that adds a calendar. */
     fun invalidate() {
+        generation++
         scope.launch {
             lock.withLock {
                 warmed = false
+                _calendars.value = emptyList()
                 _colorsByCalendar.value = emptyMap()
             }
+            // Refill with the list the new account choice allows; the lock is released so warm()
+            // can take it.
+            warm()
         }
     }
 }

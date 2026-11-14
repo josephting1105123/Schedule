@@ -28,6 +28,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.EntropicSoftwareLab.Schedule.MainActivity
+import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefsRepository
 import com.EntropicSoftwareLab.Schedule.data.appearance.BrandColorAssignment
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorRepository
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorResolver
@@ -57,7 +58,9 @@ class TodayWidget : GlanceAppWidget() {
         // Read before provideContent so the first frame already has data — Glance has no loading
         // state worth showing at this size.
         val events = try {
-            CalendarRepository(context.contentResolver)
+            // All-day rows are dropped below, and a birthday is an all-day row, so nothing here needs
+            // to strip hidden birthdays; the account filter is all this list takes from the prefs.
+            CalendarRepository(context.contentResolver, accountPrefs = AccountPrefsRepository(context).prefs)
                 .eventsOnDay(today, zone)
                 .filterNot { it.allDay }
                 .sortedBy { it.startMillis }
