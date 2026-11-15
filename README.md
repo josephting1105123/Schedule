@@ -11,9 +11,11 @@ them in one place. It has no account of its own.
 
 ## Install
 
-Download `Schedule.apk` from the [latest release](https://github.com/josephting1105123/Schedule/releases/latest)
-and open it on your phone. It needs Android 10 or later, and you will have to allow installs from
-unknown sources for your browser or file manager.
+[![Download Schedule](https://img.shields.io/github/v/release/josephting1105123/Schedule?label=Download%20Schedule&style=for-the-badge&logo=android&logoColor=white&color=34D399)](https://github.com/josephting1105123/Schedule/releases/latest/download/Schedule.apk)
+
+The button downloads `Schedule.apk` from the [latest release](https://github.com/josephting1105123/Schedule/releases/latest)
+and shows its version. Open the file on your phone. It needs Android 10 or later, and you will have
+to allow installs from unknown sources for your browser or file manager.
 
 ## Build from source
 
