@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.EntropicSoftwareLab.Schedule.data.task.Task
 import com.EntropicSoftwareLab.Schedule.data.task.TaskRepository
+import com.EntropicSoftwareLab.Schedule.data.task.TaskShow
 import com.EntropicSoftwareLab.Schedule.di.AppContainer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +34,7 @@ data class TaskEditorUiState(
      * completed.
      */
     val done: Boolean = false,
+    val show: TaskShow = TaskShow.SameDay,
     val saving: Boolean = false,
     /** Set once a write lands; the screen pops on it. */
     val finished: Boolean = false,
@@ -83,6 +85,7 @@ class TaskEditorViewModel(
                         time = existing.dueTime ?: it.time,
                         notes = existing.notes.orEmpty(),
                         done = existing.done,
+                        show = existing.show,
                     )
                 }
             }
@@ -99,6 +102,8 @@ class TaskEditorViewModel(
 
     fun setNotes(value: String) = _state.update { it.copy(notes = value) }
 
+    fun setShow(value: TaskShow) = _state.update { it.copy(show = value) }
+
     fun save() {
         val current = _state.value
         if (!current.canSave) return
@@ -112,6 +117,7 @@ class TaskEditorViewModel(
                 dueTime = current.time.takeIf { current.hasTime },
                 notes = current.notes.trim().takeIf { it.isNotBlank() },
                 done = current.done,
+                show = current.show,
             )
             runCatching { if (editId == null) repository.add(task) else repository.upsert(task) }
                 .onSuccess { _state.update { it.copy(saving = false, finished = true) } }

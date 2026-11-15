@@ -1,6 +1,7 @@
 package com.EntropicSoftwareLab.Schedule.data.task
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -122,5 +123,57 @@ class TaskTest {
             task(3, due = day.minusDays(4)),
         )
         assertEquals(listOf(2L, 3L, 1L), Task.overdueAsOf(tasks, day).map { it.id })
+    }
+
+    // ---- shownOn(date, today) ----
+
+    private fun shownOn(t: Task, date: LocalDate, today: LocalDate = day) =
+        Task.shownOn(listOf(t), date, today).isNotEmpty()
+
+    @Test
+    fun `same day shows only on its due date`() {
+        val t = task(1, due = day.plusDays(3))
+        assertTrue(shownOn(t, day.plusDays(3)))
+        assertFalse(shownOn(t, day.plusDays(2)))
+        assertFalse(shownOn(t, day.plusDays(4)))
+        assertFalse(shownOn(t, day))
+    }
+
+    @Test
+    fun `week before shows on the due date and the seven days before it`() {
+        val due = day.plusDays(20)
+        val t = task(1, due = due).copy(show = TaskShow.WeekBefore)
+        assertTrue(shownOn(t, due))
+        assertTrue(shownOn(t, due.minusDays(7)))
+        assertTrue(shownOn(t, due.minusDays(1)))
+        assertFalse(shownOn(t, due.minusDays(8)))
+        assertFalse(shownOn(t, due.plusDays(1)))
+    }
+
+    @Test
+    fun `until done shows an unfinished task from today up to its due date`() {
+        val due = day.plusDays(10)
+        val t = task(1, due = due).copy(show = TaskShow.UntilDone)
+        assertTrue(shownOn(t, day))
+        assertTrue(shownOn(t, day.plusDays(5)))
+        assertTrue(shownOn(t, due))
+        assertFalse(shownOn(t, day.minusDays(1)))
+        assertFalse(shownOn(t, due.plusDays(1)))
+    }
+
+    @Test
+    fun `until done shows a finished task only on its due date`() {
+        val due = day.plusDays(10)
+        val t = task(1, due = due, done = true).copy(show = TaskShow.UntilDone)
+        assertTrue(shownOn(t, due))
+        assertFalse(shownOn(t, day))
+        assertFalse(shownOn(t, day.plusDays(5)))
+    }
+
+    @Test
+    fun `shownOn keeps the display order`() {
+        val done = task(1, done = true)
+        val open = task(2)
+        assertEquals(listOf(2L, 1L), Task.shownOn(listOf(done, open), day, day).map { it.id })
     }
 }

@@ -38,6 +38,7 @@ data class RemoteTask(
     val done: Boolean,
     val editedAt: Long,
     val tickedAt: Long,
+    val show: TaskShow = TaskShow.SameDay,
 )
 
 /**
@@ -49,8 +50,9 @@ data class RemoteTask(
  * - A timed task is a zero-length event at its due time in the writer's zone, with that zone as
  *   `EVENT_TIMEZONE`. An untimed task is an all-day event (UTC midnight to the next UTC midnight).
  * - The description is the notes, then a tag line as the *last* line:
- *   `[task] id=<syncId> edited=<epoch ms> ticked=<epoch ms> done=<0|1>`. An event with no valid
- *   tag line is not a task and is ignored.
+ *   `[task] id=<syncId> edited=<epoch ms> ticked=<epoch ms> done=<0|1>`, plus an optional
+ *   `show=<same|week|until>` (which Today pages show the task; absent means same, and only a
+ *   non-default value is written). An event with no valid tag line is not a task and is ignored.
  *
  * Reading goes through the row's own timezone, not the phone's, which is what keeps "17:00" meaning
  * 17:00 after the phone has travelled: [Task.dueTime] is wall-clock with no zone.
@@ -66,13 +68,20 @@ object TaskEventFormat {
     private val HTML_SHAPE = Regex("""<\s*(br|div|p|li)\b|&[#A-Za-z0-9]+;""", RegexOption.IGNORE_CASE)
     private val CLAIM = Regex("""\[task]\s+.*?\bid=([A-Za-z0-9-]{1,64})(?=\s|$)""")
 
-    fun tag(syncId: String, editedAt: Long, tickedAt: Long, done: Boolean): String =
-        "[task] id=$syncId edited=$editedAt ticked=$tickedAt done=${if (done) 1 else 0}"
+    fun tag(
+        syncId: String,
+        editedAt: Long,
+        tickedAt: Long,
+        done: Boolean,
+        show: TaskShow = TaskShow.SameDay,
+    ): String =
+        "[task] id=$syncId edited=$editedAt ticked=$tickedAt done=${if (done) 1 else 0}" +
+            if (show != TaskShow.SameDay) " show=${show.wire}" else ""
 
     /** Notes, then the tag line last. [Task.syncId] must be set. */
     fun description(task: Task): String {
         val syncId = requireNotNull(task.syncId) { "a task needs a syncId before it is written" }
-        val tag = tag(syncId, task.editedAt, task.tickedAt, task.done)
+        val tag = tag(syncId, task.editedAt, task.tickedAt, task.done, task.show)
         val notes = task.notes?.trim().orEmpty()
         return if (notes.isNotEmpty()) "$notes\n\n$tag" else tag
     }
@@ -152,6 +161,7 @@ object TaskEventFormat {
             done = keys["done"] == "1",
             editedAt = keys["edited"]?.toLongOrNull() ?: 0L,
             tickedAt = keys["ticked"]?.toLongOrNull() ?: 0L,
+            show = TaskShow.fromWire(keys["show"]),
         )
     }
 

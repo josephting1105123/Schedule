@@ -165,4 +165,18 @@ class TaskCodecTest {
     fun `an empty list round trips`() {
         assertTrue(TaskCodec.decode(TaskCodec.encode(emptyList())).isEmpty())
     }
+
+    @Test
+    fun `round trips every show option`() {
+        val tasks = TaskShow.entries.mapIndexed { i, show ->
+            Task(id = i + 1L, title = "T$i", due = day, dueTime = null, notes = null, done = false, show = show)
+        }
+        assertEquals(tasks, TaskCodec.decode(TaskCodec.encode(tasks)))
+    }
+
+    @Test
+    fun `a blob without a show key decodes to same day`() {
+        val decoded = TaskCodec.decode("""[{"id":1,"title":"Legacy","due":20000}]""")
+        assertEquals(TaskShow.SameDay, decoded.first().show)
+    }
 }

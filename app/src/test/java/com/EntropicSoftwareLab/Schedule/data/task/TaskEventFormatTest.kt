@@ -291,4 +291,45 @@ class TaskEventFormatTest {
         assertNull(claim("[task]id=abc"))
         assertNull(claim("[task] id=bad_id"))
     }
+
+    // ---- show ----
+
+    @Test
+    fun `a same day task keeps exactly the old tag, with no show key`() {
+        assertFalse(TaskEventFormat.description(task()).contains("show="))
+        assertEquals(
+            "[task] id=abc edited=1 ticked=2 done=0",
+            TaskEventFormat.tag("abc", 1, 2, false, TaskShow.SameDay),
+        )
+    }
+
+    @Test
+    fun `week before writes show=week and reads back`() {
+        assertEquals(
+            "[task] id=abc edited=1 ticked=2 done=0 show=week",
+            TaskEventFormat.tag("abc", 1, 2, false, TaskShow.WeekBefore),
+        )
+        val t = task().copy(show = TaskShow.WeekBefore)
+        val f = TaskEventFormat.fields(t, kl)
+        assertTrue(f.description.contains("show=week"))
+        assertEquals(TaskShow.WeekBefore, TaskEventFormat.decode(row(f), kl)!!.show)
+    }
+
+    @Test
+    fun `until done round trips`() {
+        val t = task(notes = "n").copy(show = TaskShow.UntilDone)
+        val r = TaskEventFormat.decode(row(TaskEventFormat.fields(t, kl)), kl)!!
+        assertEquals(TaskShow.UntilDone, r.show)
+        assertEquals("n", r.notes)
+    }
+
+    @Test
+    fun `a tag without show reads as same day`() {
+        assertEquals(TaskShow.SameDay, TaskEventFormat.decode(rawRow("[task] id=abc edited=1 ticked=2 done=0"), kl)!!.show)
+    }
+
+    @Test
+    fun `an unknown show value reads as same day`() {
+        assertEquals(TaskShow.SameDay, TaskEventFormat.decode(rawRow("[task] id=abc show=xyz"), kl)!!.show)
+    }
 }

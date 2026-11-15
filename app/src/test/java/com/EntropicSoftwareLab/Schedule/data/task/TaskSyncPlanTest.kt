@@ -526,4 +526,43 @@ class TaskSyncPlanTest {
         assertEquals(setOf("s1"), knownAfter(p, listOf(other)))
         assertEquals(emptySet<String>(), knownAfter(p, listOf(other), failedInserts = setOf("s1")))
     }
+
+    // ---- show ----
+
+    @Test
+    fun `a newer remote edit carries its show option to the phone`() {
+        val p = plan(
+            listOf(local(1, editedAt = 100)),
+            listOf(remote("s1", 11, editedAt = 200).copy(show = TaskShow.UntilDone)),
+        )
+        val merged = upserts(p).single().after
+        assertEquals(TaskShow.UntilDone, merged.show)
+        assertEquals(200L, merged.editedAt)
+        assertTrue(p.remoteUpdates.isEmpty())
+    }
+
+    @Test
+    fun `equal stamps differing only in show adopt the remote show with a new stamp`() {
+        val l = local(1, editedAt = 100, tickedAt = 100)
+        val r = remote("s1", 11, editedAt = 100, tickedAt = 100).copy(show = TaskShow.WeekBefore)
+        val p = plan(listOf(l), listOf(r))
+        val merged = upserts(p).single().after
+        assertEquals(TaskShow.WeekBefore, merged.show)
+        assertEquals(NOW, merged.editedAt)
+        assertEquals(listOf(11L to merged), p.remoteUpdates)
+    }
+
+    @Test
+    fun `a newer local show is written to the remote`() {
+        val l = local(1, editedAt = 300).copy(show = TaskShow.UntilDone)
+        val p = plan(listOf(l), listOf(remote("s1", 11, editedAt = 100)))
+        assertTrue(upserts(p).isEmpty())
+        assertEquals(listOf(11L to l), p.remoteUpdates)
+    }
+
+    @Test
+    fun `a new remote task imports its show option`() {
+        val p = plan(emptyList(), listOf(remote("s9", 19).copy(show = TaskShow.UntilDone)))
+        assertEquals(TaskShow.UntilDone, upserts(p).single().after.show)
+    }
 }

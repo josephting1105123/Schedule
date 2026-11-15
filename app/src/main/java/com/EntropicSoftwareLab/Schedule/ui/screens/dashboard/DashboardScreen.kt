@@ -233,11 +233,10 @@ private fun DayPage(
     val timed = state.timedEventsOn(date)
     val allDay = state.allDayEventsOn(date)
     val birthdays = remember(state.shownBirthdays, date) { state.birthdaysOn(date) }
-    val tasks = remember(state.tasks, date) { state.tasksOn(date) }
-    // Only the day's own tasks reach the grid. An overdue one is drawn nowhere: its deadline hour
-    // belongs to a different date, and a tick at 09:00 today for something due last Tuesday marks
-    // an hour on which nothing is due.
-    val taskMarks = remember(tasks) { TaskGrid.byHour(tasks) }
+    val tasks = remember(state.tasks, date, today) { state.tasksOn(date, today) }
+    // Only tasks due on this date reach the grid. One shown early (a week before, or until done) or
+    // an overdue one is drawn nowhere: its deadline hour belongs to a different date.
+    val taskMarks = remember(tasks, date) { TaskGrid.byHour(tasks.filter { it.due == date }) }
     val overdue = remember(state.tasks, date, today) { state.overdueTasksOn(date, today) }
     val cells = remember(timed, date, zone) { HourGrid.bucketByHour(timed, date, zone) }
     val lanes = remember(timed, date, zone) { HourGrid.lanes(timed, date, zone) }
