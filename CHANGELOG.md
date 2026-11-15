@@ -2,6 +2,12 @@
 
 The newest version is at the top.
 
+## 1.3.7
+
+### Look
+- New app icon: a calendar page holding three events, drawn the way Today draws them, on the
+  app's blue. Themed icons on Android 13+ get a matching outline.
+
 ## 1.3.6
 
 ### Tasks
