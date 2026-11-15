@@ -59,6 +59,7 @@ object TaskCodec {
         .put("syncId", t.syncId ?: JSONObject.NULL)
         .put("editedAt", t.editedAt)
         .put("tickedAt", t.tickedAt)
+        .put("show", t.show.wire)
 
     private fun decodeOne(o: JSONObject): Task? {
         val title = o.stringOrNull("title")?.takeIf { it.isNotBlank() } ?: return null
@@ -81,6 +82,7 @@ object TaskCodec {
             syncId = o.stringOrNull("syncId"),
             editedAt = o.optLong("editedAt", 0L),
             tickedAt = o.optLong("tickedAt", 0L),
+            show = TaskShow.fromWire(o.stringOrNull("show")),
         )
     }
 

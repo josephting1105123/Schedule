@@ -2,6 +2,14 @@
 
 The newest version is at the top.
 
+## 1.3.6
+
+### Tasks
+- A task has a **Show task** setting: *Same day* (the default) shows it on Today only on its due
+  date, *1 week before* shows it on each of the seven days before too, and *Until task finished*
+  keeps it on Today every day until you tick it off. The setting syncs with Jarvis.
+- "Due at a specific time" is a switch instead of a checkbox.
+
 ## 1.3.5
 
 ### Colours

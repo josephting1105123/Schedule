@@ -90,7 +90,7 @@ fun TaskRow(
     }
 
     val whenText = when {
-        tone == Tone.Overdue -> buildString {
+        tone == Tone.Overdue || (!task.done && task.due.isAfter(today.plusDays(6))) -> buildString {
             append(task.due.format(OVERDUE_DATE))
             task.dueTime?.let { append(' ').append(it.format(TIME_FORMAT)) }
         }

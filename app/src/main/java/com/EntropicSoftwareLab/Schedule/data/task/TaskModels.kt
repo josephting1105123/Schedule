@@ -4,6 +4,24 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 /**
+ * Which Today pages a task appears on before its deadline. [wire] is the value of the `show=` key in
+ * the Tasks calendar's tag line, shared with Jarvis: change it in both apps or neither.
+ */
+enum class TaskShow(val wire: String) {
+    /** Only on the due date. */
+    SameDay("same"),
+    /** On the due date and the seven days before it. */
+    WeekBefore("week"),
+    /** On every day from today until it is ticked off. */
+    UntilDone("until");
+
+    companion object {
+        /** Missing or unknown reads as [SameDay], so a tag from an older writer keeps its meaning. */
+        fun fromWire(value: String?): TaskShow = entries.firstOrNull { it.wire == value } ?: SameDay
+    }
+}
+
+/**
  * A task: one deadline and a checkbox. [id] is app-minted, not a provider id. A task is mirrored to
  * a calendar named "Tasks" so it can sync with Jarvis, but that calendar is excluded from every event
  * read (`CalendarFilter`), so a task still never reaches
@@ -39,8 +57,30 @@ data class Task(
     val editedAt: Long = 0L,
     /** Epoch ms of the last change to [done]; used only to pick the newer side in a sync. */
     val tickedAt: Long = 0L,
+    /** Which Today pages show it; covered by [editedAt] like the title. */
+    val show: TaskShow = TaskShow.SameDay,
 ) {
+    /** Whether the Today page for [date] lists this task; see [shownOn]. */
+    fun isShownOn(date: LocalDate, today: LocalDate): Boolean = when {
+        date.isAfter(due) -> false
+        else -> when (show) {
+            TaskShow.SameDay -> date == due
+            TaskShow.WeekBefore -> !date.isBefore(due.minusDays(7))
+            TaskShow.UntilDone ->
+                if (done) date == due else !date.isBefore(minOf(today, due))
+        }
+    }
+
     companion object {
+
+        /**
+         * The tasks shown on the Today page for [date], in display order. A task always shows on its due
+         * date; [TaskShow.WeekBefore] also on the seven days before; [TaskShow.UntilDone], while unfinished,
+         * on every page from [today] up to the due date (a finished one only on its due date). Past the due
+         * date nothing here shows it: an unfinished task is carried onto today by [overdueAsOf] instead.
+         */
+        fun shownOn(tasks: List<Task>, date: LocalDate, today: LocalDate): List<Task> =
+            ordered(tasks.filter { it.isShownOn(date, today) })
 
         /** The tasks due on [date], in display order. */
         fun on(tasks: List<Task>, date: LocalDate): List<Task> =

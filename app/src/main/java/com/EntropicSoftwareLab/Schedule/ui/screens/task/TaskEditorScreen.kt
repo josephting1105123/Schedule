@@ -2,6 +2,7 @@ package com.EntropicSoftwareLab.Schedule.ui.screens.task
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,12 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.EntropicSoftwareLab.Schedule.data.task.TaskShow
 import com.EntropicSoftwareLab.Schedule.di.LocalAppContainer
 import com.EntropicSoftwareLab.Schedule.ui.components.AppButton
 import com.EntropicSoftwareLab.Schedule.ui.components.AppCard
@@ -73,6 +76,7 @@ fun TaskEditorScreen(
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showShowMenu by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.finished) {
@@ -128,17 +132,17 @@ fun TaskEditorScreen(
                             .fillMaxWidth()
                             .clickable { vm.setHasTime(!state.hasTime) },
                         verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Checkbox(
-                            checked = state.hasTime,
-                            onCheckedChange = vm::setHasTime,
-                            colors = CheckboxDefaults.colors(checkedColor = colors.green),
-                        )
-                        Spacer(Modifier.width(d.spaceSm))
                         Text(
                             "Due at a specific time",
                             style = MaterialTheme.typography.bodyLarge,
                             color = colors.textPrimary,
+                        )
+                        Switch(
+                            checked = state.hasTime,
+                            onCheckedChange = vm::setHasTime,
+                            colors = SwitchDefaults.colors(checkedTrackColor = colors.green),
                         )
                     }
 
@@ -157,6 +161,35 @@ fun TaskEditorScreen(
                             color = colors.textSecondary,
                         )
                     }
+
+                    Box {
+                        FieldRow(label = "Show task", onClick = { showShowMenu = true }) {
+                            Text(
+                                text = state.show.label(),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = colors.textPrimary,
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showShowMenu,
+                            onDismissRequest = { showShowMenu = false },
+                        ) {
+                            TaskShow.entries.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option.label()) },
+                                    onClick = {
+                                        vm.setShow(option)
+                                        showShowMenu = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        text = state.show.hint(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textSecondary,
+                    )
 
                     OutlinedTextField(
                         value = state.notes,
@@ -234,6 +267,18 @@ fun TaskEditorScreen(
             onConfirm = { confirmingDelete = false; vm.delete() },
         )
     }
+}
+
+private fun TaskShow.label(): String = when (this) {
+    TaskShow.SameDay -> "Same day"
+    TaskShow.WeekBefore -> "1 week before"
+    TaskShow.UntilDone -> "Until task finished"
+}
+
+private fun TaskShow.hint(): String = when (this) {
+    TaskShow.SameDay -> "Shows on Today on its due date."
+    TaskShow.WeekBefore -> "Shows on Today from a week before it's due."
+    TaskShow.UntilDone -> "Shows on Today every day until you tick it off."
 }
 
 /** Label on the left, current value on the right, the whole row opening a picker. */

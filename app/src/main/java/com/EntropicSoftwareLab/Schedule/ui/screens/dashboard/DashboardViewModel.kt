@@ -77,8 +77,8 @@ data class DashboardUiState(
     fun birthdaysOn(date: LocalDate): List<Birthday> =
         Birthday.byDate(shownBirthdays, date, date.plusDays(1))[date].orEmpty()
 
-    /** Tasks due on [date], in display order. */
-    fun tasksOn(date: LocalDate): List<Task> = Task.on(tasks, date)
+    /** Tasks shown on [date]'s page (see [Task.shownOn]), in display order. */
+    fun tasksOn(date: LocalDate, today: LocalDate): List<Task> = Task.shownOn(tasks, date, today)
 
     /**
      * Unfinished tasks whose deadline has already passed, for the actual current day only.
