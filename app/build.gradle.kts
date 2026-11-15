@@ -15,8 +15,8 @@ android {
         applicationId = "com.EntropicSoftwareLab.Schedule"
         minSdk = 29
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.3.7"
+        versionCode = 14
+        versionName = "1.3.8"
         // CI stamps the commit onto the version ("1.1.0 (f8ac917)"), shown in Settings → About, so
         // the phone can say which build it is running — the version alone stays the same across
         // many builds. Local builds carry no suffix.

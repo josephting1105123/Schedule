@@ -49,8 +49,8 @@ import kotlin.math.floor
 private val LANE0_HEIGHT = 40.dp
 
 /**
- * A further lane (a clash row) has no label, only a centred bar, so it is 22dp: the bar's height
- * plus a little air.
+ * A further lane (a clash band) has no label, only a centred bar, so it is 22dp: the bar's height
+ * plus a little air. It is added to the hour cell's own height rather than drawn as a row of cells.
  */
 private val EXTRA_LANE_HEIGHT = 22.dp
 
@@ -63,23 +63,27 @@ private val BAR_BOTTOM_INSET = 3.dp
 /** A deadline is a moment, so its mark is a hairline. Wide enough to see on a ~25dp cell, no more. */
 private val DEADLINE_TICK_WIDTH = 3.dp
 
-/** Between neighbouring hour cells, and between lanes. */
+/** Between neighbouring hour cells. Lanes within a cell have no gap: they are one cell. */
 private val CELL_GAP = 2.dp
 
-/** Below this a bar shows no title — about four letters at 10sp. */
-private val MIN_TITLED_BAR_WIDTH = 30.dp
+/**
+ * Below this a bar shows no title: not even one letter fits beside the edge. An hour is only ~25dp
+ * on a phone, so a one-hour event has to be titled at that width, clipped at the bar's edge.
+ */
+private val MIN_TITLED_BAR_WIDTH = 14.dp
 
 /**
  * A day as 24 hour cells: midnight to noon on the top half, noon to midnight below. Each cell
  * carries its own two-digit hour number inside it, top-left.
  *
- * Events that clash get their own lane — a second row of the same 12 hours — rather than splitting
- * an hour between them. Within a lane, an event is one bar from its start to its end, crossing the
+ * Events that clash get their own lane rather than splitting an hour between them. A lane is not a
+ * separate row of cells: the hour cells grow taller, one extra 22dp band per clashing lane, so an
+ * hour stays one continuous cell. Within a lane, an event is one bar from its start to its end, crossing the
  * gaps between cells (see [HourGrid.runs]), and titled where it's wide enough; a meeting ending at
  * half past stops halfway across that hour's cell. A bar is a pale tint of the event's colour with a
  * solid bar on its leading edge and dark text, rather than a solid fill. The two rules keep
- * the reading unambiguous: horizontal extent always means time, and a stacked row always means a
- * clash.
+ * the reading unambiguous: horizontal extent always means time, and a bar stacked inside a cell
+ * always means a clash.
  *
  * A task deadline is drawn as a tick *over* the top lane, never as a fill and never as a lane of its
  * own — both of those would state something false under the rules above. A fill would claim the task
@@ -113,11 +117,12 @@ fun DayHourGrid(
 }
 
 /**
- * The lane rows for one half of the day.
+ * One half of the day: twelve tall hour cells, each holding every visible lane.
  *
- * A lane empty across these twelve hours is dropped, so a morning-only clash doesn't leave a blank
- * second row hanging under the afternoon. Lane 0 always survives — it carries the free-hour
- * tap targets even on a day with nothing in it.
+ * A clash makes the cells taller (one extra [EXTRA_LANE_HEIGHT] band per clashing lane) instead of
+ * adding a separate row of cells beneath. A lane empty across these twelve hours is dropped, so a
+ * morning-only clash doesn't leave an empty band hanging under the afternoon. Lane 0 always
+ * survives — it carries the free-hour tap targets even on a day with nothing in it.
  */
 @Composable
 private fun HalfDay(
@@ -128,58 +133,63 @@ private fun HalfDay(
     hours: IntRange,
     currentHour: Int?,
 ) {
+    val d = AppThemeTokens.dimens
+    val colors = AppThemeTokens.colors
     val visible = lanes.filterIndexed { index, lane ->
         index == 0 || hours.any { lane.getOrElse(it) { emptyList() }.isNotEmpty() }
     }.ifEmpty { listOf(List(HourGrid.HOURS_PER_DAY) { emptyList() }) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(CELL_GAP)) {
+    val laneHeights = visible.indices.map { if (it == 0) LANE0_HEIGHT else EXTRA_LANE_HEIGHT }
+    val totalHeight = laneHeights.fold(0.dp) { sum, h -> sum + h }
+    val count = hours.count()
+    val nowOffset = currentHour?.let { it - hours.first }?.takeIf { it in 0 until count }
+
+    Box(Modifier.fillMaxWidth().height(totalHeight)) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(CELL_GAP),
+        ) {
+            hours.forEach { hour ->
+                HourCell(
+                    laneSlices = visible.map { it.getOrElse(hour) { emptyList() } },
+                    laneHeights = laneHeights,
+                    // Deadlines ride lane 0 only. Repeating them down every lane would read as one
+                    // deadline per clashing event, and lane 0 is the one lane guaranteed on screen.
+                    marks = taskMarks.getOrElse(hour) { emptyList() },
+                    hour = hour,
+                    isNow = hour == currentHour,
+                    onLaneClick = { _, cellIsFree -> onHourTap(hour, cellIsFree) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                )
+            }
+        }
         visible.forEachIndexed { laneIndex, lane ->
-            // Deadlines ride the top row only. Repeating them down every lane would read as one
-            // deadline per clashing event, and lane 0 is the one row guaranteed to be on screen.
-            val laneMarks = if (laneIndex == 0) taskMarks else emptyList()
             val runs = remember(lane, hours) { HourGrid.runs(lane, hours) }
-            Box(
-                Modifier
+            LaneOverlay(
+                runs = runs,
+                marks = if (laneIndex == 0) taskMarks else emptyList(),
+                hours = hours,
+                colorFor = colorFor,
+                isTopLane = laneIndex == 0,
+                modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (laneIndex == 0) LANE0_HEIGHT else EXTRA_LANE_HEIGHT),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(CELL_GAP),
-                ) {
-                    hours.forEach { hour ->
-                        val slices = lane.getOrElse(hour) { emptyList() }
-                        HourCell(
-                            slices = slices,
-                            marks = laneMarks.getOrElse(hour) { emptyList() },
-                            hour = hour,
-                            // Only the top lane is numbered: the further lanes repeat the same twelve
-                            // hours directly beneath it.
-                            showLabel = laneIndex == 0,
-                            isNow = hour == currentHour,
-                            // The *cell's* own emptiness, not the hour's. An hour covered by an
-                            // all-day camp in lane 0 still has empty cells in the lanes above it,
-                            // and tapping one of those means "put something here" — answering that
-                            // with the details of the camp leaves no way to add an event during a
-                            // long event at all.
-                            //
-                            // Deadlines are deliberately not consulted: a task books no time, so an
-                            // hour carrying one is still an hour the user can put a meeting in.
-                            onClick = { onHourTap(hour, slices.isEmpty()) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                        )
-                    }
-                }
-                LaneOverlay(
-                    runs = runs,
-                    marks = laneMarks,
-                    hours = hours,
-                    colorFor = colorFor,
-                    nowOffset = currentHour?.let { it - hours.first }?.takeIf { it in 0 until hours.count() },
-                    isTopLane = laneIndex == 0,
-                    modifier = Modifier.matchParentSize(),
+                    .height(laneHeights[laneIndex])
+                    .offset(y = laneHeights.take(laneIndex).fold(0.dp) { sum, h -> sum + h }),
+            )
+        }
+        // The current-hour outline wraps the whole tall cell, so it is drawn once here, over every
+        // lane, and not per lane.
+        nowOffset?.let { offset ->
+            BoxWithConstraints(Modifier.matchParentSize()) {
+                val cellWidth = (maxWidth - CELL_GAP * (count - 1)) / count
+                Box(
+                    Modifier
+                        .offset(x = (cellWidth + CELL_GAP) * offset)
+                        .width(cellWidth)
+                        .fillMaxHeight()
+                        .border(d.hairlineWidth * 1.5f, colors.green, RoundedCornerShape(d.radiusXs)),
                 )
             }
         }
@@ -189,7 +199,7 @@ private fun HalfDay(
 /**
  * What sits on top of one lane's cells: each event as a single bar from where it starts to where it
  * ends — across the gaps between cells, so a two-hour lecture reads as one block and not two — then
- * the deadline ticks, then the outline marking the current hour.
+ * the deadline ticks. (The current-hour outline is drawn once by [HalfDay], over all lanes.)
  *
  * A bar is [BAR_HEIGHT] tall, not the lane's height: in the top lane it sits at the foot of the cell
  * under the hour number, in a further lane it is centred. It is a pale tint of the event's colour
@@ -203,13 +213,10 @@ private fun LaneOverlay(
     marks: List<List<TaskGrid.Mark>>,
     hours: IntRange,
     colorFor: (EventInstance) -> Color,
-    nowOffset: Int?,
     isTopLane: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
-    val shape = RoundedCornerShape(d.radiusXs)
     val barShape = RoundedCornerShape(4.dp)
     val count = hours.count()
     BoxWithConstraints(modifier) {
@@ -258,8 +265,11 @@ private fun LaneOverlay(
                         color = colors.textPrimary,
                         textAlign = TextAlign.Start,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 6.dp, end = 3.dp),
+                        // Clipped, not ellipsised, as on the Month grid: in a 25dp bar an ellipsis
+                        // would eat most of the room ("C…" instead of "Chur").
+                        overflow = TextOverflow.Clip,
+                        softWrap = false,
+                        modifier = Modifier.padding(start = EVENT_EDGE_WIDTH + 2.dp, end = 1.dp),
                     )
                 }
             }
@@ -286,72 +296,96 @@ private fun LaneOverlay(
             }
         }
 
-        nowOffset?.let { offset ->
-            Box(
-                Modifier
-                    .offset(x = (cellWidth + CELL_GAP) * offset)
-                    .width(cellWidth)
-                    .fillMaxHeight()
-                    .border(d.hairlineWidth * 1.5f, colors.green, shape),
-            )
-        }
     }
 }
 
+/**
+ * One hour as a single tall cell spanning every lane. Its background and clip are drawn once for the
+ * whole cell; the taps are one invisible region per lane, stacked in a [Column], so tapping a free
+ * band of a clashing hour still means "book here".
+ */
 @Composable
 private fun HourCell(
-    slices: List<HourGrid.HourSlice>,
+    laneSlices: List<List<HourGrid.HourSlice>>,
+    laneHeights: List<Dp>,
     marks: List<TaskGrid.Mark>,
     hour: Int,
-    showLabel: Boolean,
     isNow: Boolean,
-    onClick: () -> Unit,
+    onLaneClick: (laneIndex: Int, cellIsFree: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
-    val label = buildString {
-        append(hourLabel(hour))
-        append(", ")
-        append(
-            when (slices.size) {
-                0 -> "free"
-                1 -> slices.first().event.title
-                else -> slices.joinToString(", ") { it.event.title }
-            },
-        )
-        // Spoken after the hour's events, and as "due" rather than as another event — a screen
-        // reader hearing a bare title has no other way to tell a deadline from a meeting.
-        marks.forEach { mark ->
-            append(", due: ${mark.title}")
-            if (mark.done) append(", done")
-        }
-    }
 
     // The empty hour only: the event bars and ticks are drawn over it by LaneOverlay. The grid sits
     // in a white card, so the page background gives the faint cell; the current hour takes the tint.
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(d.radiusXs))
-            .background(if (isNow) colors.accentMuted else colors.background)
-            .clickable(onClick = onClick)
-            .semantics { contentDescription = label },
+            .background(if (isNow) colors.accentMuted else colors.background),
     ) {
-        if (showLabel) {
-            Text(
-                text = "%02d".format(hour),
-                style = MaterialTheme.typography.bodySmall.merge(TabularFigures).copy(
-                    fontSize = 9.5.sp,
-                    lineHeight = 10.sp,
-                ),
-                color = if (isNow) colors.greenText else colors.textSecondary,
-                fontWeight = if (isNow) FontWeight.SemiBold else null,
-                maxLines = 1,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 3.dp, top = 3.dp),
-            )
+        Column {
+            laneSlices.forEachIndexed { laneIndex, slices ->
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(laneHeights[laneIndex])
+                        // The *lane region's* own emptiness, not the hour's. An hour covered by an
+                        // all-day camp in lane 0 still has empty regions in the lanes beneath it,
+                        // and tapping one of those means "put something here" — answering that
+                        // with the details of the camp leaves no way to add an event during a
+                        // long event at all.
+                        //
+                        // Deadlines are deliberately not consulted: a task books no time, so an
+                        // hour carrying one is still an hour the user can put a meeting in.
+                        .clickable { onLaneClick(laneIndex, slices.isEmpty()) }
+                        .semantics {
+                            contentDescription = laneLabel(
+                                hour,
+                                slices,
+                                if (laneIndex == 0) marks else emptyList(),
+                            )
+                        },
+                )
+            }
         }
+        // Only lane 0's region is numbered; further lanes are bands of the same cell beneath it.
+        Text(
+            text = "%02d".format(hour),
+            style = MaterialTheme.typography.bodySmall.merge(TabularFigures).copy(
+                fontSize = 9.5.sp,
+                lineHeight = 10.sp,
+            ),
+            color = if (isNow) colors.greenText else colors.textSecondary,
+            fontWeight = if (isNow) FontWeight.SemiBold else null,
+            maxLines = 1,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 3.dp, top = 3.dp),
+        )
+    }
+}
+
+/** What a screen reader says for one lane's region of an hour cell. */
+private fun laneLabel(
+    hour: Int,
+    slices: List<HourGrid.HourSlice>,
+    marks: List<TaskGrid.Mark>,
+): String = buildString {
+    append(hourLabel(hour))
+    append(", ")
+    append(
+        when (slices.size) {
+            0 -> "free"
+            1 -> slices.first().event.title
+            else -> slices.joinToString(", ") { it.event.title }
+        },
+    )
+    // Spoken after the hour's events, and as "due" rather than as another event — a screen
+    // reader hearing a bare title has no other way to tell a deadline from a meeting.
+    marks.forEach { mark ->
+        append(", due: ${mark.title}")
+        if (mark.done) append(", done")
     }
 }
 

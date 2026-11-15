@@ -2,6 +2,14 @@
 
 The newest version is at the top.
 
+## 1.3.8
+
+### Today
+- An event an hour long or shorter now shows its name on the day grid. It used to show a blank
+  bar, because the name needed more room than one hour's cell has.
+- When two events clash, the hours they share grow taller to hold both bars, instead of a second
+  row of cells appearing underneath.
+
 ## 1.3.7
 
 ### Look
