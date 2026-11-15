@@ -2,7 +2,7 @@
 
 The newest version is at the top.
 
-## 1.3.8
+## 1.3.9
 
 ### Today
 - An event an hour long or shorter now shows its name on the day grid. It used to show a blank
