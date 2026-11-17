@@ -3,16 +3,9 @@ package com.EntropicSoftwareLab.Schedule.di
 import android.accounts.AccountManager
 import android.content.Context
 import androidx.compose.runtime.staticCompositionLocalOf
-import com.EntropicSoftwareLab.Schedule.ai.AssistantSession
-import com.EntropicSoftwareLab.Schedule.ai.GeminiAssistant
-import com.EntropicSoftwareLab.Schedule.ai.ConversationPrompt
-import com.EntropicSoftwareLab.Schedule.ai.GeminiAgent
-import com.EntropicSoftwareLab.Schedule.ai.RoutingAssistant
-import com.EntropicSoftwareLab.Schedule.ai.ScheduleAssistant
 import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefsRepository
 import com.EntropicSoftwareLab.Schedule.data.accounts.ReadKey
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorRepository
-import com.EntropicSoftwareLab.Schedule.data.assistant.AssistantMemoryRepository
 import com.EntropicSoftwareLab.Schedule.data.birthday.BirthdayRepository
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarRepository
 import com.EntropicSoftwareLab.Schedule.data.settings.SettingsRepository
@@ -64,11 +57,11 @@ class AppContainer(context: Context) {
 
     val settingsRepository: SettingsRepository by lazy {
         SettingsRepository(appContext).also { repo ->
-            // One-time cleanup: Gemini was removed from the app entirely, so any key a user pasted
-            // before this removal must not sit in DataStore forever just because nothing reads it any
-            // more. Fired on `appScope` (outlives this getter call) and wrapped in `runCatching` —
-            // failing to clear a now-unused preference is not worth surfacing anywhere.
-            appScope.launch { runCatching { repo.clearGeminiApiKey() } }
+            // One-time cleanup: wipes a Gemini key and model id saved by builds that had the
+            // assistant, so an unused secret doesn't sit in DataStore. Fired on `appScope` (outlives
+            // this getter call) and wrapped in `runCatching` — failing to clear a now-unused
+            // preference is not worth surfacing anywhere.
+            appScope.launch { runCatching { repo.clearLegacyGeminiSettings() } }
         }
     }
 
@@ -212,60 +205,6 @@ class AppContainer(context: Context) {
      * configuration change doesn't reopen the same day a second time.
      */
     val pendingWidgetLaunch = MutableStateFlow<WidgetLaunch?>(null)
-
-    /**
-     * What the assistant has learned from confirmed draft cards. Shared by both backends and by
-     * Settings, so the sentences the user reads there are the ones the model is actually sent.
-     */
-    val assistantMemoryRepository: AssistantMemoryRepository by lazy {
-        AssistantMemoryRepository(appContext)
-    }
-
-    /**
-     * The visible assistant conversation.
-     *
-     * App-scoped on purpose: the Assistant tab's ViewModel dies whenever its nav entry leaves the
-     * back stack, so a transcript kept there would be wiped by a trip to Today and back. Here it
-     * lasts as long as the process and no longer, which is the "resets when you close the app"
-     * behaviour wanted, with nothing to persist and nothing to clean up.
-     */
-    val assistantSession: AssistantSession by lazy { AssistantSession() }
-
-    /**
-     * The assistant the app talks to. [RoutingAssistant] sends each request to the cloud when a
-     * Gemini key is set and refuses with [AssistantState.NoKey] otherwise — Gemini is the only
-     * backend now that the on-device model is gone.
-     */
-    val assistant: ScheduleAssistant by lazy {
-        RoutingAssistant(
-            settings = settingsRepository,
-            cloudFactory = { key, model ->
-                GeminiAssistant(
-                    apiKey = key,
-                    zoneProvider = { zone },
-                    model = model,
-                    memoryProvider = { assistantMemoryRepository.promptBlock() },
-                    historyProvider = {
-                        ConversationPrompt.render(
-                            entries = assistantSession.entries.value,
-                            cards = assistantSession.cards.value,
-                            cancelCards = assistantSession.cancelCards.value,
-                        )
-                    },
-                )
-            },
-        )
-    }
-
-    /**
-     * Always null now. Gemini was removed from the app entirely, and this is the tool-calling
-     * agent's only entry point — [AssistantViewModel][com.EntropicSoftwareLab.Schedule.ui.screens.assistant.AssistantViewModel]
-     * still calls it, but that screen is unreachable since the Assistant tab was dropped from the
-     * bottom bar. Kept as a function, not deleted, so that still-compiled call site doesn't need
-     * editing to match a change nothing can reach.
-     */
-    @Suppress("RedundantSuspendModifier")
-    suspend fun geminiAgent(): GeminiAgent? = null
 
     /**
      * Read fresh on every access rather than cached: the device timezone changes when the user

@@ -1,7 +1,7 @@
 # Schedule
 
 An Android app that reads the calendars already synced to your phone (Google and others) and shows
-them in one place. It has no account of its own.
+them in one place. It has no account of its own and no internet access.
 
 - **Today** — an hour grid, clashes, tasks and birthdays
 - **Week** — a timetable
