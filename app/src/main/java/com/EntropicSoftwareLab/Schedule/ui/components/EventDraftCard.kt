@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Lightbulb
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -171,14 +169,16 @@ fun EventDraftCard(
                         value = repeat.label(),
                         onClick = { repeatMenu = true },
                     )
-                    DropdownMenu(expanded = repeatMenu, onDismissRequest = { repeatMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Does not repeat") },
+                    EndAnchoredDropdownMenu(expanded = repeatMenu, onDismissRequest = { repeatMenu = false }) {
+                        AppDropdownMenuItem(
+                            text = "Does not repeat",
+                            selected = repeat == null,
                             onClick = { onRepeatChange(null); repeatMenu = false },
                         )
                         RecurrenceFreq.entries.forEach { freq ->
-                            DropdownMenuItem(
-                                text = { Text(freq.label()) },
+                            AppDropdownMenuItem(
+                                text = freq.label(),
+                                selected = repeat == freq,
                                 onClick = { onRepeatChange(freq); repeatMenu = false },
                             )
                         }

@@ -2,6 +2,13 @@
 
 The newest version is at the top.
 
+## 1.3.10
+
+### Look
+- Drop-down menus (Show task, Calendar, Repeats, and the others) are white cards with rounded
+  corners instead of the pale purple boxes. The one already chosen is highlighted in blue with a
+  tick, and the menu opens under the value you tapped rather than over the field's name.
+
 ## 1.3.9
 
 ### Today

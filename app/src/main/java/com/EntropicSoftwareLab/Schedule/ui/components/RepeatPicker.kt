@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -201,10 +199,11 @@ private fun CustomRepeatEditor(
                 TextButton(onClick = { freqMenu = true }) {
                     Text(rule.freq.unitLabel(rule.interval), color = colors.textPrimary)
                 }
-                DropdownMenu(expanded = freqMenu, onDismissRequest = { freqMenu = false }) {
+                AppDropdownMenu(expanded = freqMenu, onDismissRequest = { freqMenu = false }) {
                     RecurrenceFreq.entries.forEach { freq ->
-                        DropdownMenuItem(
-                            text = { Text(freq.unitLabel(rule.interval)) },
+                        AppDropdownMenuItem(
+                            text = freq.unitLabel(rule.interval),
+                            selected = rule.freq == freq,
                             onClick = { onChange(rule.copy(freq = freq)); freqMenu = false },
                         )
                     }
