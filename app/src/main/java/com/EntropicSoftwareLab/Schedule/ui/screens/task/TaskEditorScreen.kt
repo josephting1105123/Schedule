@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -36,8 +34,10 @@ import com.EntropicSoftwareLab.Schedule.data.task.TaskShow
 import com.EntropicSoftwareLab.Schedule.di.LocalAppContainer
 import com.EntropicSoftwareLab.Schedule.ui.components.AppButton
 import com.EntropicSoftwareLab.Schedule.ui.components.AppCard
+import com.EntropicSoftwareLab.Schedule.ui.components.AppDropdownMenuItem
 import com.EntropicSoftwareLab.Schedule.ui.components.AppTintedButton
 import com.EntropicSoftwareLab.Schedule.ui.components.DatePickerSheet
+import com.EntropicSoftwareLab.Schedule.ui.components.EndAnchoredDropdownMenu
 import com.EntropicSoftwareLab.Schedule.ui.components.ScreenHeader
 import com.EntropicSoftwareLab.Schedule.ui.components.TimePickerSheet
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
@@ -170,13 +170,14 @@ fun TaskEditorScreen(
                                 color = colors.textPrimary,
                             )
                         }
-                        DropdownMenu(
+                        EndAnchoredDropdownMenu(
                             expanded = showShowMenu,
                             onDismissRequest = { showShowMenu = false },
                         ) {
                             TaskShow.entries.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(option.label()) },
+                                AppDropdownMenuItem(
+                                    text = option.label(),
+                                    selected = option == state.show,
                                     onClick = {
                                         vm.setShow(option)
                                         showShowMenu = false

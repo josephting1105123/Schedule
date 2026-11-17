@@ -2,7 +2,7 @@
 
 The newest version is at the top.
 
-## 1.3.10
+## 1.3.11
 
 ### Privacy
 - Schedule no longer asks for internet access. It only ever used it for the assistant, which was
@@ -10,6 +10,13 @@ The newest version is at the top.
   off your phone.
 - The unused assistant code is gone, along with any Gemini key or model setting an older version
   saved.
+
+## 1.3.10
+
+### Look
+- Drop-down menus (Show task, Calendar, Repeats, and the others) are white cards with rounded
+  corners instead of the pale purple boxes. The one already chosen is highlighted in blue with a
+  tick, and the menu opens under the value you tapped rather than over the field's name.
 
 ## 1.3.9
 
