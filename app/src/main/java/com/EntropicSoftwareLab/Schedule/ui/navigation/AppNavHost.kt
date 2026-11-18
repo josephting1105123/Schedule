@@ -67,17 +67,20 @@ import com.EntropicSoftwareLab.Schedule.ui.screens.week.WeekScreen
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import java.time.LocalDate
 import java.time.LocalTime
+import com.EntropicSoftwareLab.Schedule.R
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 
 /**
  * The bottom bar, in order: the calendar from its narrowest view to its widest, then Settings.
  * There is no Assistant tab — removed at the user's request; its screen and the `ai/` layer are
  * still in the build but nothing routes to them.
  */
-enum class Destination(val route: String, val label: String, val icon: ImageVector) {
-    Today("today", "Today", Icons.Outlined.Today),
-    Week("week", "Week", Icons.Outlined.ViewWeek),
-    Month("month", "Month", Icons.Outlined.CalendarMonth),
-    Settings("settings", "Settings", Icons.Outlined.Settings),
+enum class Destination(val route: String, @StringRes val labelRes: Int, val icon: ImageVector) {
+    Today("today", R.string.nav_today, Icons.Outlined.Today),
+    Week("week", R.string.nav_week, Icons.Outlined.ViewWeek),
+    Month("month", R.string.nav_month, Icons.Outlined.CalendarMonth),
+    Settings("settings", R.string.nav_settings, Icons.Outlined.Settings),
 }
 
 const val ROUTE_ADD_EVENT = "addEvent"
@@ -221,7 +224,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                     containerColor = AppThemeTokens.colors.green,
                     contentColor = Color.White,
                 ) {
-                    Icon(Icons.Outlined.Add, contentDescription = "Add")
+                    Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.nav_add))
                 }
             }
         },
@@ -240,7 +243,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                             }
                         },
                         icon = { Icon(dest.icon, contentDescription = null) },
-                        label = { Text(dest.label) },
+                        label = { Text(stringResource(dest.labelRes)) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = AppThemeTokens.colors.greenText,
                             selectedTextColor = AppThemeTokens.colors.greenText,
@@ -411,7 +414,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
         ModalBottomSheet(onDismissRequest = { showAddChooser = false }, sheetState = sheetState) {
             AddChooserRow(
                 icon = Icons.Outlined.Event,
-                label = "Event",
+                label = stringResource(R.string.nav_add_event),
                 onClick = {
                     showAddChooser = false
                     // From Today, the event goes on the day the pager shows, not the real today:
@@ -430,7 +433,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             if (currentRoute == Destination.Today.route) {
                 AddChooserRow(
                     icon = Icons.Outlined.TaskAlt,
-                    label = "Task",
+                    label = stringResource(R.string.nav_add_task),
                     onClick = {
                         showAddChooser = false
                         navController.navigate(ROUTE_ADD_TASK)
@@ -439,7 +442,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             }
             AddChooserRow(
                 icon = Icons.Outlined.Cake,
-                label = "Birthday",
+                label = stringResource(R.string.nav_add_birthday),
                 onClick = {
                     showAddChooser = false
                     navController.navigate(ROUTE_ADD_BIRTHDAY)

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ui/navigation -->
+    <string name="nav_today">Today</string>
+    <string name="nav_week">Week</string>
+    <string name="nav_month">Month</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_add">Add</string>
+    <string name="nav_add_event">Event</string>
+    <string name="nav_add_task">Task</string>
+    <string name="nav_add_birthday">Birthday</string>
+
+    <!-- ui/components -->
+    <string name="cmp_selected">Selected</string>
+    <string name="cmp_loader_loading">Loading</string>
+    <string name="cmp_loader_idle">What\'s happening?</string>
+    <string name="cmp_loader_thinking">Thinking</string>
+    <string name="cmp_birthday_turns">%1$s — turns %2$d</string>
+    <string name="cmp_choose_calendars">Choose calendars</string>
+    <string name="cmp_show_calendars">Show calendars</string>
+    <string name="cmp_calendars_hint">Untick to hide here and in the widgets. Add accounts and name them in Settings.</string>
+    <string name="cmp_slot_free">Slot is free</string>
+    <plurals name="cmp_overlaps_events">
+        <item quantity="one">Overlaps %d event</item>
+        <item quantity="other">Overlaps %d events</item>
+    </plurals>
+    <string name="cmp_and_more">and %1$d more</string>
+    <string name="cmp_today">Today</string>
+    <string name="cmp_close">Close</string>
+    <string name="cmp_add_event">Add event</string>
+    <string name="cmp_open_day">Open day</string>
+    <string name="cmp_lane_free">free</string>
+    <string name="cmp_lane_due">, due: %1$s</string>
+    <string name="cmp_lane_done">, done</string>
+    <string name="cmp_use_colour">Use colour</string>
+    <string name="cmp_cancel">Cancel</string>
+    <string name="cmp_custom_colour">Custom colour</string>
+    <string name="cmp_hex">Hex</string>
+    <string name="cmp_all_day">all day</string>
+    <string name="cmp_select">Select</string>
+    <string name="cmp_repeats">Repeats</string>
+    <string name="cmp_repeat_none">Does not repeat</string>
+    <string name="cmp_repeat_unsupported_note">This event repeats on a pattern this app doesn\'t build. It\'s kept exactly as it is unless you pick something else here.</string>
+    <string name="cmp_repeat_custom">Custom…</string>
+    <string name="cmp_set_repeat">Set repeat</string>
+    <string name="cmp_every">Every</string>
+    <string name="cmp_ends">Ends</string>
+    <string name="cmp_never">Never</string>
+    <string name="cmp_ends_on">On %1$s</string>
+    <string name="cmp_after">After</string>
+    <string name="cmp_times">times</string>
+    <string name="cmp_unit_day">day</string>
+    <string name="cmp_unit_days">days</string>
+    <string name="cmp_unit_week">week</string>
+    <string name="cmp_unit_weeks">weeks</string>
+    <string name="cmp_unit_month">month</string>
+    <string name="cmp_unit_months">months</string>
+    <string name="cmp_unit_year">year</string>
+    <string name="cmp_unit_years">years</string>
+    <string name="cmp_task_tag">TASK</string>
+    <string name="cmp_task_done">Done: %1$s</string>
+    <string name="cmp_today_pill">Today %1$s</string>
+</resources>

@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import com.EntropicSoftwareLab.Schedule.data.birthday.Birthday
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import java.time.LocalDate
+import com.EntropicSoftwareLab.Schedule.R
+import androidx.compose.ui.res.stringResource
 
 /**
  * One birthday: a cake icon, the name, and the age it turns when a birth year was given.
@@ -50,7 +52,7 @@ fun BirthdayRow(
         Spacer(Modifier.width(d.spaceSm))
         val age = birthday.ageOn(on)
         Text(
-            text = if (age != null) "${birthday.name} — turns $age" else birthday.name,
+            text = if (age != null) stringResource(R.string.cmp_birthday_turns, birthday.name, age) else birthday.name,
             style = MaterialTheme.typography.bodyLarge,
             color = colors.textPrimary,
         )

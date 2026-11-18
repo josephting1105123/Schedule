@@ -15,8 +15,8 @@ android {
         applicationId = "com.EntropicSoftwareLab.Schedule"
         minSdk = 29
         targetSdk = 36
-        versionCode = 18
-        versionName = "1.3.12"
+        versionCode = 19
+        versionName = "1.4.0"
         // CI stamps the commit onto the version ("1.1.0 (f8ac917)"), shown in Settings → About, so
         // the phone can say which build it is running — the version alone stays the same across
         // many builds. Local builds carry no suffix.
@@ -91,7 +91,6 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.glance.appwidget)
-    implementation(libs.androidx.glance.material3)
 
     testImplementation(libs.junit)
     testImplementation(libs.org.json)

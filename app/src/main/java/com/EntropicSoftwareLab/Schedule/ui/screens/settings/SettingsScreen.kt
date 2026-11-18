@@ -44,10 +44,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.EntropicSoftwareLab.Schedule.R
 import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefs
 import com.EntropicSoftwareLab.Schedule.data.accounts.AddedAccount
 import com.EntropicSoftwareLab.Schedule.data.accounts.CalendarFilter
@@ -84,13 +87,13 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         ),
         verticalArrangement = Arrangement.spacedBy(d.spaceLg),
     ) {
-        item { ScreenHeader(title = "Settings") }
+        item { ScreenHeader(title = stringResource(R.string.settings_title)) }
 
         item {
-            SectionCard(title = "Accounts", icon = Icons.Outlined.People) {
+            SectionCard(title = stringResource(R.string.settings_accounts), icon = Icons.Outlined.People) {
                 if (state.prefs.added.isEmpty()) {
                     Text(
-                        text = "Every account on this phone is shown. Add the ones you want and the rest are left out.",
+                        text = stringResource(R.string.settings_accounts_all_shown),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.textSecondary,
                     )
@@ -105,28 +108,28 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         onClick = { renaming = account },
                     )
                 }
-                AppTextButton(text = "Add account", onClick = { addingAccount = true })
+                AppTextButton(text = stringResource(R.string.settings_add_account), onClick = { addingAccount = true })
                 if (state.prefs.hiddenBirthdayKeys.isNotEmpty()) {
                     val n = state.prefs.hiddenBirthdayKeys.size
                     Spacer(Modifier.height(d.spaceSm))
                     AppDivider()
                     Spacer(Modifier.height(d.spaceSm))
                     Text(
-                        text = if (n == 1) "1 hidden birthday" else "$n hidden birthdays",
+                        text = pluralStringResource(R.plurals.settings_hidden_birthdays, n, n),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.textSecondary,
                     )
-                    AppTextButton(text = "Show them again", onClick = vm::showHiddenBirthdays)
+                    AppTextButton(text = stringResource(R.string.settings_show_them_again), onClick = vm::showHiddenBirthdays)
                 }
             }
         }
 
         item {
-            SectionCard(title = "Calendar", icon = Icons.Outlined.CalendarMonth) {
+            SectionCard(title = stringResource(R.string.settings_calendar), icon = Icons.Outlined.CalendarMonth) {
                 Box {
                     SettingRow(
-                        label = "Default calendar",
-                        value = if (state.calendars.isEmpty()) "None available"
+                        label = stringResource(R.string.settings_default_calendar),
+                        value = if (state.calendars.isEmpty()) stringResource(R.string.settings_none_available)
                         else calendarLabel(state.selectedCalendar, state.calendars, state.prefs),
                         onClick = { showCalendarMenu = true },
                     )
@@ -140,7 +143,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                     )
                 }
                 Text(
-                    text = "New events are added here and sync through that account.",
+                    text = stringResource(R.string.settings_new_events_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary,
                 )
@@ -150,13 +153,13 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         item {
             val context = LocalContext.current
             SectionCard(
-                title = "Sync with Google",
+                title = stringResource(R.string.settings_sync_title),
                 icon = Icons.Outlined.Sync,
                 trailing = {
                     IconButton(onClick = { syncOpen = !syncOpen }) {
                         Icon(
                             imageVector = if (syncOpen) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                            contentDescription = if (syncOpen) "Hide sync details" else "Show sync details",
+                            contentDescription = if (syncOpen) stringResource(R.string.settings_hide_sync_details) else stringResource(R.string.settings_show_sync_details),
                             tint = colors.textSecondary,
                         )
                     }
@@ -167,20 +170,20 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                     val accounts = state.syncStatus.size
                     Text(
                         text = when {
-                            accounts == 0 -> "No synced accounts"
-                            waiting > 0 -> "${accountCount(accounts)} · $waiting changes waiting to upload"
-                            else -> "${accountCount(accounts)} · nothing waiting to upload"
+                            accounts == 0 -> stringResource(R.string.settings_no_synced_accounts)
+                            waiting > 0 -> stringResource(R.string.settings_sync_summary_waiting, accountCount(accounts), waiting)
+                            else -> stringResource(R.string.settings_sync_summary_idle, accountCount(accounts))
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (waiting > 0) colors.warning else colors.textSecondary,
                     )
-                    AppTextButton(text = "Sync now", onClick = vm::syncNow)
+                    AppTextButton(text = stringResource(R.string.settings_sync_now), onClick = vm::syncNow)
                 }
                 AnimatedVisibility(visible = syncOpen) {
                     Column {
                         if (state.syncStatus.isEmpty()) {
                             Text(
-                                text = "No synced accounts — events here stay on this phone.",
+                                text = stringResource(R.string.settings_no_synced_accounts_long),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = colors.textSecondary,
                             )
@@ -190,16 +193,14 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                             Spacer(Modifier.height(d.spaceSm))
                         }
                         Text(
-                            text = "Changes you make here are uploaded by the phone's own Google sync. If " +
-                                "\"Waiting to upload\" stays above zero, check that auto-sync is on for " +
-                                "Calendar and that battery saving isn't stopping background sync.",
+                            text = stringResource(R.string.settings_sync_help),
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textSecondary,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(d.spaceSm)) {
-                            AppTextButton(text = "Sync now", onClick = vm::syncNow)
+                            AppTextButton(text = stringResource(R.string.settings_sync_now), onClick = vm::syncNow)
                             AppTextButton(
-                                text = "Phone sync settings",
+                                text = stringResource(R.string.settings_phone_sync_settings),
                                 onClick = {
                                     runCatching {
                                         context.startActivity(
@@ -217,10 +218,9 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         }
 
         item {
-            SectionCard(title = "About") {
+            SectionCard(title = stringResource(R.string.settings_about)) {
                 Text(
-                    text = "Schedule reads the calendars already synced to this device. No account, " +
-                        "no server, no analytics — nothing typed or scheduled here leaves the phone.",
+                    text = stringResource(R.string.settings_about_body),
                     style = MaterialTheme.typography.bodyLarge,
                     color = colors.textSecondary,
                 )
@@ -234,7 +234,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 }
                 if (version != null) {
                     Text(
-                        text = "Version $version",
+                        text = stringResource(R.string.settings_version, version),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.textSecondary,
                     )
@@ -305,10 +305,13 @@ private fun SettingRow(
 @Composable
 private fun SyncAccountRows(account: AccountSyncStatus, prefs: AccountPrefs) {
     val colors = AppThemeTokens.colors
+    val onText = stringResource(R.string.settings_on)
+    val offText = stringResource(R.string.settings_off)
+    val unknownText = stringResource(R.string.settings_unknown)
     fun onOff(value: Boolean?): String = when (value) {
-        true -> "on"
-        false -> "off"
-        null -> "unknown"
+        true -> onText
+        false -> offText
+        null -> unknownText
     }
     val title = CalendarFilter.accountLabel(account.accountName, prefs)
     Text(
@@ -325,10 +328,10 @@ private fun SyncAccountRows(account: AccountSyncStatus, prefs: AccountPrefs) {
     }
     val lines = buildList {
         // The phone-wide switch overrides the account's own, so an "on" under an "off" is still off.
-        if (account.masterAutoSync == false) add("Phone auto-sync: off" to true)
-        add("Calendar auto-sync: ${onOff(account.autoSync)}" to (account.autoSync == false))
-        account.pendingUploads?.let { add("Waiting to upload: $it" to (it > 0)) }
-        if (account.syncing == true) add("Syncing now…" to false)
+        if (account.masterAutoSync == false) add(stringResource(R.string.settings_phone_autosync_off) to true)
+        add(stringResource(R.string.settings_calendar_autosync, onOff(account.autoSync)) to (account.autoSync == false))
+        account.pendingUploads?.let { add(stringResource(R.string.settings_waiting_to_upload, it) to (it > 0)) }
+        if (account.syncing == true) add(stringResource(R.string.settings_syncing_now) to false)
     }
     lines.forEach { (line, warn) ->
         Text(
@@ -339,7 +342,8 @@ private fun SyncAccountRows(account: AccountSyncStatus, prefs: AccountPrefs) {
     }
 }
 
-private fun accountCount(n: Int): String = if (n == 1) "1 account" else "$n accounts"
+@Composable
+private fun accountCount(n: Int): String = pluralStringResource(R.plurals.settings_account_count, n, n)
 
 /** An added account: its nickname over its email, with a dot in its main calendar's colour. */
 @Composable
@@ -363,7 +367,7 @@ private fun AccountRow(account: AddedAccount, dotColor: Int?, onClick: () -> Uni
         Column(Modifier.weight(1f)) {
             val named = account.nickname.isNotBlank()
             Text(
-                text = if (named) account.nickname else "Add a name",
+                text = if (named) account.nickname else stringResource(R.string.settings_add_a_name),
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (named) colors.textPrimary else colors.textSecondary,
             )
@@ -388,7 +392,7 @@ private fun RenameAccountDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.card,
-        title = { Text("Name this account", color = colors.textPrimary) },
+        title = { Text(stringResource(R.string.settings_name_account), color = colors.textPrimary) },
         text = {
             OutlinedTextField(
                 value = text,
@@ -400,12 +404,12 @@ private fun RenameAccountDialog(
         },
         confirmButton = {
             Row {
-                TextButton(onClick = onRemove) { Text("Remove", color = colors.error) }
-                TextButton(onClick = { onSave(text) }) { Text("Save", color = colors.greenText) }
+                TextButton(onClick = onRemove) { Text(stringResource(R.string.settings_remove), color = colors.error) }
+                TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.settings_save), color = colors.greenText) }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel", color = colors.textSecondary) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel), color = colors.textSecondary) }
         },
     )
 }
@@ -422,12 +426,12 @@ private fun AddAccountDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.card,
-        title = { Text("Add an account", color = colors.textPrimary) },
+        title = { Text(stringResource(R.string.settings_add_an_account), color = colors.textPrimary) },
         text = {
             Column {
                 if (addable.isEmpty()) {
                     Text(
-                        text = "Every account on this phone is already added.",
+                        text = stringResource(R.string.settings_all_added),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.textSecondary,
                     )
@@ -455,17 +459,17 @@ private fun AddAccountDialog(
                 }
                 Spacer(Modifier.height(d.spaceSm))
                 TextButton(onClick = onSignIn) {
-                    Text("Sign in to another account", color = colors.greenText)
+                    Text(stringResource(R.string.settings_sign_in_another), color = colors.greenText)
                 }
                 Text(
-                    text = "Android adds accounts to the phone; the app can then show them.",
+                    text = stringResource(R.string.settings_android_adds_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary,
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close", color = colors.textSecondary) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = colors.textSecondary) }
         },
     )
 }

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Today -->
+    <string name="today_tomorrow">Tomorrow</string>
+    <string name="today_yesterday">Yesterday</string>
+    <string name="today_time_left_m">%1$dm left</string>
+    <string name="today_time_left_h">%1$dh left</string>
+    <string name="today_time_left_hm">%1$dh %2$dm left</string>
+    <string name="today_card_current_many">Current events</string>
+    <string name="today_card_current_one">Current event</string>
+    <string name="today_card_up_next">Up next</string>
+    <string name="today_card_nothing_left">Nothing left today</string>
+    <string name="today_reading_calendar">Reading your calendar…</string>
+    <string name="today_until_left">Until %1$s · %2$s</string>
+    <string name="today_more_on_now">+%1$d more on now</string>
+    <string name="today_then_at">Then: %1$s at %2$s</string>
+    <string name="today_rest_of_day">The rest of the day is yours.</string>
+    <string name="today_day_at_a_glance">Day at a glance</string>
+    <string name="today_grid_hint_tasks">Tap a free hour to add an event. A line marks a task deadline.</string>
+    <string name="today_grid_hint">Tap a free hour to add an event.</string>
+    <plurals name="today_clashes_title">
+        <item quantity="one">Clash</item>
+        <item quantity="other">Clashes</item>
+    </plurals>
+    <plurals name="today_double_booked">
+        <item quantity="one">Double-booked %1$s–%2$s · %3$d event</item>
+        <item quantity="other">Double-booked %1$s–%2$s · %3$d events</item>
+    </plurals>
+    <string name="today_tasks_title">Tasks</string>
+    <string name="today_tasks_all_done">all done</string>
+    <string name="today_tasks_left">%1$d left</string>
+    <string name="today_overdue">Overdue</string>
+    <string name="today_birthdays_title">Birthdays</string>
+    <string name="today_agenda_title">Agenda</string>
+    <string name="today_slot_heading">Slot: %1$s - %2$s</string>
+    <string name="today_tap_event_hint">Tap an event to edit or cancel it.</string>
+
+    <!-- Event editor -->
+    <string name="editor_edit_title">Edit event</string>
+    <string name="editor_new_title">New event</string>
+    <string name="editor_read_only">This calendar is read-only, so this event can\'t be changed here.</string>
+    <string name="editor_field_title">Title</string>
+    <string name="editor_all_day">All day</string>
+    <string name="editor_starts">Starts</string>
+    <string name="editor_ends">Ends</string>
+    <string name="editor_calendar">Calendar</string>
+    <string name="editor_repeats">Repeats</string>
+    <string name="editor_location">Location</string>
+    <string name="editor_notes">Notes</string>
+    <string name="editor_conflicts_this_occurrence">Conflicts checked for this occurrence only.</string>
+    <string name="editor_saving">Saving…</string>
+    <string name="editor_save_changes">Save changes</string>
+    <string name="editor_add_to_calendar">Add to calendar</string>
+    <string name="editor_cancel_event_button">Cancel this event</string>
+    <string name="editor_sync_note">Changes sync to your account in the background.</string>
+    <string name="editor_scope_cancel_title">Cancel which events?</string>
+    <string name="editor_scope_save_title">Save changes to which events?</string>
+    <string name="editor_scope_repeats">This event repeats.</string>
+    <string name="editor_scope_this">This event</string>
+    <string name="editor_scope_following">This and following events</string>
+    <string name="editor_scope_all_series">All events in the series</string>
+    <string name="editor_scope_all">All events</string>
+    <string name="editor_scope_back">Back</string>
+    <string name="editor_confirm_title">Cancel this event?</string>
+    <string name="editor_untitled_event">Untitled event</string>
+    <string name="editor_confirm_body">\"%1$s\" will be removed from your calendar and from every device it syncs to.</string>
+    <string name="editor_keep_it">Keep it</string>
+    <string name="editor_cancel_event_confirm">Cancel event</string>
+    <string name="editor_colour">Colour</string>
+    <string name="editor_colour_automatic">Automatic</string>
+    <string name="editor_colour_automatic_swatch">Automatic colour</string>
+    <string name="editor_colour_set_in_google">%1$s, set in Google Calendar</string>
+    <string name="editor_swatch_used_today">%1$s, already used today</string>
+    <string name="editor_colour_hint_automatic">Automatic picks a colour that differs from the others that day. Google Calendar shows it in the calendar\'s colour.</string>
+    <string name="editor_colour_hint_kept">Set in Google Calendar. It stays as it is unless you pick another; only Google\'s own apps can set this one.</string>
+    <string name="editor_colour_hint_closest">Google Calendar shows its closest colour to this one.</string>
+    <string name="editor_colour_hint_same">Same colour in Google Calendar.</string>
+    <string name="editor_colour_hint_no_options">This calendar offers no colours of its own.</string>
+
+    <!-- Task editor -->
+    <string name="task_edit_title">Edit task</string>
+    <string name="task_new_title">New task</string>
+    <string name="task_field_task">Task</string>
+    <string name="task_due">Due</string>
+    <string name="task_due_at_time">Due at a specific time</string>
+    <string name="task_time">Time</string>
+    <string name="task_no_time_hint">Without a time, this stays off the hour grid.</string>
+    <string name="task_show_task">Show task</string>
+    <string name="task_notes">Notes</string>
+    <string name="task_deadline_note">A task has a deadline, not a span — it never blocks out an hour and never counts as a clash.</string>
+    <string name="task_saving">Saving…</string>
+    <string name="task_save_changes">Save changes</string>
+    <string name="task_add">Add task</string>
+    <string name="task_delete_button">Delete this task</string>
+    <string name="task_show_same_day">Same day</string>
+    <string name="task_show_week_before">1 week before</string>
+    <string name="task_show_until_done">Until task finished</string>
+    <string name="task_show_hint_same_day">Shows on Today on its due date.</string>
+    <string name="task_show_hint_week_before">Shows on Today from a week before it\'s due.</string>
+    <string name="task_show_hint_until_done">Shows on Today every day until you tick it off.</string>
+    <string name="task_delete_title">Delete this task?</string>
+    <string name="task_untitled">Untitled task</string>
+    <string name="task_delete_body">\"%1$s\" will be removed.</string>
+    <string name="task_keep_it">Keep it</string>
+    <string name="task_delete">Delete</string>
+</resources>

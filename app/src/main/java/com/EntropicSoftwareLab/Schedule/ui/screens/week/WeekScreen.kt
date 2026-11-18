@@ -48,6 +48,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -62,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.EntropicSoftwareLab.Schedule.R
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorResolver
 import com.EntropicSoftwareLab.Schedule.data.birthday.Birthday
 import com.EntropicSoftwareLab.Schedule.data.calendar.EventInstance
@@ -235,7 +238,8 @@ private fun WeekPage(
             },
         )
     }
-    val eventsByDate = days.associateWith(state::eventsOn)
+    val weekSource = state.eventsByWeek[weekStart]
+    val eventsByDate = remember(weekSource, state.birthdays, days) { days.associateWith(state::eventsOn) }
     val blocksByDate = remember(eventsByDate, zone) {
         days.associateWith { WeekGrid.blocks(eventsByDate.getValue(it), it, zone) }
     }
@@ -337,7 +341,7 @@ private fun WeekPage(
         item(key = "allday") {
             AllDayList(
                 weekStart = weekStart,
-                eventsOn = state::eventsOn,
+                eventsByDate = eventsByDate,
                 birthdays = birthdays,
                 zone = zone,
                 colorFor = colorFor,
@@ -361,7 +365,7 @@ private fun WeekPage(
 @Composable
 private fun AllDayList(
     weekStart: LocalDate,
-    eventsOn: (LocalDate) -> List<EventInstance>,
+    eventsByDate: Map<LocalDate, List<EventInstance>>,
     birthdays: Map<LocalDate, List<Birthday>>,
     zone: ZoneId,
     colorFor: (EventInstance) -> Color,
@@ -373,19 +377,21 @@ private fun AllDayList(
     val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
     val days = remember(weekStart) { WeekPaging.days(weekStart) }
-    val bandsByDate = days.associateWith { date ->
-        eventsOn(date).filter { event ->
-            MonthChips.isBand(event, zone) &&
-                maxOf(MonthChips.daySpan(event, zone).first, weekStart) == date
+    val bandsByDate = remember(eventsByDate, days, weekStart, zone) {
+        days.associateWith { date ->
+            eventsByDate.getValue(date).filter { event ->
+                MonthChips.isBand(event, zone) &&
+                    maxOf(MonthChips.daySpan(event, zone).first, weekStart) == date
+            }
         }
     }
     val hasAny = bandsByDate.values.any { it.isNotEmpty() } || birthdays.values.any { it.isNotEmpty() }
     if (!hasAny && !showWhenEmpty) return
 
-    SectionCard(title = "All day", icon = Icons.Outlined.Event, modifier = modifier.fillMaxWidth()) {
+    SectionCard(title = stringResource(R.string.week_all_day), icon = Icons.Outlined.Event, modifier = modifier.fillMaxWidth()) {
         if (!hasAny) {
             Text(
-                text = "No all-day events or birthdays this week.",
+                text = stringResource(R.string.week_all_day_empty),
                 style = MaterialTheme.typography.bodyLarge,
                 color = colors.textSecondary,
             )
@@ -404,7 +410,7 @@ private fun AllDayList(
                     val last = MonthChips.daySpan(event, zone).last
                     if (last != MonthChips.daySpan(event, zone).first) {
                         Text(
-                            text = "Until ${last.format(LIST_DAY)}",
+                            text = stringResource(R.string.week_until, last.format(LIST_DAY)),
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textSecondary,
                             modifier = Modifier.padding(start = d.spaceLg),
@@ -438,7 +444,7 @@ private fun TimetableToggle(open: Boolean, onClick: () -> Unit) {
     ) {
         Icon(
             imageVector = if (open) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-            contentDescription = if (open) "Hide the timetable" else "Show the timetable",
+            contentDescription = if (open) stringResource(R.string.week_hide_timetable) else stringResource(R.string.week_show_timetable),
             tint = if (open) colors.textPrimary else Color.White,
             modifier = Modifier.size(d.iconSm),
         )
@@ -625,6 +631,7 @@ private fun EventBlock(
     val detailInk = eventInk(fill)
     val start = clockLabel(block.startMinute)
     val end = clockLabel(block.endMinute)
+    val eventDescription = stringResource(R.string.week_event_description, event.title, start, end)
     val titleStyle = MaterialTheme.typography.bodySmall.merge(BLOCK_TITLE_STYLE)
         .copy(hyphens = Hyphens.Auto, lineBreak = LineBreak.Paragraph)
     val textStyle = MaterialTheme.typography.bodySmall.merge(BLOCK_TEXT_STYLE)
@@ -637,8 +644,8 @@ private fun EventBlock(
             .drawBehind {
                 drawRect(fill, size = Size(EVENT_EDGE_WIDTH.toPx(), size.height))
             }
-            .clickable(onClickLabel = "Show ${event.title}", onClick = onClick)
-            .semantics { contentDescription = "${event.title}, $start to $end" }
+            .clickable(onClickLabel = stringResource(R.string.week_show_event, event.title), onClick = onClick)
+            .semantics { contentDescription = eventDescription }
             .padding(
                 start = EVENT_EDGE_WIDTH + 2.dp,
                 end = 2.dp,
@@ -716,7 +723,7 @@ private fun DayHeading(
     val colors = AppThemeTokens.colors
     Column(
         modifier = modifier
-            .clickable(role = Role.Button, onClickLabel = "Open this day", onClick = onClick)
+            .clickable(role = Role.Button, onClickLabel = stringResource(R.string.week_open_day), onClick = onClick)
             .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -742,11 +749,12 @@ private fun DayHeading(
 }
 
 /** The subtitle under a week titled by its dates: how many distinct occurrences it holds. */
+@Composable
 private fun weekCount(byDate: Map<LocalDate, List<EventInstance>>?, loading: Boolean): String? {
     if (loading || byDate == null) return null
     // A multi-day event is listed on every day it touches; count it once.
     val count = byDate.values.flatten().distinctBy { it.instanceId }.size
-    return if (count == 1) "1 event" else "$count events"
+    return pluralStringResource(R.plurals.week_event_count, count, count)
 }
 
 /** Event to its colour — the resolver's order, the same as the Today page's. */

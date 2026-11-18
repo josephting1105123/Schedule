@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- updatePeriodMillis is 0 on purpose: WidgetRefreshWorker (WorkManager) owns the periodic refresh,
+     so a second system timer would only re-query the calendar twice per half hour. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="180dp"
     android:minHeight="110dp"
@@ -9,4 +11,4 @@
     android:description="@string/widget_description"
     android:initialLayout="@layout/glance_default_loading_layout"
     android:previewImage="@mipmap/ic_launcher"
-    android:updatePeriodMillis="1800000" />
+    android:updatePeriodMillis="0" />

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Birthday editor -->
+    <string name="bday_edit_title">Edit birthday</string>
+    <string name="bday_new_title">New birthday</string>
+    <string name="bday_cancel">Cancel</string>
+    <string name="bday_name">Name</string>
+    <string name="bday_date">Date</string>
+    <string name="bday_include_year">Include birth year</string>
+    <string name="bday_no_year_hint">Without a year, no age is shown.</string>
+    <string name="bday_hide_button">Hide this birthday</string>
+    <string name="bday_saving">Saving…</string>
+    <string name="bday_save_changes">Save changes</string>
+    <string name="bday_add">Add birthday</string>
+    <string name="bday_delete_button">Delete this birthday</string>
+    <string name="bday_hide_title">Hide this birthday?</string>
+    <string name="bday_this_birthday">This birthday</string>
+    <string name="bday_hide_body">%1$s stays in Google Contacts. It won\'t show in this app again until you choose Show them again in Settings.</string>
+    <string name="bday_keep">Keep it</string>
+    <string name="bday_hide">Hide</string>
+    <string name="bday_delete_title">Delete this birthday?</string>
+    <string name="bday_untitled">Untitled birthday</string>
+    <string name="bday_delete_body">\"%1$s\" will be removed.</string>
+    <string name="bday_delete">Delete</string>
+
+    <!-- Permission gate -->
+    <string name="perm_title">Calendar access</string>
+    <string name="perm_body">Schedule reads the calendars already synced to this device so it can show your day and tell you when you\'re free. Events you add here sync back through your Google account. Nothing is sent anywhere else.</string>
+    <string name="perm_declined">Access was declined. Turn on Calendar in system settings to continue.</string>
+    <string name="perm_open_settings">Open settings</string>
+    <string name="perm_grant">Grant access</string>
+
+    <!-- Month -->
+    <string name="month_back_to_this_month">Back to this month</string>
+    <string name="month_show_grid">Show as a grid</string>
+    <string name="month_show_list">Show as a list</string>
+    <string name="month_nothing_scheduled">Nothing scheduled.</string>
+    <string name="month_a11y_today">today</string>
+    <string name="month_a11y_nothing_on">nothing on</string>
+    <string name="month_a11y_open_day">Open day</string>
+    <string name="month_a11y_show_agenda">Show agenda</string>
+    <plurals name="month_event_count">
+        <item quantity="one">%d event</item>
+        <item quantity="other">%d events</item>
+    </plurals>
+    <plurals name="month_events_this_month">
+        <item quantity="one">%d event this month</item>
+        <item quantity="other">%d events this month</item>
+    </plurals>
+    <plurals name="month_subtitle_with_birthdays">
+        <item quantity="one">%1$s · %2$d birthday</item>
+        <item quantity="other">%1$s · %2$d birthdays</item>
+    </plurals>
+
+    <!-- Week -->
+    <string name="week_all_day">All day</string>
+    <string name="week_all_day_empty">No all-day events or birthdays this week.</string>
+    <string name="week_until">Until %1$s</string>
+    <string name="week_hide_timetable">Hide the timetable</string>
+    <string name="week_show_timetable">Show the timetable</string>
+    <string name="week_show_event">Show %1$s</string>
+    <string name="week_event_description">%1$s, %2$s to %3$s</string>
+    <string name="week_open_day">Open this day</string>
+    <plurals name="week_event_count">
+        <item quantity="one">%d event</item>
+        <item quantity="other">%d events</item>
+    </plurals>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_accounts">Accounts</string>
+    <string name="settings_accounts_all_shown">Every account on this phone is shown. Add the ones you want and the rest are left out.</string>
+    <string name="settings_add_account">Add account</string>
+    <plurals name="settings_hidden_birthdays">
+        <item quantity="one">%d hidden birthday</item>
+        <item quantity="other">%d hidden birthdays</item>
+    </plurals>
+    <string name="settings_show_them_again">Show them again</string>
+    <string name="settings_calendar">Calendar</string>
+    <string name="settings_default_calendar">Default calendar</string>
+    <string name="settings_none_available">None available</string>
+    <string name="settings_new_events_hint">New events are added here and sync through that account.</string>
+    <string name="settings_sync_title">Sync with Google</string>
+    <string name="settings_hide_sync_details">Hide sync details</string>
+    <string name="settings_show_sync_details">Show sync details</string>
+    <string name="settings_no_synced_accounts">No synced accounts</string>
+    <string name="settings_sync_summary_waiting">%1$s · %2$d changes waiting to upload</string>
+    <string name="settings_sync_summary_idle">%1$s · nothing waiting to upload</string>
+    <string name="settings_sync_now">Sync now</string>
+    <string name="settings_no_synced_accounts_long">No synced accounts — events here stay on this phone.</string>
+    <string name="settings_sync_help">Changes you make here are uploaded by the phone\'s own Google sync. If \"Waiting to upload\" stays above zero, check that auto-sync is on for Calendar and that battery saving isn\'t stopping background sync.</string>
+    <string name="settings_phone_sync_settings">Phone sync settings</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_body">Schedule reads the calendars already synced to this device. No account, no server, no analytics — nothing typed or scheduled here leaves the phone.</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_on">on</string>
+    <string name="settings_off">off</string>
+    <string name="settings_unknown">unknown</string>
+    <string name="settings_phone_autosync_off">Phone auto-sync: off</string>
+    <string name="settings_calendar_autosync">Calendar auto-sync: %1$s</string>
+    <string name="settings_waiting_to_upload">Waiting to upload: %1$d</string>
+    <string name="settings_syncing_now">Syncing now…</string>
+    <plurals name="settings_account_count">
+        <item quantity="one">%d account</item>
+        <item quantity="other">%d accounts</item>
+    </plurals>
+    <string name="settings_add_a_name">Add a name</string>
+    <string name="settings_name_account">Name this account</string>
+    <string name="settings_remove">Remove</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_cancel">Cancel</string>
+    <string name="settings_add_an_account">Add an account</string>
+    <string name="settings_all_added">Every account on this phone is already added.</string>
+    <string name="settings_sign_in_another">Sign in to another account</string>
+    <string name="settings_android_adds_hint">Android adds accounts to the phone; the app can then show them.</string>
+    <string name="settings_close">Close</string>
+</resources>

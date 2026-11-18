@@ -42,6 +42,8 @@ import androidx.compose.ui.graphics.toArgb
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import java.util.Locale
 import kotlin.math.roundToInt
+import com.EntropicSoftwareLab.Schedule.R
+import androidx.compose.ui.res.stringResource
 
 /**
  * Picks any colour at all.
@@ -83,9 +85,9 @@ fun EventColorPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = { onConfirm(currentArgb) }) { Text("Use colour") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-        title = { Text("Custom colour") },
+        confirmButton = { TextButton(onClick = { onConfirm(currentArgb) }) { Text(stringResource(R.string.cmp_use_colour)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmp_cancel)) } },
+        title = { Text(stringResource(R.string.cmp_custom_colour)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(d.spaceMd)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -108,7 +110,7 @@ fun EventColorPickerDialog(
                                 value = hsv[2]
                             }
                         },
-                        label = { Text("Hex") },
+                        label = { Text(stringResource(R.string.cmp_hex)) },
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyLarge.copy(
                             fontFamily = FontFamily.Monospace,

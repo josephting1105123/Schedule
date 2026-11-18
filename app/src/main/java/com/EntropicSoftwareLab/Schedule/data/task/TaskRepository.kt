@@ -2,9 +2,11 @@ package com.EntropicSoftwareLab.Schedule.data.task
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -18,7 +20,12 @@ import kotlinx.coroutines.flow.map
  * has one: Preferences DataStore rewrites the whole file on every `edit`, and ticking a checkbox
  * should not rewrite the settings.
  */
-private val Context.taskStore: DataStore<Preferences> by preferencesDataStore(name = "tasks")
+// A corrupt file is replaced with an empty one: the task list starts empty, the sync's known-set
+// is empty too, and the "Tasks" calendar refills the tasks (empty memory deletes nothing).
+private val Context.taskStore: DataStore<Preferences> by preferencesDataStore(
+    name = "tasks",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 /**
  * [onChange] fires after each write the *user* makes (upsert, tick, delete) so the app can ask for a

@@ -2,6 +2,18 @@
 
 The newest version is at the top.
 
+## 1.4.0
+
+- Clock times follow your phone's 12- or 24-hour setting: Today, the hour sheet, the event and task editors and the Today widget.
+- Deleting or editing a birthday while the calendar can't be reached now tells you so, instead of the birthday quietly coming back or the edit reverting.
+- A damaged tasks, birthdays, colours or settings file no longer crashes the app. That part starts fresh, and tasks and birthdays refill from Google.
+- Backups no longer carry phone-specific calendar links (birthdays, colours, accounts) to a new phone, where they could point at the wrong event.
+- TalkBack reads the task's name on its checkbox, and a task's weekday follows your phone's language.
+- Today and Week do less work on every redraw.
+- The task sync logs failed calendar writes and waits longer between retries of one that keeps failing.
+- The widgets refresh once every half hour instead of twice.
+- All of the app's text now lives in resource files, ready for translation.
+
 ## 1.3.12
 
 ### Sync

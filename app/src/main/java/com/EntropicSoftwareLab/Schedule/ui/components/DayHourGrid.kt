@@ -39,6 +39,9 @@ import com.EntropicSoftwareLab.Schedule.data.task.TaskGrid
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
 import kotlin.math.floor
+import com.EntropicSoftwareLab.Schedule.R
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 
 /**
  * Lane 0 is one 40dp row: the two-digit hour number sits at the top-left of the cell and a 16dp
@@ -317,6 +320,8 @@ private fun HourCell(
     val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
 
+    val context = LocalContext.current
+
     // The empty hour only: the event bars and ticks are drawn over it by LaneOverlay. The grid sits
     // in a white card, so the page background gives the faint cell; the current hour takes the tint.
     Box(
@@ -341,6 +346,7 @@ private fun HourCell(
                         .clickable { onLaneClick(laneIndex, slices.isEmpty()) }
                         .semantics {
                             contentDescription = laneLabel(
+                                context,
                                 hour,
                                 slices,
                                 if (laneIndex == 0) marks else emptyList(),
@@ -368,6 +374,7 @@ private fun HourCell(
 
 /** What a screen reader says for one lane's region of an hour cell. */
 private fun laneLabel(
+    context: Context,
     hour: Int,
     slices: List<HourGrid.HourSlice>,
     marks: List<TaskGrid.Mark>,
@@ -376,7 +383,7 @@ private fun laneLabel(
     append(", ")
     append(
         when (slices.size) {
-            0 -> "free"
+            0 -> context.getString(R.string.cmp_lane_free)
             1 -> slices.first().event.title
             else -> slices.joinToString(", ") { it.event.title }
         },
@@ -384,8 +391,8 @@ private fun laneLabel(
     // Spoken after the hour's events, and as "due" rather than as another event — a screen
     // reader hearing a bare title has no other way to tell a deadline from a meeting.
     marks.forEach { mark ->
-        append(", due: ${mark.title}")
-        if (mark.done) append(", done")
+        append(context.getString(R.string.cmp_lane_due, mark.title))
+        if (mark.done) append(context.getString(R.string.cmp_lane_done))
     }
 }
 

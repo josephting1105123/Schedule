@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
+import com.EntropicSoftwareLab.Schedule.R
+import androidx.compose.ui.res.stringResource
 
 /**
  * The app's one dropdown menu: a white card with rounded corners, a hairline border and a soft
@@ -111,7 +113,7 @@ fun AppDropdownMenuItem(
             {
                 Icon(
                     imageVector = Icons.Filled.Check,
-                    contentDescription = "Selected",
+                    contentDescription = stringResource(R.string.cmp_selected),
                     tint = colors.greenText,
                     modifier = Modifier.size(d.iconSm),
                 )

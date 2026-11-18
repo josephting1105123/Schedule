@@ -2,8 +2,10 @@ package com.EntropicSoftwareLab.Schedule.data.appearance
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -14,8 +16,12 @@ import kotlinx.coroutines.flow.flowOf
  * has one: Preferences DataStore rewrites the whole file on every `edit`, and recolouring an event
  * should not rewrite the task list.
  */
-private val Context.eventColorStore: DataStore<Preferences> by
-    preferencesDataStore(name = "event_colors")
+// A corrupt file is replaced with an empty one: no app-own colours, so events fall back to the
+// provider's colour or the automatic brand assignment.
+private val Context.eventColorStore: DataStore<Preferences> by preferencesDataStore(
+    name = "event_colors",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 /**
  * **Retired** (2026-09-29): no longer read — see [overrides]. What follows describes what it did.
@@ -47,8 +53,8 @@ class EventColorRepository(private val context: Context) {
      * pick is written as the account's `EVENT_COLOR_KEY`, so what Google shows is what this app
      * shows. Colours stored here before that only ever reached Google as an approximation, and the
      * user chose to see Google's colour for those events rather than keep a colour only this phone
-     * knew. The flow stays, empty, so the resolver's merge order and every caller are unchanged;
-     * [forget] still tidies old entries as events are saved or deleted.
+     * knew. The flow stays, empty, so the resolver's merge order and every caller are unchanged.
+     * The old DataStore file is left in place and never written to by the editor any more.
      */
     val overrides: Flow<Map<Long, Int>> = flowOf(emptyMap())
 
@@ -66,13 +72,4 @@ class EventColorRepository(private val context: Context) {
             prefs[Keys.COLORS] = EventColorCodec.encode(next)
         }
     }
-
-    /**
-     * Drops the entry for a deleted event.
-     *
-     * Called from the delete paths rather than swept periodically: an id the provider has reused
-     * would otherwise hand a new event a colour its creator never picked, and there is no cheap way
-     * to ask the provider which of a few hundred stored ids still exist.
-     */
-    suspend fun forget(eventId: Long) = setColor(eventId, null)
 }

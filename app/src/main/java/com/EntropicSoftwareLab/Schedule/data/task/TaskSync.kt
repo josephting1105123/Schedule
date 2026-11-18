@@ -1,5 +1,6 @@
 package com.EntropicSoftwareLab.Schedule.data.task
 
+import android.util.Log
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -23,6 +24,10 @@ class TaskSync(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val mutex = Mutex()
+
+    /** Consecutive insert failures per syncId and when the last one happened. Memory only, and
+     *  only touched inside [mutex]. */
+    private val insertFailures = mutableMapOf<String, Pair<Int, Long>>()
 
     /**
      * Never throws: no calendar permission, a missing provider or a half-failed pass all end here
@@ -83,26 +88,64 @@ class TaskSync(
         var remoteOps = 0
 
         for (task in toRun.remoteInserts) {
+            val syncId = task.syncId
+            val failure = syncId?.let { insertFailures[it] }
+            if (failure != null && insertBackedOff(failure.first, failure.second, clock())) {
+                // Handled exactly like a failed insert (not confirmed, not known), but it isn't
+                // work done, so it neither counts towards requestSync nor logs again.
+                failedInserts += syncId
+                continue
+            }
             remoteOps++
             val id = runCatching {
                 calendar.insertTaskEvent(cal.id, TaskEventFormat.fields(task, zone))
-            }.getOrNull()
-            if (id == null) task.syncId?.let { failedInserts += it }
+            }.onFailure { Log.w(TAG, "Inserting the calendar event failed for task $syncId", it) }
+                .getOrNull()
+            if (id == null) {
+                if (syncId != null) {
+                    failedInserts += syncId
+                    insertFailures[syncId] = ((failure?.first ?: 0) + 1) to clock()
+                }
+            } else if (syncId != null) {
+                insertFailures.remove(syncId)
+            }
         }
 
         for ((eventId, task) in toRun.remoteUpdates) {
             remoteOps++
             // A failure leaves the id known: both sides do hold the task, and the merge reruns.
             runCatching { calendar.updateTaskEvent(eventId, TaskEventFormat.fields(task, zone)) }
+                .onFailure { Log.w(TAG, "Updating the calendar event failed for task ${task.syncId}", it) }
         }
 
         for (eventId in toRun.remoteDeletes) {
             remoteOps++
-            val ok = runCatching { calendar.deleteTaskEvent(eventId) }.getOrDefault(false)
+            val ok = runCatching { calendar.deleteTaskEvent(eventId) }
+                .onFailure { Log.w(TAG, "Deleting calendar event $eventId failed", it) }
+                .getOrDefault(false)
             if (!ok) failedDeletes += eventId
         }
 
         tasks.setKnown(cal.id, TaskSyncOutcome.knownAfter(plan, remote, applied, failedInserts, failedDeletes))
         if (remoteOps > 0) runCatching { calendar.requestSync() }
+    }
+
+    companion object {
+        private const val TAG = "TaskSync"
+        private const val BASE_BACKOFF_MILLIS = 20_000L
+        private const val MAX_BACKOFF_MILLIS = 30 * 60_000L
+
+        /** True while [now] is inside the backoff after a failure at [lastFailure]. A clock that
+         *  went backwards (now before the failure) counts as expired, so a jump can't stall a task. */
+        internal fun insertBackedOff(failures: Int, lastFailure: Long, now: Long): Boolean =
+            now >= lastFailure && now < lastFailure + insertBackoffMillis(failures)
+
+        /** How long to leave a task alone after [failures] consecutive failed inserts. */
+        internal fun insertBackoffMillis(failures: Int): Long {
+            if (failures < 1) return 0L
+            // 20 s * 2^11 already exceeds the cap; clamping the shift avoids overflow.
+            val shift = (failures - 1).coerceAtMost(11)
+            return (BASE_BACKOFF_MILLIS shl shift).coerceAtMost(MAX_BACKOFF_MILLIS)
+        }
     }
 }

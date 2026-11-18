@@ -8,6 +8,7 @@
   the picker inflates it and scales it to the cell size the widget will actually occupy.
   `previewImage` is the fallback for 29 and 30, which this app still supports. Both are needed
   because Glance 1.1.1 cannot render a preview of the widget itself, so neither comes for free.
+  updatePeriodMillis is 0 on purpose: WidgetRefreshWorker (WorkManager) owns the periodic refresh.
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="250dp"
@@ -20,4 +21,4 @@
     android:initialLayout="@layout/glance_default_loading_layout"
     android:previewLayout="@layout/month_widget_preview"
     android:previewImage="@drawable/widget_month_preview"
-    android:updatePeriodMillis="1800000" />
+    android:updatePeriodMillis="0" />

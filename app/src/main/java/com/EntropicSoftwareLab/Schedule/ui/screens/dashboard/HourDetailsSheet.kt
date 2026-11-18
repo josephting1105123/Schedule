@@ -25,14 +25,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.EntropicSoftwareLab.Schedule.R
 import com.EntropicSoftwareLab.Schedule.data.calendar.EventInstance
 import com.EntropicSoftwareLab.Schedule.ui.components.Links
+import com.EntropicSoftwareLab.Schedule.ui.components.rememberClockFormatter
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM")
 
 /**
@@ -52,7 +54,7 @@ fun HourDetailsSheet(
     onDismiss: () -> Unit,
     onEditEvent: (EventInstance) -> Unit = {},
 ) = EventsSheet(
-    heading = "Slot: ${hourLabel(hour)} - ${hourLabel((hour + 1) % 24)}",
+    heading = stringResource(R.string.today_slot_heading, hourLabel(hour), hourLabel((hour + 1) % 24)),
     events = events,
     colorFor = colorFor,
     zone = zone,
@@ -106,7 +108,7 @@ fun EventsSheet(
                 )
             }
             Text(
-                text = "Tap an event to edit or cancel it.",
+                text = stringResource(R.string.today_tap_event_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.textSecondary,
             )
@@ -123,6 +125,7 @@ private fun EventDetail(
 ) {
     val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
+    val timeFormat = rememberClockFormatter()
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Box(
             Modifier
@@ -147,10 +150,10 @@ private fun EventDetail(
             val sameDay = start.toLocalDate() == end.toLocalDate()
             Text(
                 text = if (sameDay) {
-                    "${start.format(TIME_FORMAT)} – ${end.format(TIME_FORMAT)}"
+                    "${start.format(timeFormat)} – ${end.format(timeFormat)}"
                 } else {
-                    "${start.format(DAY_FORMAT)} ${start.format(TIME_FORMAT)} – " +
-                        "${end.format(DAY_FORMAT)} ${end.format(TIME_FORMAT)}"
+                    "${start.format(DAY_FORMAT)} ${start.format(timeFormat)} – " +
+                        "${end.format(DAY_FORMAT)} ${end.format(timeFormat)}"
                 },
                 style = MaterialTheme.typography.bodyLarge.merge(TabularFigures),
                 color = colors.greenText,

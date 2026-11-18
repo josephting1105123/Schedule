@@ -43,6 +43,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.res.stringResource
+import com.EntropicSoftwareLab.Schedule.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.EntropicSoftwareLab.Schedule.data.calendar.EventColorOption
@@ -62,6 +64,7 @@ import com.EntropicSoftwareLab.Schedule.ui.components.RepeatPickerDialog
 import com.EntropicSoftwareLab.Schedule.ui.components.ScreenHeader
 import com.EntropicSoftwareLab.Schedule.ui.components.TimePickerSheet
 import com.EntropicSoftwareLab.Schedule.ui.components.asCalendarColor
+import com.EntropicSoftwareLab.Schedule.ui.components.rememberClockFormatter
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.EventColorPalette
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
@@ -71,7 +74,6 @@ import java.util.Locale
 import java.time.format.DateTimeFormatter
 
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM yyyy")
-private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 /** Which picker is currently open. One value, so two can never be up at once. */
 private enum class OpenPicker { StartDate, StartTime, EndDate, EndTime, Repeat }
@@ -109,6 +111,7 @@ fun EventEditorScreen(
     val zone = container.zone
     val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
+    val timeFormat = rememberClockFormatter()
 
     var picker by remember { mutableStateOf<OpenPicker?>(null) }
     var confirmingDelete by remember { mutableStateOf(false) }
@@ -133,10 +136,10 @@ fun EventEditorScreen(
     ) {
         item {
             ScreenHeader(
-                title = if (state.editing) "Edit event" else "New event",
+                title = stringResource(if (state.editing) R.string.editor_edit_title else R.string.editor_new_title),
                 trailing = {
                     TextButton(onClick = onCancel) {
-                        Text("Cancel", color = colors.textSecondary)
+                        Text(stringResource(R.string.cmp_cancel), color = colors.textSecondary)
                     }
                 },
             )
@@ -145,7 +148,7 @@ fun EventEditorScreen(
         if (state.readOnly) {
             item {
                 Text(
-                    text = "This calendar is read-only, so this event can't be changed here.",
+                    text = stringResource(R.string.editor_read_only),
                     style = MaterialTheme.typography.bodyLarge,
                     color = colors.textSecondary,
                 )
@@ -161,7 +164,7 @@ fun EventEditorScreen(
                     OutlinedTextField(
                         value = state.title,
                         onValueChange = vm::setTitle,
-                        label = { Text("Title") },
+                        label = { Text(stringResource(R.string.editor_field_title)) },
                         singleLine = true,
                         enabled = !state.readOnly,
                         modifier = Modifier.fillMaxWidth(),
@@ -173,7 +176,7 @@ fun EventEditorScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            "All day",
+                            stringResource(R.string.editor_all_day),
                             style = MaterialTheme.typography.bodyLarge,
                             color = colors.textPrimary,
                         )
@@ -189,17 +192,17 @@ fun EventEditorScreen(
                     // truncates any event that spans midnight or several days — which, once editing
                     // exists, means opening someone's week-long holiday and saving it as one day.
                     WhenRow(
-                        label = "Starts",
+                        label = stringResource(R.string.editor_starts),
                         date = state.startDate.format(DATE_FORMAT),
-                        time = if (state.allDay) null else state.startTime.format(TIME_FORMAT),
+                        time = if (state.allDay) null else state.startTime.format(timeFormat),
                         enabled = !state.readOnly,
                         onDateClick = { picker = OpenPicker.StartDate },
                         onTimeClick = { picker = OpenPicker.StartTime },
                     )
                     WhenRow(
-                        label = "Ends",
+                        label = stringResource(R.string.editor_ends),
                         date = state.endDate.format(DATE_FORMAT),
-                        time = if (state.allDay) null else state.endTime.format(TIME_FORMAT),
+                        time = if (state.allDay) null else state.endTime.format(timeFormat),
                         enabled = !state.readOnly,
                         onDateClick = { picker = OpenPicker.EndDate },
                         onTimeClick = { picker = OpenPicker.EndTime },
@@ -207,7 +210,7 @@ fun EventEditorScreen(
 
                     Box {
                         FieldRow(
-                            label = "Calendar",
+                            label = stringResource(R.string.editor_calendar),
                             value = calendarLabel(state.selectedCalendar, state.calendars, state.prefs),
                             enabled = !state.readOnly && !state.editing,
                         ) { showCalendarMenu = true }
@@ -222,7 +225,7 @@ fun EventEditorScreen(
                     }
 
                     FieldRow(
-                        label = "Repeats",
+                        label = stringResource(R.string.editor_repeats),
                         value = state.repeat.label(state.startDate),
                         enabled = !state.readOnly,
                     ) { picker = OpenPicker.Repeat }
@@ -240,7 +243,7 @@ fun EventEditorScreen(
                     OutlinedTextField(
                         value = state.location,
                         onValueChange = vm::setLocation,
-                        label = { Text("Location") },
+                        label = { Text(stringResource(R.string.editor_location)) },
                         singleLine = true,
                         enabled = !state.readOnly,
                         modifier = Modifier.fillMaxWidth(),
@@ -249,7 +252,7 @@ fun EventEditorScreen(
                     OutlinedTextField(
                         value = state.notes,
                         onValueChange = vm::setNotes,
-                        label = { Text("Notes") },
+                        label = { Text(stringResource(R.string.editor_notes)) },
                         minLines = 2,
                         // Past this the field scrolls inside itself and keeps the line being typed
                         // on screen; a field taller than the space above the keyboard can't.
@@ -268,7 +271,7 @@ fun EventEditorScreen(
             if (state.repeat != RepeatSelection.None) {
                 item {
                     Text(
-                        text = "Conflicts checked for this occurrence only.",
+                        text = stringResource(R.string.editor_conflicts_this_occurrence),
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textSecondary,
                     )
@@ -285,9 +288,9 @@ fun EventEditorScreen(
         item {
             AppButton(
                 text = when {
-                    state.saving -> "Saving…"
-                    state.editing -> "Save changes"
-                    else -> "Add to calendar"
+                    state.saving -> stringResource(R.string.editor_saving)
+                    state.editing -> stringResource(R.string.editor_save_changes)
+                    else -> stringResource(R.string.editor_add_to_calendar)
                 },
                 onClick = vm::save,
                 enabled = state.canSave,
@@ -297,7 +300,7 @@ fun EventEditorScreen(
         if (state.editing && !state.readOnly) {
             item {
                 AppTintedButton(
-                    text = "Cancel this event",
+                    text = stringResource(R.string.editor_cancel_event_button),
                     onClick = { confirmingDelete = true },
                     tint = colors.error,
                     filled = false,
@@ -309,7 +312,7 @@ fun EventEditorScreen(
 
         item {
             Text(
-                text = "Changes sync to your account in the background.",
+                text = stringResource(R.string.editor_sync_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.textSecondary,
             )
@@ -384,32 +387,36 @@ private fun RecurrenceScopeDialog(
         AppCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(d.spaceLg)) {
                 Text(
-                    text = if (deleting) "Cancel which events?" else "Save changes to which events?",
+                    text = stringResource(
+                        if (deleting) R.string.editor_scope_cancel_title else R.string.editor_scope_save_title,
+                    ),
                     style = MaterialTheme.typography.titleMedium,
                     color = colors.textPrimary,
                 )
                 Spacer(Modifier.height(d.spaceXs))
                 Text(
-                    text = "This event repeats.",
+                    text = stringResource(R.string.editor_scope_repeats),
                     style = MaterialTheme.typography.bodyLarge,
                     color = colors.textSecondary,
                 )
                 Spacer(Modifier.height(d.spaceMd))
 
-                ScopeRow("This event", onClick = { onPick(RecurrenceScope.ThisEvent) })
+                ScopeRow(stringResource(R.string.editor_scope_this), onClick = { onPick(RecurrenceScope.ThisEvent) })
                 ScopeRow(
-                    "This and following events",
+                    stringResource(R.string.editor_scope_following),
                     onClick = { onPick(RecurrenceScope.ThisAndFollowing) },
                 )
                 ScopeRow(
-                    if (deleting) "All events in the series" else "All events",
+                    stringResource(
+                        if (deleting) R.string.editor_scope_all_series else R.string.editor_scope_all,
+                    ),
                     onClick = { onPick(RecurrenceScope.AllEvents) },
                 )
 
                 Spacer(Modifier.height(d.spaceSm))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) {
-                        Text("Back", color = colors.textSecondary)
+                        Text(stringResource(R.string.editor_scope_back), color = colors.textSecondary)
                     }
                 }
             }
@@ -443,14 +450,16 @@ private fun ConfirmCancelDialog(title: String, onDismiss: () -> Unit, onConfirm:
         AppCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(d.spaceLg)) {
                 Text(
-                    text = "Cancel this event?",
+                    text = stringResource(R.string.editor_confirm_title),
                     style = MaterialTheme.typography.titleMedium,
                     color = colors.textPrimary,
                 )
                 Spacer(Modifier.height(d.spaceXs))
                 Text(
-                    text = "\"${title.ifBlank { "Untitled event" }}\" will be removed from your " +
-                        "calendar and from every device it syncs to.",
+                    text = stringResource(
+                        R.string.editor_confirm_body,
+                        title.ifBlank { stringResource(R.string.editor_untitled_event) },
+                    ),
                     style = MaterialTheme.typography.bodyLarge,
                     color = colors.textSecondary,
                 )
@@ -460,14 +469,14 @@ private fun ConfirmCancelDialog(title: String, onDismiss: () -> Unit, onConfirm:
                     horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
                 ) {
                     AppTintedButton(
-                        text = "Keep it",
+                        text = stringResource(R.string.editor_keep_it),
                         onClick = onDismiss,
                         tint = colors.textSecondary,
                         filled = false,
                         modifier = Modifier.weight(1f),
                     )
                     AppTintedButton(
-                        text = "Cancel event",
+                        text = stringResource(R.string.editor_cancel_event_confirm),
                         onClick = onConfirm,
                         tint = colors.error,
                         modifier = Modifier.weight(1f),
@@ -507,6 +516,8 @@ private fun WhenRow(
                 Spacer(Modifier.width(d.spaceMd))
                 Text(
                     text = time,
+                    maxLines = 1,
+                    softWrap = false,
                     style = MaterialTheme.typography.bodyLarge.merge(TabularFigures),
                     color = colors.textPrimary,
                     modifier = Modifier.clickable(enabled = enabled, onClick = onTimeClick),
@@ -559,14 +570,14 @@ private fun ColorPickerRow(
     fun nameOf(argb: Int) =
         GoogleCalendarColors.nameFor(argb) ?: "#%06X".format(Locale.US, argb and 0xFFFFFF)
     val selectedName = when {
-        selectedArgb == null -> "Automatic"
+        selectedArgb == null -> stringResource(R.string.editor_colour_automatic)
         selectedOption != null -> selectedOption.label
         else -> nameOf(selectedArgb)
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(d.spaceSm)) {
         Row(horizontalArrangement = Arrangement.spacedBy(d.spaceSm)) {
-            Text("Colour", style = MaterialTheme.typography.bodyLarge, color = colors.textSecondary)
+            Text(stringResource(R.string.editor_colour), style = MaterialTheme.typography.bodyLarge, color = colors.textSecondary)
             Text(
                 text = selectedName,
                 style = MaterialTheme.typography.bodyLarge,
@@ -587,7 +598,7 @@ private fun ColorPickerRow(
                 // Never hinted: which colour this event lands on depends on the rest of the day,
                 // so this screen can't say whether it collides with anything.
                 usedToday = false,
-                label = "Automatic colour",
+                label = stringResource(R.string.editor_colour_automatic_swatch),
                 enabled = enabled,
                 onClick = { onSelect(null) },
             )
@@ -596,7 +607,7 @@ private fun ColorPickerRow(
                     color = Color(GoogleCalendarColors.displayShade(argb)),
                     isSelected = selectedArgb != null && sameRgb(selectedArgb, argb),
                     usedToday = false,
-                    label = "${nameOf(argb)}, set in Google Calendar",
+                    label = stringResource(R.string.editor_colour_set_in_google, nameOf(argb)),
                     enabled = enabled,
                     onClick = { onSelect(argb) },
                 )
@@ -614,16 +625,12 @@ private fun ColorPickerRow(
         }
         Text(
             text = when {
-                selectedArgb == null ->
-                    "Automatic picks a colour that differs from the others that day. Google " +
-                        "Calendar shows it in the calendar's colour."
+                selectedArgb == null -> stringResource(R.string.editor_colour_hint_automatic)
                 selectedOption == null && keptOriginal != null ->
-                    "Set in Google Calendar. It stays as it is unless you pick another; only " +
-                        "Google's own apps can set this one."
-                selectedOption == null ->
-                    "Google Calendar shows its closest colour to this one."
-                else -> "Same colour in Google Calendar."
-            } + if (ordered.isEmpty()) " This calendar offers no colours of its own." else "",
+                    stringResource(R.string.editor_colour_hint_kept)
+                selectedOption == null -> stringResource(R.string.editor_colour_hint_closest)
+                else -> stringResource(R.string.editor_colour_hint_same)
+            } + if (ordered.isEmpty()) " " + stringResource(R.string.editor_colour_hint_no_options) else "",
             style = MaterialTheme.typography.bodySmall,
             color = colors.textSecondary,
         )
@@ -643,7 +650,7 @@ private fun Swatch(
 ) {
     val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
-    val description = if (usedToday) "$label, already used today" else label
+    val description = if (usedToday) stringResource(R.string.editor_swatch_used_today, label) else label
     Box(
         modifier = Modifier
             .size(d.touchTarget)

@@ -1,7 +1,9 @@
 package com.EntropicSoftwareLab.Schedule.widget
 
 import android.content.Context
+import android.text.format.DateFormat
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +36,7 @@ import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorRepository
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorResolver
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarRepository
 import com.EntropicSoftwareLab.Schedule.data.calendar.EventInstance
+import com.EntropicSoftwareLab.Schedule.ui.components.clockFormatter
 import com.EntropicSoftwareLab.Schedule.ui.theme.EventColorPalette
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
@@ -41,7 +44,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private val HEADER_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM")
-private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 /** How many events fit before the widget becomes a wall of text. */
 private const val MAX_ROWS = 5
@@ -81,9 +83,12 @@ class TodayWidget : GlanceAppWidget() {
             emptyMap()
         }
 
+        // Read per render of the session so a changed 12/24-hour setting shows on the next refresh.
+        val is24Hour = DateFormat.is24HourFormat(context)
+
         provideContent {
             GlanceTheme {
-                WidgetBody(today = today, events = events, colors = colors, zone = zone)
+                WidgetBody(today = today, events = events, colors = colors, zone = zone, is24Hour = is24Hour)
             }
         }
     }
@@ -95,7 +100,9 @@ private fun WidgetBody(
     events: List<EventInstance>,
     colors: Map<Long, Int>,
     zone: ZoneId,
+    is24Hour: Boolean,
 ) {
+    val timeFormat = remember(is24Hour) { clockFormatter(is24Hour) }
     val now = System.currentTimeMillis()
     val upcoming = events.filter { it.endMillis > now }.take(MAX_ROWS)
 
@@ -123,7 +130,10 @@ private fun WidgetBody(
             )
         } else {
             upcoming.forEach { event ->
-                EventLine(event = event, colors = colors, zone = zone)
+                EventLine(
+                    event = event, colors = colors, zone = zone,
+                    timeFormat = timeFormat, is24Hour = is24Hour,
+                )
                 Spacer(GlanceModifier.height(4.dp))
             }
             val hidden = events.count { it.endMillis > now } - upcoming.size
@@ -138,7 +148,13 @@ private fun WidgetBody(
 }
 
 @Composable
-private fun EventLine(event: EventInstance, colors: Map<Long, Int>, zone: ZoneId) {
+private fun EventLine(
+    event: EventInstance,
+    colors: Map<Long, Int>,
+    zone: ZoneId,
+    timeFormat: DateTimeFormatter,
+    is24Hour: Boolean,
+) {
     val argb = EventColorResolver.argbFor(event, colors)
     Row(
         modifier = GlanceModifier.fillMaxWidth(),
@@ -154,9 +170,11 @@ private fun EventLine(event: EventInstance, colors: Map<Long, Int>, zone: ZoneId
         ) {}
         Spacer(GlanceModifier.width(6.dp))
         Text(
-            text = event.localStart(zone).format(TIME_FORMAT),
+            text = event.localStart(zone).format(timeFormat),
+            maxLines = 1,
             style = TextStyle(color = WidgetTokens.greenText, fontSize = 13.sp),
-            modifier = GlanceModifier.width(46.dp),
+            // "12:30 PM" needs more room than "12:30".
+            modifier = GlanceModifier.width(if (is24Hour) 46.dp else 64.dp),
         )
         Text(
             text = event.title,

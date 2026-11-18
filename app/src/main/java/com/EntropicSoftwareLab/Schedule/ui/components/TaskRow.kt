@@ -20,6 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -33,8 +35,9 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import com.EntropicSoftwareLab.Schedule.R
+import androidx.compose.ui.res.stringResource
 
-private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 private val OVERDUE_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM")
 
 /** How urgent a task looks, which decides only the badge's tint. */
@@ -66,6 +69,7 @@ fun TaskRow(
     val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
     val shape = RoundedCornerShape(d.radiusMd)
+    val timeFormat = rememberClockFormatter()
 
     val tone = when {
         task.done -> Tone.Neutral
@@ -92,10 +96,12 @@ fun TaskRow(
     val whenText = when {
         tone == Tone.Overdue || (!task.done && task.due.isAfter(today.plusDays(6))) -> buildString {
             append(task.due.format(OVERDUE_DATE))
-            task.dueTime?.let { append(' ').append(it.format(TIME_FORMAT)) }
+            task.dueTime?.let { append(' ').append(it.format(timeFormat)) }
         }
-        else -> task.dueTime?.format(TIME_FORMAT).orEmpty()
+        else -> task.dueTime?.format(timeFormat).orEmpty()
     }
+
+    val doneDescription = stringResource(R.string.cmp_task_done, task.title)
 
     Row(
         modifier = modifier
@@ -117,9 +123,9 @@ fun TaskRow(
             verticalArrangement = Arrangement.Center,
         ) {
             Text(
-                text = task.due.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
+                text = task.due.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                     .take(3)
-                    .uppercase(Locale.ENGLISH),
+                    .uppercase(Locale.getDefault()),
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.SemiBold,
@@ -145,7 +151,7 @@ fun TaskRow(
             )
             Row {
                 Text(
-                    text = "TASK",
+                    text = stringResource(R.string.cmp_task_tag),
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -176,6 +182,7 @@ fun TaskRow(
         Checkbox(
             checked = task.done,
             onCheckedChange = onToggle,
+            modifier = Modifier.semantics { contentDescription = doneDescription },
             colors = CheckboxDefaults.colors(
                 checkedColor = colors.green,
                 uncheckedColor = colors.textSecondary,

@@ -508,11 +508,6 @@ class EventEditorViewModel(
                     val details = current.details
                     if (details == null) false
                     else repository.updateEvent(details, current.toEventEdit(zone), scope, zone)
-                        .also { saved ->
-                            // The colour now lives in the provider as the account's key; drop any
-                            // app-only colour left over from before, so nothing shadows it.
-                            if (saved) forgetAppColor(details.eventId)
-                        }
                 } else {
                     current.toNewEvent(zone)?.let { draft ->
                         repository.insertEvent(draft, zone) != null
@@ -530,27 +525,12 @@ class EventEditorViewModel(
         }
     }
 
-    /**
-     * Drops an app-only colour stored for [eventId] before Google's colours became the picker.
-     *
-     * Nothing reads those any more (see `EventColorRepository.overrides`); this just tidies the
-     * store as events are touched. Failure is swallowed: the event itself is already written.
-     */
-    private suspend fun forgetAppColor(eventId: Long) {
-        runCatching { eventColors.forget(eventId) }
-    }
-
     private fun performDelete(scope: RecurrenceScope) {
         val details = _state.value.details ?: return
         _state.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
             try {
                 val ok = repository.deleteEvent(details, scope, zoneProvider())
-                // Only a whole-series delete removes the row this colour is keyed to. Cancelling one
-                // occurrence leaves the series — and its colour — in place.
-                if (ok && scope == RecurrenceScope.AllEvents) {
-                    runCatching { eventColors.forget(details.eventId) }
-                }
                 if (ok) _state.update { it.copy(saving = false, finished = true) }
                 else _state.update {
                     it.copy(saving = false, error = "The calendar wouldn't remove that event.")

@@ -61,12 +61,16 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.EntropicSoftwareLab.Schedule.R
 import com.EntropicSoftwareLab.Schedule.data.birthday.Birthday
 import com.EntropicSoftwareLab.Schedule.data.calendar.EventInstance
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorResolver
@@ -295,7 +299,7 @@ fun MonthScreen(
                 } else {
                     null
                 },
-                titleClickLabel = "Back to this month",
+                titleClickLabel = stringResource(R.string.month_back_to_this_month),
                 modifier = Modifier.padding(top = d.spaceLg),
                 trailing = {
                     Row(
@@ -308,9 +312,9 @@ fun MonthScreen(
                             ModeSlider(
                                 selectedFirst = gridMode,
                                 firstIcon = Icons.Outlined.CalendarViewMonth,
-                                firstDescription = "Show as a grid",
+                                firstDescription = stringResource(R.string.month_show_grid),
                                 secondIcon = Icons.AutoMirrored.Outlined.ViewList,
-                                secondDescription = "Show as a list",
+                                secondDescription = stringResource(R.string.month_show_list),
                                 onSelect = { first -> gridMode = first },
                             )
                         }
@@ -320,8 +324,9 @@ fun MonthScreen(
             )
         }
         // Birthday chips are counted in with the events, so the spoken count says "events" for both.
+        val resources = LocalContext.current.resources
         val describeCount: (Int) -> String = { count ->
-            if (count == 1) "1 event" else "$count events"
+            resources.getQuantityString(R.plurals.month_event_count, count, count)
         }
         val calendar: @Composable (Modifier) -> Unit = { cardModifier ->
             CalendarCard(
@@ -492,7 +497,7 @@ private fun DayAgendaPopup(
         date = date,
         today = today,
         isEmpty = events.isEmpty() && birthdays.isEmpty(),
-        emptyMessage = "Nothing scheduled.",
+        emptyMessage = stringResource(R.string.month_nothing_scheduled),
         onDismiss = onDismiss,
         onOpenDay = onOpenDay,
         onAddEvent = onAddEvent,
@@ -680,6 +685,7 @@ private fun FullMonthGrid(
     }
 }
 
+@Composable
 private fun monthSubtitle(state: MonthUiState): String {
     // eventsByDate spans five months, so the header counts only the visible one — and counts
     // each occurrence once, because the map repeats a multi-day event on every day it covers and
@@ -694,11 +700,11 @@ private fun monthSubtitle(state: MonthUiState): String {
         .values.flatten()
         .distinctBy { it.id }
         .size
-    val eventText = if (events == 1) "1 event this month" else "$events events this month"
-    return when (birthdays) {
-        0 -> eventText
-        1 -> "$eventText · 1 birthday"
-        else -> "$eventText · $birthdays birthdays"
+    val eventText = pluralStringResource(R.plurals.month_events_this_month, events, events)
+    return if (birthdays == 0) {
+        eventText
+    } else {
+        pluralStringResource(R.plurals.month_subtitle_with_birthdays, birthdays, eventText, birthdays)
     }
 }
 
@@ -784,7 +790,7 @@ private fun AgendaDayBlock(
 
             Column(Modifier.weight(1f)) {
                 if (day.events.isEmpty() && day.birthdays.isEmpty()) {
-                    EmptyState("Nothing scheduled.")
+                    EmptyState(stringResource(R.string.month_nothing_scheduled))
                 } else {
                     day.birthdays.forEach { birthday ->
                         BirthdayRow(

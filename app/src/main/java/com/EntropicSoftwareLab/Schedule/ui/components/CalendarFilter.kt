@@ -57,6 +57,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import com.EntropicSoftwareLab.Schedule.R
+import androidx.compose.ui.res.stringResource
 
 /**
  * Backs [CalendarFilterButton]. Self-contained so Today, Week and Month can each drop the button in
@@ -135,7 +137,7 @@ fun CalendarFilterButton(modifier: Modifier = Modifier) {
     ) {
         Icon(
             imageVector = Icons.Outlined.MoreHoriz,
-            contentDescription = "Choose calendars",
+            contentDescription = stringResource(R.string.cmp_choose_calendars),
             tint = colors.textPrimary,
             modifier = Modifier.size(d.iconSm),
         )
@@ -163,7 +165,7 @@ private fun CalendarFilterSheetBody(chips: List<CalendarChip>, onToggle: (Calend
         ),
     ) {
         Text(
-            text = "Show calendars",
+            text = stringResource(R.string.cmp_show_calendars),
             style = MaterialTheme.typography.titleMedium,
             color = colors.textPrimary,
         )
@@ -178,7 +180,7 @@ private fun CalendarFilterSheetBody(chips: List<CalendarChip>, onToggle: (Calend
         }
         Spacer(Modifier.height(d.spaceMd))
         Text(
-            text = "Untick to hide here and in the widgets. Add accounts and name them in Settings.",
+            text = stringResource(R.string.cmp_calendars_hint),
             style = MaterialTheme.typography.bodySmall,
             color = colors.textSecondary,
         )

@@ -1,5 +1,6 @@
 package com.EntropicSoftwareLab.Schedule.ui.components
 
+import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -19,15 +20,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.EntropicSoftwareLab.Schedule.data.calendar.EventInstance
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-
-private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+import com.EntropicSoftwareLab.Schedule.R
+import androidx.compose.ui.res.stringResource
 
 /**
  * One agenda row: a colour bar identifying the event, the time in tabular figures so rows align
@@ -55,6 +56,8 @@ fun EventRow(
 ) {
     val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
+    val timeFormat = rememberClockFormatter()
+    val is24Hour = DateFormat.is24HourFormat(LocalContext.current)
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -71,23 +74,27 @@ fun EventRow(
         )
         Spacer(Modifier.width(d.spaceMd))
 
-        Column(Modifier.width(56.dp)) {
+        Column(Modifier.width(if (is24Hour) 56.dp else 72.dp)) {
             if (event.allDay) {
                 Text(
-                    text = "all day",
+                    text = stringResource(R.string.cmp_all_day),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary,
                 )
             } else {
                 Text(
-                    text = event.localStart(zone).format(TIME_FORMAT),
+                    text = event.localStart(zone).format(timeFormat),
                     style = MaterialTheme.typography.bodyLarge.merge(TabularFigures),
                     color = colors.textPrimary,
+                    maxLines = 1,
+                    softWrap = false,
                 )
                 Text(
-                    text = event.localEnd(zone).format(TIME_FORMAT),
+                    text = event.localEnd(zone).format(timeFormat),
                     style = MaterialTheme.typography.bodySmall.merge(TabularFigures),
                     color = colors.textSecondary,
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
         }

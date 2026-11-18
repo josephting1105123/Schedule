@@ -28,6 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.res.stringResource
+import com.EntropicSoftwareLab.Schedule.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.EntropicSoftwareLab.Schedule.data.task.TaskShow
@@ -40,12 +42,12 @@ import com.EntropicSoftwareLab.Schedule.ui.components.DatePickerSheet
 import com.EntropicSoftwareLab.Schedule.ui.components.EndAnchoredDropdownMenu
 import com.EntropicSoftwareLab.Schedule.ui.components.ScreenHeader
 import com.EntropicSoftwareLab.Schedule.ui.components.TimePickerSheet
+import com.EntropicSoftwareLab.Schedule.ui.components.rememberClockFormatter
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
 import java.time.format.DateTimeFormatter
 
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM yyyy")
-private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 /**
  * Creating and editing a task — a title, a deadline, and optional notes.
@@ -73,6 +75,7 @@ fun TaskEditorScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
+    val timeFormat = rememberClockFormatter()
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -96,10 +99,10 @@ fun TaskEditorScreen(
     ) {
         item {
             ScreenHeader(
-                title = if (state.editing) "Edit task" else "New task",
+                title = stringResource(if (state.editing) R.string.task_edit_title else R.string.task_new_title),
                 trailing = {
                     TextButton(onClick = onCancel) {
-                        Text("Cancel", color = colors.textSecondary)
+                        Text(stringResource(R.string.cmp_cancel), color = colors.textSecondary)
                     }
                 },
             )
@@ -114,12 +117,12 @@ fun TaskEditorScreen(
                     OutlinedTextField(
                         value = state.title,
                         onValueChange = vm::setTitle,
-                        label = { Text("Task") },
+                        label = { Text(stringResource(R.string.task_field_task)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    FieldRow(label = "Due", onClick = { showDatePicker = true }) {
+                    FieldRow(label = stringResource(R.string.task_due), onClick = { showDatePicker = true }) {
                         Text(
                             text = state.due.format(DATE_FORMAT),
                             style = MaterialTheme.typography.bodyLarge.merge(TabularFigures),
@@ -135,7 +138,7 @@ fun TaskEditorScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            "Due at a specific time",
+                            stringResource(R.string.task_due_at_time),
                             style = MaterialTheme.typography.bodyLarge,
                             color = colors.textPrimary,
                         )
@@ -147,23 +150,23 @@ fun TaskEditorScreen(
                     }
 
                     if (state.hasTime) {
-                        FieldRow(label = "Time", onClick = { showTimePicker = true }) {
+                        FieldRow(label = stringResource(R.string.task_time), onClick = { showTimePicker = true }) {
                             Text(
-                                text = state.time.format(TIME_FORMAT),
+                                text = state.time.format(timeFormat),
                                 style = MaterialTheme.typography.bodyLarge.merge(TabularFigures),
                                 color = colors.textPrimary,
                             )
                         }
                     } else {
                         Text(
-                            text = "Without a time, this stays off the hour grid.",
+                            text = stringResource(R.string.task_no_time_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textSecondary,
                         )
                     }
 
                     Box {
-                        FieldRow(label = "Show task", onClick = { showShowMenu = true }) {
+                        FieldRow(label = stringResource(R.string.task_show_task), onClick = { showShowMenu = true }) {
                             Text(
                                 text = state.show.label(),
                                 style = MaterialTheme.typography.bodyLarge,
@@ -195,7 +198,7 @@ fun TaskEditorScreen(
                     OutlinedTextField(
                         value = state.notes,
                         onValueChange = vm::setNotes,
-                        label = { Text("Notes") },
+                        label = { Text(stringResource(R.string.task_notes)) },
                         minLines = 2,
                         maxLines = 10,
                         modifier = Modifier.fillMaxWidth(),
@@ -206,8 +209,7 @@ fun TaskEditorScreen(
 
         item {
             Text(
-                text = "A task has a deadline, not a span — it never blocks out an hour and never " +
-                    "counts as a clash.",
+                text = stringResource(R.string.task_deadline_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.textSecondary,
             )
@@ -222,9 +224,9 @@ fun TaskEditorScreen(
         item {
             AppButton(
                 text = when {
-                    state.saving -> "Saving…"
-                    state.editing -> "Save changes"
-                    else -> "Add task"
+                    state.saving -> stringResource(R.string.task_saving)
+                    state.editing -> stringResource(R.string.task_save_changes)
+                    else -> stringResource(R.string.task_add)
                 },
                 onClick = vm::save,
                 enabled = state.canSave,
@@ -234,7 +236,7 @@ fun TaskEditorScreen(
         if (state.editing) {
             item {
                 AppTintedButton(
-                    text = "Delete this task",
+                    text = stringResource(R.string.task_delete_button),
                     onClick = { confirmingDelete = true },
                     tint = colors.error,
                     filled = false,
@@ -270,16 +272,18 @@ fun TaskEditorScreen(
     }
 }
 
+@Composable
 private fun TaskShow.label(): String = when (this) {
-    TaskShow.SameDay -> "Same day"
-    TaskShow.WeekBefore -> "1 week before"
-    TaskShow.UntilDone -> "Until task finished"
+    TaskShow.SameDay -> stringResource(R.string.task_show_same_day)
+    TaskShow.WeekBefore -> stringResource(R.string.task_show_week_before)
+    TaskShow.UntilDone -> stringResource(R.string.task_show_until_done)
 }
 
+@Composable
 private fun TaskShow.hint(): String = when (this) {
-    TaskShow.SameDay -> "Shows on Today on its due date."
-    TaskShow.WeekBefore -> "Shows on Today from a week before it's due."
-    TaskShow.UntilDone -> "Shows on Today every day until you tick it off."
+    TaskShow.SameDay -> stringResource(R.string.task_show_hint_same_day)
+    TaskShow.WeekBefore -> stringResource(R.string.task_show_hint_week_before)
+    TaskShow.UntilDone -> stringResource(R.string.task_show_hint_until_done)
 }
 
 /** Label on the left, current value on the right, the whole row opening a picker. */
@@ -308,13 +312,16 @@ private fun ConfirmDeleteDialog(title: String, onDismiss: () -> Unit, onConfirm:
         AppCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(d.spaceLg)) {
                 Text(
-                    text = "Delete this task?",
+                    text = stringResource(R.string.task_delete_title),
                     style = MaterialTheme.typography.titleMedium,
                     color = colors.textPrimary,
                 )
                 Spacer(Modifier.height(d.spaceXs))
                 Text(
-                    text = "\"${title.ifBlank { "Untitled task" }}\" will be removed.",
+                    text = stringResource(
+                        R.string.task_delete_body,
+                        title.ifBlank { stringResource(R.string.task_untitled) },
+                    ),
                     style = MaterialTheme.typography.bodyLarge,
                     color = colors.textSecondary,
                 )
@@ -324,14 +331,14 @@ private fun ConfirmDeleteDialog(title: String, onDismiss: () -> Unit, onConfirm:
                     horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
                 ) {
                     AppTintedButton(
-                        text = "Keep it",
+                        text = stringResource(R.string.task_keep_it),
                         onClick = onDismiss,
                         tint = colors.textSecondary,
                         filled = false,
                         modifier = Modifier.weight(1f),
                     )
                     AppTintedButton(
-                        text = "Delete",
+                        text = stringResource(R.string.task_delete),
                         onClick = onConfirm,
                         tint = colors.error,
                         modifier = Modifier.weight(1f),

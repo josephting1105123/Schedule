@@ -2,15 +2,21 @@ package com.EntropicSoftwareLab.Schedule.data.settings
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "schedule_settings")
+// A corrupt file is replaced with an empty one: every setting returns to its default.
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "schedule_settings",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 /** User preferences. Calendar data itself lives in the provider, so this stays small. */
 class SettingsRepository(private val context: Context) {

@@ -1,5 +1,6 @@
 package com.EntropicSoftwareLab.Schedule.ui.components
 
+import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,12 +21,15 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import com.EntropicSoftwareLab.Schedule.R
+import androidx.compose.ui.res.stringResource
 
 /**
  * The Material date picker, converted through UTC in both directions.
@@ -65,9 +69,9 @@ fun DatePickerSheet(
                 pickerState.selectedDateMillis?.let {
                     onPick(Instant.ofEpochMilli(it).atZone(UTC).toLocalDate())
                 }
-            }) { Text("Select") }
+            }) { Text(stringResource(R.string.cmp_select)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmp_cancel)) } },
     ) {
         DatePicker(state = pickerState)
     }
@@ -83,7 +87,7 @@ fun TimePickerSheet(
     val pickerState = rememberTimePickerState(
         initialHour = initial.hour,
         initialMinute = initial.minute,
-        is24Hour = true,
+        is24Hour = DateFormat.is24HourFormat(LocalContext.current),
     )
     Dialog(onDismissRequest = onDismiss) {
         AppCard {
@@ -94,11 +98,11 @@ fun TimePickerSheet(
                 TimePicker(state = pickerState)
                 Spacer(Modifier.height(AppThemeTokens.dimens.spaceMd))
                 Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmp_cancel)) }
                     Spacer(Modifier.width(AppThemeTokens.dimens.spaceSm))
                     TextButton(onClick = {
                         onPick(LocalTime.of(pickerState.hour, pickerState.minute))
-                    }) { Text("Select") }
+                    }) { Text(stringResource(R.string.cmp_select)) }
                 }
             }
         }

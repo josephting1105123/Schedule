@@ -29,6 +29,8 @@ import com.EntropicSoftwareLab.Schedule.data.calendar.EventInstance
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import com.EntropicSoftwareLab.Schedule.R
+import androidx.compose.ui.res.stringResource
 
 private val WEEKDAY: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE")
 private val FULL_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy")
@@ -115,7 +117,7 @@ fun DayAgendaCard(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = if (date == today) "Today" else date.format(WEEKDAY),
+                    text = if (date == today) stringResource(R.string.cmp_today) else date.format(WEEKDAY),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (date == today) colors.greenText else colors.textSecondary,
                 )
@@ -128,7 +130,7 @@ fun DayAgendaCard(
             IconButton(onClick = onDismiss) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
+                    contentDescription = stringResource(R.string.cmp_close),
                     tint = colors.textSecondary,
                     modifier = Modifier.size(d.iconMd),
                 )
@@ -157,9 +159,9 @@ fun DayAgendaCard(
                 .padding(horizontal = d.spaceSm, vertical = d.spaceXs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AppTextButton(text = "Add event", onClick = onAddEvent)
+            AppTextButton(text = stringResource(R.string.cmp_add_event), onClick = onAddEvent)
             Spacer(Modifier.weight(1f))
-            AppTextButton(text = "Open day", onClick = onOpenDay)
+            AppTextButton(text = stringResource(R.string.cmp_open_day), onClick = onOpenDay)
         }
     }
 }

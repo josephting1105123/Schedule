@@ -25,6 +25,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
@@ -38,6 +39,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.EntropicSoftwareLab.Schedule.R
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorResolver
 import com.EntropicSoftwareLab.Schedule.data.calendar.EventInstance
 import com.EntropicSoftwareLab.Schedule.data.calendar.MonthChip
@@ -468,6 +470,10 @@ private fun DaySemanticsLayer(
     onDayLongPress: (LocalDate) -> Unit,
     describeCount: (Int) -> String,
 ) {
+    val todayLabel = stringResource(R.string.month_a11y_today)
+    val nothingOnLabel = stringResource(R.string.month_a11y_nothing_on)
+    val openDayLabel = stringResource(R.string.month_a11y_open_day)
+    val showAgendaLabel = stringResource(R.string.month_a11y_show_agenda)
     Column {
         weeks.forEach { week ->
             Row {
@@ -475,17 +481,17 @@ private fun DaySemanticsLayer(
                     val count = eventsByDate[date].orEmpty().distinctBy { it.instanceId }.size
                     val description = buildString {
                         append(date.format(DAY_DESCRIPTION))
-                        if (date == today) append(", today")
+                        if (date == today) append(", $todayLabel")
                         append(", ")
-                        append(if (count == 0) "nothing on" else describeCount(count))
+                        append(if (count == 0) nothingOnLabel else describeCount(count))
                     }
                     Box(
                         Modifier
                             .size(cellWidth, cellHeight)
                             .semantics {
                                 contentDescription = description
-                                onClick(label = "Open day") { onDayClick(date); true }
-                                onLongClick(label = "Show agenda") { onDayLongPress(date); true }
+                                onClick(label = openDayLabel) { onDayClick(date); true }
+                                onLongClick(label = showAgendaLabel) { onDayLongPress(date); true }
                             },
                     )
                 }

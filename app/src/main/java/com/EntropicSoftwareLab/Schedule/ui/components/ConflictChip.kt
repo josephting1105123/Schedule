@@ -25,9 +25,9 @@ import com.EntropicSoftwareLab.Schedule.data.calendar.EventInstance
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-
-private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+import com.EntropicSoftwareLab.Schedule.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 
 /**
  * Verdict for a proposed time: free, or the list of things already there.
@@ -43,6 +43,7 @@ fun ConflictPanel(
 ) {
     val colors = AppThemeTokens.colors
     val d = AppThemeTokens.dimens
+    val timeFormat = rememberClockFormatter()
 
     if (conflicts.isEmpty()) {
         Row(
@@ -61,7 +62,7 @@ fun ConflictPanel(
             )
             Spacer(Modifier.width(d.spaceSm))
             Text(
-                text = "Slot is free",
+                text = stringResource(R.string.cmp_slot_free),
                 style = MaterialTheme.typography.bodyLarge,
                 color = colors.greenText,
             )
@@ -86,15 +87,15 @@ fun ConflictPanel(
             )
             Spacer(Modifier.width(d.spaceSm))
             Text(
-                text = if (conflicts.size == 1) "Overlaps 1 event" else "Overlaps ${conflicts.size} events",
+                text = pluralStringResource(R.plurals.cmp_overlaps_events, conflicts.size, conflicts.size),
                 style = MaterialTheme.typography.bodyLarge,
                 color = colors.warning,
             )
         }
         conflicts.take(4).forEach { event ->
             Text(
-                text = "${event.localStart(zone).format(TIME_FORMAT)}–" +
-                    "${event.localEnd(zone).format(TIME_FORMAT)}  ${event.title}",
+                text = "${event.localStart(zone).format(timeFormat)}–" +
+                    "${event.localEnd(zone).format(timeFormat)}  ${event.title}",
                 style = MaterialTheme.typography.bodySmall.merge(TabularFigures),
                 color = colors.textSecondary,
                 maxLines = 1,
@@ -103,7 +104,7 @@ fun ConflictPanel(
         }
         if (conflicts.size > 4) {
             Text(
-                text = "and ${conflicts.size - 4} more",
+                text = stringResource(R.string.cmp_and_more, conflicts.size - 4),
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.textSecondary,
             )

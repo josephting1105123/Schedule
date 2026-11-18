@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 6-11 backup rules (the API 31+ equivalent is data_extraction_rules.xml).
+
+  These three DataStore files hold CalendarContract row ids (birthdays' eventId, event colour
+  overrides keyed by event id, hidden calendar ids). Those ids are local to one phone: restored on
+  another, they can point at an unrelated event that happens to share the id, and the app could
+  then update or delete it. Birthdays come back from Google's calendar anyway.
+  Tasks and settings stay included. Two included stores do hold a calendar id, and
+  both are safe to restore, so don't "fix" this by excluding them:
+  - schedule_settings: default_calendar_id (SettingsRepository.kt:19). It only preselects the
+    calendar dropdown, which the user sees before saving.
+  - tasks: syncCalendarId (TaskRepository.kt:37). When it differs from the real "Tasks" calendar,
+    TaskSync.kt:64 empties the known-set, so nothing is deleted.
+-->
+<full-backup-content>
+    <exclude domain="file" path="datastore/birthdays.preferences_pb" />
+    <exclude domain="file" path="datastore/event_colors.preferences_pb" />
+    <exclude domain="file" path="datastore/accounts.preferences_pb" />
+</full-backup-content>

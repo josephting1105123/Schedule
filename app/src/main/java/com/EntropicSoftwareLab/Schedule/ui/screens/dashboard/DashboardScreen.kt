@@ -34,6 +34,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.EntropicSoftwareLab.Schedule.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorResolver
@@ -56,6 +59,7 @@ import com.EntropicSoftwareLab.Schedule.ui.components.SectionCard
 import com.EntropicSoftwareLab.Schedule.ui.components.TaskRow
 import com.EntropicSoftwareLab.Schedule.ui.components.TodayPill
 import com.EntropicSoftwareLab.Schedule.ui.components.asCalendarColor
+import com.EntropicSoftwareLab.Schedule.ui.components.rememberClockFormatter
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
 import java.time.LocalDate
@@ -65,17 +69,17 @@ import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 
 private val HEADER_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d MMMM")
-private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 /** "2h 1m left", "45m left", "1h left" — rounded up, so the last minute never reads "0m left". */
+@Composable
 private fun timeLeft(millis: Long): String {
     val minutes = ((millis + 59_999L) / 60_000L).coerceAtLeast(1L)
     val h = minutes / 60
     val m = minutes % 60
     return when {
-        h == 0L -> "${m}m left"
-        m == 0L -> "${h}h left"
-        else -> "${h}h ${m}m left"
+        h == 0L -> stringResource(R.string.today_time_left_m, m)
+        m == 0L -> stringResource(R.string.today_time_left_h, h)
+        else -> stringResource(R.string.today_time_left_hm, h, m)
     }
 }
 private val WEEKDAY: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE")
@@ -230,8 +234,12 @@ private fun DayPage(
     val colors = AppThemeTokens.colors
     val today = LocalDate.now()
 
-    val timed = state.timedEventsOn(date)
-    val allDay = state.allDayEventsOn(date)
+    // Keyed on the map's own list for this date (the same instance until the data changes) and on
+    // the birthdays that strip provider rows, so the derived lists, and everything below keyed on
+    // them, are reused between recompositions instead of rebuilt each time.
+    val source = state.eventsByDate[date]
+    val timed = remember(source, state.birthdays) { state.timedEventsOn(date) }
+    val allDay = remember(source, state.birthdays) { state.allDayEventsOn(date) }
     val birthdays = remember(state.shownBirthdays, date) { state.birthdaysOn(date) }
     val tasks = remember(state.tasks, date, today) { state.tasksOn(date, today) }
     // Only tasks due on this date reach the grid. One shown early (a week before, or until done) or
@@ -242,6 +250,7 @@ private fun DayPage(
     val lanes = remember(timed, date, zone) { HourGrid.lanes(timed, date, zone) }
     val clashes = remember(timed, date, zone) { FreeBusy.clashesOnDay(timed, date, zone) }
     val colorFor = rememberColorAssignment(state.eventColors)
+    val timeFormat = rememberClockFormatter()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -291,11 +300,11 @@ private fun DayPage(
                 AppCard(Modifier.fillMaxWidth(), elevated = true) {
                     Column(Modifier.padding(d.spaceLg)) {
                         val label = when {
-                            stillLoading -> "Today"
-                            status.current.size > 1 -> "Current events"
-                            status.current.isNotEmpty() -> "Current event"
-                            status.next != null -> "Up next"
-                            else -> "Nothing left today"
+                            stillLoading -> stringResource(R.string.cmp_today)
+                            status.current.size > 1 -> stringResource(R.string.today_card_current_many)
+                            status.current.isNotEmpty() -> stringResource(R.string.today_card_current_one)
+                            status.next != null -> stringResource(R.string.today_card_up_next)
+                            else -> stringResource(R.string.today_card_nothing_left)
                         }
                         Text(
                             text = label,
@@ -305,7 +314,7 @@ private fun DayPage(
                         Spacer(Modifier.height(d.spaceXs))
                         when {
                             stillLoading -> Text(
-                                text = "Reading your calendar…",
+                                text = stringResource(R.string.today_reading_calendar),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = colors.textSecondary,
                             )
@@ -320,8 +329,11 @@ private fun DayPage(
                                     )
                                     Spacer(Modifier.height(d.spaceXxs))
                                     Text(
-                                        text = "Until ${event.localEnd(zone).format(TIME_FORMAT)} · " +
+                                        text = stringResource(
+                                            R.string.today_until_left,
+                                            event.localEnd(zone).format(timeFormat),
                                             timeLeft(event.endMillis - nowMillis),
+                                        ),
                                         style = MaterialTheme.typography.bodyLarge.merge(TabularFigures),
                                         color = colors.greenText,
                                     )
@@ -329,7 +341,7 @@ private fun DayPage(
                                 if (status.current.size > 2) {
                                     Spacer(Modifier.height(d.spaceXs))
                                     Text(
-                                        text = "+${status.current.size - 2} more on now",
+                                        text = stringResource(R.string.today_more_on_now, status.current.size - 2),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = colors.textSecondary,
                                     )
@@ -337,8 +349,11 @@ private fun DayPage(
                                 status.next?.let { next ->
                                     Spacer(Modifier.height(d.spaceSm))
                                     Text(
-                                        text = "Then: ${next.title} at " +
-                                            next.localStart(zone).format(TIME_FORMAT),
+                                        text = stringResource(
+                                            R.string.today_then_at,
+                                            next.title,
+                                            next.localStart(zone).format(timeFormat),
+                                        ),
                                         style = MaterialTheme.typography.bodyMedium.merge(TabularFigures),
                                         color = colors.textSecondary,
                                     )
@@ -352,15 +367,15 @@ private fun DayPage(
                                 )
                                 Spacer(Modifier.height(d.spaceXxs))
                                 Text(
-                                    text = "${next.localStart(zone).format(TIME_FORMAT)} – " +
-                                        next.localEnd(zone).format(TIME_FORMAT),
+                                    text = "${next.localStart(zone).format(timeFormat)} – " +
+                                        next.localEnd(zone).format(timeFormat),
                                     style = MaterialTheme.typography.bodyLarge.merge(TabularFigures),
                                     color = colors.greenText,
                                 )
                             }
                             // Only when nothing is on and nothing is left.
                             else -> Text(
-                                text = "The rest of the day is yours.",
+                                text = stringResource(R.string.today_rest_of_day),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = colors.greenText,
                             )
@@ -383,7 +398,7 @@ private fun DayPage(
                 AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(d.spaceLg)) {
                         Text(
-                            text = "Day at a glance",
+                            text = stringResource(R.string.today_day_at_a_glance),
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textSecondary,
                         )
@@ -400,9 +415,9 @@ private fun DayPage(
                         Spacer(Modifier.height(d.spaceSm))
                         Text(
                             text = if (taskMarks.any { it.isNotEmpty() }) {
-                                "Tap a free hour to add an event. A line marks a task deadline."
+                                stringResource(R.string.today_grid_hint_tasks)
                             } else {
-                                "Tap a free hour to add an event."
+                                stringResource(R.string.today_grid_hint)
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textSecondary,
@@ -418,7 +433,7 @@ private fun DayPage(
         if (clashes.isNotEmpty()) {
             item {
                 SectionCard(
-                    title = if (clashes.size == 1) "Clash" else "Clashes",
+                    title = pluralStringResource(R.plurals.today_clashes_title, clashes.size),
                     icon = Icons.Outlined.WarningAmber,
                     iconTint = colors.warning,
                 ) {
@@ -433,10 +448,13 @@ private fun DayPage(
                         // imply all N run at once, and a chain — A over B, B over C — merges into
                         // one window without A and C ever meeting.
                         Text(
-                            text = "Double-booked " +
-                                "${clash.localStart(zone).format(TIME_FORMAT)}–" +
-                                "${clash.localEnd(zone).format(TIME_FORMAT)} · " +
-                                "${clash.events.size} events",
+                            text = pluralStringResource(
+                                R.plurals.today_double_booked,
+                                clash.events.size,
+                                clash.localStart(zone).format(timeFormat),
+                                clash.localEnd(zone).format(timeFormat),
+                                clash.events.size,
+                            ),
                             style = MaterialTheme.typography.bodySmall.merge(TabularFigures),
                             color = colors.warning,
                         )
@@ -462,11 +480,15 @@ private fun DayPage(
                 // saying "all done" over a list of things that aren't.
                 val remaining = tasks.count { !it.done } + overdue.size
                 SectionCard(
-                    title = "Tasks",
+                    title = stringResource(R.string.today_tasks_title),
                     icon = Icons.Outlined.TaskAlt,
                     trailing = {
                         Text(
-                            text = if (remaining == 0) "all done" else "$remaining left",
+                            text = if (remaining == 0) {
+                                stringResource(R.string.today_tasks_all_done)
+                            } else {
+                                stringResource(R.string.today_tasks_left, remaining)
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = if (remaining == 0) colors.greenText else colors.textSecondary,
                         )
@@ -474,7 +496,7 @@ private fun DayPage(
                 ) {
                     if (overdue.isNotEmpty()) {
                         Text(
-                            text = "Overdue",
+                            text = stringResource(R.string.today_overdue),
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.error,
                         )
@@ -511,7 +533,7 @@ private fun DayPage(
         // "no birthdays today" says nothing the user needed to hear.
         if (birthdays.isNotEmpty()) {
             item {
-                SectionCard(title = "Birthdays", icon = Icons.Outlined.Cake) {
+                SectionCard(title = stringResource(R.string.today_birthdays_title), icon = Icons.Outlined.Cake) {
                     birthdays.forEach {
                         BirthdayRow(birthday = it, on = date, onClick = { onEditBirthday(it) })
                     }
@@ -521,7 +543,7 @@ private fun DayPage(
 
         if (allDay.isNotEmpty()) {
             item {
-                SectionCard(title = "All day") {
+                SectionCard(title = stringResource(R.string.week_all_day)) {
                     allDay.forEach {
                         EventRow(event = it, zone = zone, showNotes = true, onClick = { onEditEvent(it) })
                     }
@@ -530,9 +552,9 @@ private fun DayPage(
         }
 
         item {
-            SectionCard(title = "Agenda", icon = Icons.Outlined.Schedule) {
+            SectionCard(title = stringResource(R.string.today_agenda_title), icon = Icons.Outlined.Schedule) {
                 if (timed.isEmpty() && !state.isLoading(date)) {
-                    EmptyState("Nothing scheduled.")
+                    EmptyState(stringResource(R.string.month_nothing_scheduled))
                 } else {
                     // Same colours as the grid above, so a bar in the list points at a cell.
                     timed.forEach {
@@ -572,9 +594,10 @@ private fun rememberColorAssignment(
     }
 }
 
+@Composable
 private fun relativeDayTitle(date: LocalDate, today: LocalDate): String = when (date) {
-    today -> "Today"
-    today.plusDays(1) -> "Tomorrow"
-    today.minusDays(1) -> "Yesterday"
+    today -> stringResource(R.string.cmp_today)
+    today.plusDays(1) -> stringResource(R.string.today_tomorrow)
+    today.minusDays(1) -> stringResource(R.string.today_yesterday)
     else -> date.format(WEEKDAY)
 }

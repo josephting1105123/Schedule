@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import com.EntropicSoftwareLab.Schedule.R
+import androidx.compose.ui.res.stringResource
 
 private val PILL_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("d/M")
 
@@ -46,7 +48,7 @@ fun TodayPill(today: LocalDate, onClick: () -> Unit, modifier: Modifier = Modifi
         )
         Spacer(Modifier.width(d.spaceXs))
         Text(
-            text = "Today " + today.format(PILL_DATE),
+            text = stringResource(R.string.cmp_today_pill, today.format(PILL_DATE)),
             style = MaterialTheme.typography.bodyLarge,
             color = colors.textPrimary,
         )

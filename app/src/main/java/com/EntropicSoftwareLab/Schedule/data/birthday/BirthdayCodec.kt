@@ -6,8 +6,7 @@ import org.json.JSONObject
 /**
  * Serialises the birthday list to the single JSON blob DataStore holds.
  *
- * Decode is total, the same discipline [com.EntropicSoftwareLab.Schedule.data.assistant.MemoryCodec]
- * follows: a corrupt or half-written blob decodes to an empty list instead of throwing, and one
+ * Decode is total: a corrupt or half-written blob decodes to an empty list instead of throwing, and one
  * unparseable entry is dropped rather than failing the whole list.
  */
 object BirthdayCodec {

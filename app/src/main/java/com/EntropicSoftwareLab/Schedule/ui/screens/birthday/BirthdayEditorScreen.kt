@@ -27,9 +27,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.EntropicSoftwareLab.Schedule.R
 import com.EntropicSoftwareLab.Schedule.data.birthday.BirthdayRepository
 import com.EntropicSoftwareLab.Schedule.di.LocalAppContainer
 import com.EntropicSoftwareLab.Schedule.ui.components.AppButton
@@ -90,10 +92,10 @@ fun BirthdayEditorScreen(
     ) {
         item {
             ScreenHeader(
-                title = if (state.editing) "Edit birthday" else "New birthday",
+                title = if (state.editing) stringResource(R.string.bday_edit_title) else stringResource(R.string.bday_new_title),
                 trailing = {
                     TextButton(onClick = onCancel) {
-                        Text("Cancel", color = colors.textSecondary)
+                        Text(stringResource(R.string.bday_cancel), color = colors.textSecondary)
                     }
                 },
             )
@@ -108,7 +110,7 @@ fun BirthdayEditorScreen(
                     OutlinedTextField(
                         value = state.name,
                         onValueChange = vm::setName,
-                        label = { Text("Name") },
+                        label = { Text(stringResource(R.string.bday_name)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -121,7 +123,7 @@ fun BirthdayEditorScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text("Date", style = MaterialTheme.typography.bodyLarge, color = colors.textSecondary)
+                        Text(stringResource(R.string.bday_date), style = MaterialTheme.typography.bodyLarge, color = colors.textSecondary)
                         Text(
                             text = state.date.format(DATE_FORMAT),
                             style = MaterialTheme.typography.bodyLarge.merge(TabularFigures),
@@ -142,14 +144,14 @@ fun BirthdayEditorScreen(
                         )
                         Spacer(Modifier.width(d.spaceSm))
                         Text(
-                            "Include birth year",
+                            stringResource(R.string.bday_include_year),
                             style = MaterialTheme.typography.bodyLarge,
                             color = colors.textPrimary,
                         )
                     }
                     if (!state.includeYear) {
                         Text(
-                            text = "Without a year, no age is shown.",
+                            text = stringResource(R.string.bday_no_year_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textSecondary,
                         )
@@ -168,7 +170,7 @@ fun BirthdayEditorScreen(
             }
             item {
                 AppTintedButton(
-                    text = "Hide this birthday",
+                    text = stringResource(R.string.bday_hide_button),
                     onClick = { confirmingHide = true },
                     tint = colors.error,
                     filled = false,
@@ -187,9 +189,9 @@ fun BirthdayEditorScreen(
         item {
             AppButton(
                 text = when {
-                    state.saving -> "Saving…"
-                    state.editing -> "Save changes"
-                    else -> "Add birthday"
+                    state.saving -> stringResource(R.string.bday_saving)
+                    state.editing -> stringResource(R.string.bday_save_changes)
+                    else -> stringResource(R.string.bday_add)
                 },
                 onClick = vm::save,
                 enabled = state.canSave,
@@ -199,7 +201,7 @@ fun BirthdayEditorScreen(
         if (state.editing && !state.readOnly) {
             item {
                 AppTintedButton(
-                    text = "Delete this birthday",
+                    text = stringResource(R.string.bday_delete_button),
                     onClick = { confirmingDelete = true },
                     tint = colors.error,
                     filled = false,
@@ -243,14 +245,13 @@ private fun ConfirmHideDialog(name: String, onDismiss: () -> Unit, onConfirm: ()
         AppCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(d.spaceLg)) {
                 Text(
-                    text = "Hide this birthday?",
+                    text = stringResource(R.string.bday_hide_title),
                     style = MaterialTheme.typography.titleMedium,
                     color = colors.textPrimary,
                 )
                 Spacer(Modifier.height(d.spaceXs))
                 Text(
-                    text = "${name.ifBlank { "This birthday" }} stays in Google Contacts. It won't show in " +
-                        "this app again until you choose Show them again in Settings.",
+                    text = stringResource(R.string.bday_hide_body, name.ifBlank { stringResource(R.string.bday_this_birthday) }),
                     style = MaterialTheme.typography.bodyLarge,
                     color = colors.textSecondary,
                 )
@@ -260,14 +261,14 @@ private fun ConfirmHideDialog(name: String, onDismiss: () -> Unit, onConfirm: ()
                     horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
                 ) {
                     AppTintedButton(
-                        text = "Keep it",
+                        text = stringResource(R.string.bday_keep),
                         onClick = onDismiss,
                         tint = colors.textSecondary,
                         filled = false,
                         modifier = Modifier.weight(1f),
                     )
                     AppTintedButton(
-                        text = "Hide",
+                        text = stringResource(R.string.bday_hide),
                         onClick = onConfirm,
                         tint = colors.error,
                         modifier = Modifier.weight(1f),
@@ -286,13 +287,13 @@ private fun ConfirmDeleteDialog(name: String, onDismiss: () -> Unit, onConfirm: 
         AppCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(d.spaceLg)) {
                 Text(
-                    text = "Delete this birthday?",
+                    text = stringResource(R.string.bday_delete_title),
                     style = MaterialTheme.typography.titleMedium,
                     color = colors.textPrimary,
                 )
                 Spacer(Modifier.height(d.spaceXs))
                 Text(
-                    text = "\"${name.ifBlank { "Untitled birthday" }}\" will be removed.",
+                    text = stringResource(R.string.bday_delete_body, name.ifBlank { stringResource(R.string.bday_untitled) }),
                     style = MaterialTheme.typography.bodyLarge,
                     color = colors.textSecondary,
                 )
@@ -302,14 +303,14 @@ private fun ConfirmDeleteDialog(name: String, onDismiss: () -> Unit, onConfirm: 
                     horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
                 ) {
                     AppTintedButton(
-                        text = "Keep it",
+                        text = stringResource(R.string.bday_keep),
                         onClick = onDismiss,
                         tint = colors.textSecondary,
                         filled = false,
                         modifier = Modifier.weight(1f),
                     )
                     AppTintedButton(
-                        text = "Delete",
+                        text = stringResource(R.string.bday_delete),
                         onClick = onConfirm,
                         tint = colors.error,
                         modifier = Modifier.weight(1f),

@@ -30,7 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
+import com.EntropicSoftwareLab.Schedule.R
 import com.EntropicSoftwareLab.Schedule.ui.components.AppButton
 import com.EntropicSoftwareLab.Schedule.ui.components.AppCard
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
@@ -88,15 +90,13 @@ fun PermissionGateScreen(onGranted: () -> Unit) {
                 )
                 Spacer(Modifier.height(d.spaceLg))
                 Text(
-                    text = "Calendar access",
+                    text = stringResource(R.string.perm_title),
                     style = MaterialTheme.typography.headlineSmall,
                     color = colors.textPrimary,
                 )
                 Spacer(Modifier.height(d.spaceSm))
                 Text(
-                    text = "Schedule reads the calendars already synced to this device so it can " +
-                        "show your day and tell you when you're free. Events you add here sync " +
-                        "back through your Google account. Nothing is sent anywhere else.",
+                    text = stringResource(R.string.perm_body),
                     style = MaterialTheme.typography.bodyLarge,
                     color = colors.textSecondary,
                 )
@@ -104,14 +104,14 @@ fun PermissionGateScreen(onGranted: () -> Unit) {
 
                 if (permanentlyDenied) {
                     Text(
-                        text = "Access was declined. Turn on Calendar in system settings to continue.",
+                        text = stringResource(R.string.perm_declined),
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.warning,
                     )
                     Spacer(Modifier.height(d.spaceMd))
-                    AppButton(text = "Open settings", onClick = { context.openAppSettings() })
+                    AppButton(text = stringResource(R.string.perm_open_settings), onClick = { context.openAppSettings() })
                 } else {
-                    AppButton(text = "Grant access", onClick = { launcher.launch(CALENDAR_PERMISSIONS) })
+                    AppButton(text = stringResource(R.string.perm_grant), onClick = { launcher.launch(CALENDAR_PERMISSIONS) })
                 }
             }
         }

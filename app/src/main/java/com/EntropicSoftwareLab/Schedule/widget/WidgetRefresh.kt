@@ -12,6 +12,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Keeps the widgets honest.
@@ -29,6 +30,9 @@ class WidgetRefreshWorker(
         return try {
             refreshWidgets(applicationContext)
             Result.success()
+        } catch (e: CancellationException) {
+            // Cancelled work must stay cancelled, not be reported as a finished refresh.
+            throw e
         } catch (e: Exception) {
             // A failed refresh just means stale data until the next run; retrying forever would
             // burn battery for no gain.
@@ -40,8 +44,9 @@ class WidgetRefreshWorker(
         private const val WORK_NAME = "today_widget_refresh"
 
         /**
-         * 30 minutes is WorkManager's floor for periodic work anyway, and it bounds midnight
-         * rollover staleness to that same window.
+         * 30 minutes keeps battery use low: a calendar widget doesn't need fresher data than that,
+         * since [CalendarChangeWorker] already redraws on every real change. It also bounds midnight
+         * rollover staleness to that same window. (WorkManager's own floor is 15 minutes.)
          */
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<WidgetRefreshWorker>(30, TimeUnit.MINUTES)
@@ -74,8 +79,11 @@ class CalendarChangeWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        runCatching { refreshWidgets(applicationContext) }
+        // Re-arm first: a CancellationException from refreshWidgets is rethrown and would skip it.
         runCatching { enqueue(applicationContext, ExistingWorkPolicy.APPEND_OR_REPLACE) }
+            .onFailure { if (it is CancellationException) throw it }
+        runCatching { refreshWidgets(applicationContext) }
+            .onFailure { if (it is CancellationException) throw it }
         return Result.success()
     }
 
@@ -110,5 +118,7 @@ suspend fun refreshWidgets(context: Context) {
     // would otherwise redraw from the neighbour months it warmed before the change.
     MonthWidgetCache.clear()
     runCatching { TodayWidget().updateAll(context) }
+        .onFailure { if (it is CancellationException) throw it }
     runCatching { MonthWidget().updateAll(context) }
+        .onFailure { if (it is CancellationException) throw it }
 }

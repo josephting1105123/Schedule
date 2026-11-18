@@ -38,6 +38,8 @@ import com.EntropicSoftwareLab.Schedule.data.calendar.RepeatSelection
 import com.EntropicSoftwareLab.Schedule.data.calendar.label
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import java.time.LocalDate
+import com.EntropicSoftwareLab.Schedule.R
+import androidx.compose.ui.res.stringResource
 
 /**
  * The Repeats sheet: four presets, or a custom rule with an interval and an end.
@@ -87,14 +89,14 @@ fun RepeatPickerDialog(
                 verticalArrangement = Arrangement.spacedBy(d.spaceXs),
             ) {
                 Text(
-                    text = "Repeats",
+                    text = stringResource(R.string.cmp_repeats),
                     style = MaterialTheme.typography.titleMedium,
                     color = colors.textPrimary,
                 )
                 Spacer(Modifier.height(d.spaceSm))
 
                 ChoiceRow(
-                    label = "Does not repeat",
+                    label = stringResource(R.string.cmp_repeat_none),
                     selected = current is RepeatSelection.None && !customOpen,
                     onClick = { onPick(RepeatSelection.None) },
                 )
@@ -115,8 +117,7 @@ fun RepeatPickerDialog(
                         onClick = { onPick(current) },
                     )
                     Text(
-                        text = "This event repeats on a pattern this app doesn't build. It's kept " +
-                            "exactly as it is unless you pick something else here.",
+                        text = stringResource(R.string.cmp_repeat_unsupported_note),
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textSecondary,
                         modifier = Modifier.padding(start = d.spaceXl, bottom = d.spaceSm),
@@ -124,7 +125,7 @@ fun RepeatPickerDialog(
                 }
 
                 ChoiceRow(
-                    label = "Custom…",
+                    label = stringResource(R.string.cmp_repeat_custom),
                     selected = customOpen,
                     onClick = { customOpen = true },
                 )
@@ -145,12 +146,12 @@ fun RepeatPickerDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel", color = colors.textSecondary)
+                        Text(stringResource(R.string.cmp_cancel), color = colors.textSecondary)
                     }
                     if (customOpen) {
                         Spacer(Modifier.width(d.spaceSm))
                         TextButton(onClick = { onPick(RepeatSelection.Simple(custom)) }) {
-                            Text("Set repeat", color = colors.greenText)
+                            Text(stringResource(R.string.cmp_set_repeat), color = colors.greenText)
                         }
                     }
                 }
@@ -180,7 +181,7 @@ private fun CustomRepeatEditor(
         verticalArrangement = Arrangement.spacedBy(d.spaceSm),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Every", style = MaterialTheme.typography.bodyLarge, color = colors.textSecondary)
+            Text(stringResource(R.string.cmp_every), style = MaterialTheme.typography.bodyLarge, color = colors.textSecondary)
             Spacer(Modifier.width(d.spaceSm))
             OutlinedTextField(
                 value = rule.interval.toString(),
@@ -212,20 +213,20 @@ private fun CustomRepeatEditor(
         }
 
         Text(
-            text = "Ends",
+            text = stringResource(R.string.cmp_ends),
             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
             color = colors.textSecondary,
         )
 
         ChoiceRow(
-            label = "Never",
+            label = stringResource(R.string.cmp_never),
             selected = rule.end is RecurrenceEnd.Never,
             onClick = { onChange(rule.copy(end = RecurrenceEnd.Never)) },
         )
 
         val endDate = (rule.end as? RecurrenceEnd.OnDate)?.date ?: anchor.plusMonths(3)
         ChoiceRow(
-            label = "On ${endDate.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy"))}",
+            label = stringResource(R.string.cmp_ends_on, endDate.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy"))),
             selected = rule.end is RecurrenceEnd.OnDate,
             // Choosing "On…" opens the calendar straight away, and so does every tap after: the date
             // is the whole point of this option, and a first tap that only moved the radio button
@@ -243,7 +244,7 @@ private fun CustomRepeatEditor(
                 onClick = { onChange(rule.copy(end = RecurrenceEnd.AfterCount(count))) },
                 colors = RadioButtonDefaults.colors(selectedColor = colors.greenText),
             )
-            Text("After", style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary)
+            Text(stringResource(R.string.cmp_after), style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary)
             Spacer(Modifier.width(d.spaceSm))
             OutlinedTextField(
                 value = count.toString(),
@@ -257,7 +258,7 @@ private fun CustomRepeatEditor(
                 modifier = Modifier.width(96.dp),
             )
             Spacer(Modifier.width(d.spaceSm))
-            Text("times", style = MaterialTheme.typography.bodyLarge, color = colors.textSecondary)
+            Text(stringResource(R.string.cmp_times), style = MaterialTheme.typography.bodyLarge, color = colors.textSecondary)
         }
     }
 
@@ -275,14 +276,17 @@ private fun CustomRepeatEditor(
     }
 }
 
+@Composable
 private fun RecurrenceFreq.unitLabel(interval: Int): String {
     val plural = interval != 1
-    return when (this) {
-        RecurrenceFreq.Daily -> if (plural) "days" else "day"
-        RecurrenceFreq.Weekly -> if (plural) "weeks" else "week"
-        RecurrenceFreq.Monthly -> if (plural) "months" else "month"
-        RecurrenceFreq.Yearly -> if (plural) "years" else "year"
-    }
+    return stringResource(
+        when (this) {
+            RecurrenceFreq.Daily -> if (plural) R.string.cmp_unit_days else R.string.cmp_unit_day
+            RecurrenceFreq.Weekly -> if (plural) R.string.cmp_unit_weeks else R.string.cmp_unit_week
+            RecurrenceFreq.Monthly -> if (plural) R.string.cmp_unit_months else R.string.cmp_unit_month
+            RecurrenceFreq.Yearly -> if (plural) R.string.cmp_unit_years else R.string.cmp_unit_year
+        },
+    )
 }
 
 @Composable

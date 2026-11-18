@@ -1,9 +1,12 @@
 package com.EntropicSoftwareLab.Schedule.data.birthday
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefsRepository
@@ -20,11 +23,14 @@ import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 
 /**
- * Its own DataStore file, the same reason [com.EntropicSoftwareLab.Schedule.data.assistant.AssistantMemoryRepository]
- * has one: Preferences DataStore rewrites the whole file on every `edit`, and settings should not be
- * rewritten every time a birthday is added or removed.
+ * Its own DataStore file: Preferences DataStore rewrites the whole file on every `edit`, and
+ * settings should not be rewritten every time a birthday is added or removed. A corrupt file is
+ * replaced with an empty one; birthdays are mirrored to the calendar and come back from it.
  */
-private val Context.birthdayStore: DataStore<Preferences> by preferencesDataStore(name = "birthdays")
+private val Context.birthdayStore: DataStore<Preferences> by preferencesDataStore(
+    name = "birthdays",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 /**
  * Birthdays, synced both ways with the phone's calendars.
@@ -100,16 +106,29 @@ class BirthdayRepository(
         val existing = stored.firstOrNull { it.id == birthday.id }
         var eventId = existing?.eventId ?: birthday.eventId ?: BirthdayEvents.eventIdFor(birthday.id)
         val rows = runCatching { calendar.birthdayEventRows(listOfNotNull(eventId)) }.getOrNull()
+        // A linked event we can't read can't be updated, and the merge takes name and day from the
+        // event, so saving locally would silently revert the edit.
+        if (eventId != null && rows == null) {
+            throw IllegalStateException("Couldn't reach the calendar, so the change wasn't saved. Try again.")
+        }
         if (eventId != null && rows != null) {
             val row = rows.firstOrNull { it.eventId == eventId }
             when {
                 row == null -> eventId = null // deleted elsewhere since; write it afresh below
                 !row.writable -> throw IllegalStateException(READ_ONLY_MESSAGE)
-                else -> runCatching { calendar.updateBirthdayEvent(row.eventId, birthday, LocalDate.now()) }
+                else -> {
+                    val updated = runCatching {
+                        calendar.updateBirthdayEvent(row.eventId, birthday, LocalDate.now())
+                    }.onFailure { Log.w(TAG, "Updating the birthday event failed", it) }.getOrDefault(false)
+                    // Storing the edit anyway would show one date here and another in Google.
+                    if (!updated) {
+                        throw IllegalStateException("Couldn't update the calendar event, so the change wasn't saved. Try again.")
+                    }
+                }
             }
         }
         if (eventId == null && rows != null) eventId = insertEvent(birthday)
-        // With rows == null the provider couldn't be read: keep whatever link there was and let
+        // A new birthday (no event yet) with rows == null: the provider couldn't be read, so let
         // reconcile write the event once it can, rather than risk a duplicate now.
         writeStored(stored.filterNot { it.id == birthday.id } + birthday.copy(eventId = eventId, readOnly = false))
     }
@@ -120,9 +139,16 @@ class BirthdayRepository(
         val eventId = stored.firstOrNull { it.id == id }?.eventId ?: BirthdayEvents.eventIdFor(id)
         if (eventId != null) {
             val rows = runCatching { calendar.birthdayEventRows(listOf(eventId)) }.getOrNull()
-            val row = rows?.firstOrNull { it.eventId == eventId }
+            // Dropping the stored birthday while its event survives would bring it back as a
+            // calendar-only birthday, so an unreadable calendar aborts the delete.
+            if (rows == null) {
+                throw IllegalStateException("Couldn't reach the calendar, so nothing was deleted. Try again.")
+            }
+            val row = rows.firstOrNull { it.eventId == eventId }
             if (row != null && !row.writable) throw IllegalStateException(READ_ONLY_MESSAGE)
-            if (row != null) calendar.deleteEvent(eventId)
+            if (row != null && !calendar.deleteEvent(eventId)) {
+                throw IllegalStateException("Couldn't delete the calendar event, so nothing was deleted. Try again.")
+            }
         }
         writeStored(stored.filterNot { it.id == id })
     }
@@ -153,7 +179,7 @@ class BirthdayRepository(
     private suspend fun insertEvent(birthday: Birthday): Long? = runCatching {
         val target = calendar.birthdayCalendar() ?: return@runCatching null
         calendar.insertBirthdayEvent(birthday, target.id, LocalDate.now())
-    }.getOrNull()
+    }.onFailure { Log.w(TAG, "Writing the birthday event failed", it) }.getOrNull()
 
     private suspend fun readStored(): List<Birthday> = local.first()
 
@@ -162,6 +188,8 @@ class BirthdayRepository(
     }
 
     companion object {
+        private const val TAG = "BirthdayRepository"
+
         const val READ_ONLY_MESSAGE =
             "This birthday comes from Google Contacts. Change it in Contacts and it will update here."
     }
