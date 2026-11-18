@@ -81,6 +81,10 @@ class CalendarRepository(
      * for the user to grant. The remaining check, `hasAuthorityAccess` (targetSdk 34+), needs the
      * calendar sync adapter's package to be visible, which is what the manifest's `<queries>` entry
      * for `android.content.SyncAdapter` is for.
+     *
+     * A named request is also made, but only for accounts `AccountManager` shows this app — the
+     * only ones Android doesn't silently drop. For those it targets the account directly; the null
+     * request still covers the rest.
      */
     suspend fun requestSync() {
         val extras = Bundle().apply {
@@ -89,7 +93,38 @@ class CalendarRepository(
         }
         withContext(io) {
             runCatching { ContentResolver.requestSync(null, CalendarContract.AUTHORITY, extras) }
+            runCatching {
+                listCalendars()
+                    .map { it.accountName to it.accountType }
+                    .distinct()
+                    .filter { (_, type) -> type != CalendarContract.ACCOUNT_TYPE_LOCAL }
+                    .map { (name, type) -> Account(name, type) }
+                    .filter { runCatching { accountVisible(it) }.getOrDefault(false) }
+                    .forEach { account ->
+                        runCatching {
+                            ContentResolver.requestSync(account, CalendarContract.AUTHORITY, Bundle(extras))
+                        }
+                    }
+            }
         }
+    }
+
+    /**
+     * How many rows this app (or any non-sync-adapter caller) changed that Google's adapter hasn't
+     * uploaded yet, across every synced account. Null when it can't be read.
+     * Only calendars that sync and that the user can write to count, so a row the adapter will never upload can't keep the background worker asking forever.
+     */
+    suspend fun pendingUploadCount(): Int? = withContext(io) {
+        runCatching {
+            resolver.query(
+                CalendarContract.Events.CONTENT_URI,
+                arrayOf(CalendarContract.Events._ID),
+                "${CalendarContract.Events.DIRTY} = 1 AND ${CalendarContract.Events.ACCOUNT_TYPE} != ? AND " +
+                    "${CalendarContract.Events.SYNC_EVENTS} = 1 AND ${CalendarContract.Events.CALENDAR_ACCESS_LEVEL} >= ${CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR}",
+                arrayOf(CalendarContract.ACCOUNT_TYPE_LOCAL),
+                null,
+            )?.use { it.count }
+        }.getOrNull()
     }
 
     /**

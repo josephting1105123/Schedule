@@ -378,7 +378,7 @@ private fun Header(
         modifier = GlanceModifier
             .fillMaxWidth()
             .height(geo.headerHeight)
-            .padding(start = 12.dp),
+            .padding(start = 12.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -407,22 +407,25 @@ private fun Header(
         )
         ChevronButton(R.drawable.ic_widget_chevron_left, "Previous month", geo) { onStep(-1) }
         ChevronButton(R.drawable.ic_widget_chevron_right, "Next month", geo) { onStep(+1) }
-        Box(
-            modifier = GlanceModifier
-                .padding(start = 8.dp)
-                .width(geo.pillHeight * PILL_ASPECT)
-                .height(geo.pillHeight)
-                .background(ImageProvider(R.drawable.widget_month_add_pill))
-                .clickable(
-                    actionStartActivity(WidgetLaunchIntents.addEvent(context, month.pickAddDate(today))),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Image(
-                provider = ImageProvider(R.drawable.ic_widget_add),
-                contentDescription = "Add event",
-                modifier = GlanceModifier.size(geo.pillHeight * 0.7f),
-            )
+        // The gap is padding on an outer box: a background is painted across a view's own padding,
+        // so padding on the filled box itself would widen the pill and push the "+" off centre.
+        Box(modifier = GlanceModifier.padding(start = 8.dp)) {
+            Box(
+                modifier = GlanceModifier
+                    .width(geo.pillHeight * PILL_ASPECT)
+                    .height(geo.pillHeight)
+                    .background(ImageProvider(R.drawable.widget_month_add_pill))
+                    .clickable(
+                        actionStartActivity(WidgetLaunchIntents.addEvent(context, month.pickAddDate(today))),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(
+                    provider = ImageProvider(R.drawable.ic_widget_add),
+                    contentDescription = "Add event",
+                    modifier = GlanceModifier.size(geo.pillHeight * 0.7f),
+                )
+            }
         }
     }
 }

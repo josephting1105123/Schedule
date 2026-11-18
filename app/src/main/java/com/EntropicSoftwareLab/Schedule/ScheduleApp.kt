@@ -1,6 +1,7 @@
 package com.EntropicSoftwareLab.Schedule
 
 import android.app.Application
+import com.EntropicSoftwareLab.Schedule.data.calendar.UploadSyncWorker
 import com.EntropicSoftwareLab.Schedule.di.AppContainer
 import com.EntropicSoftwareLab.Schedule.widget.CalendarChangeWorker
 import com.EntropicSoftwareLab.Schedule.widget.WidgetRefreshWorker
@@ -22,5 +23,7 @@ class ScheduleApp : Application() {
         // Redraws the widgets whenever anything changes the calendar, including a sync with the app
         // closed. KEEP, so a launch never drops a watch that is already armed.
         CalendarChangeWorker.watch(this)
+        // Every 15 minutes, asks Google to upload anything still waiting. KEEP, so a no-op once scheduled.
+        UploadSyncWorker.schedulePeriodic(this)
     }
 }

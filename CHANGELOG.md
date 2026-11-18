@@ -2,6 +2,15 @@
 
 The newest version is at the top.
 
+## 1.3.12
+
+### Sync
+- Changes you make now keep trying to reach Google after you leave the app. If they're still waiting, the phone asks again in the background (when it's online) until they're uploaded, and checks every 15 minutes in case anything is left behind.
+- Each change asks your Google accounts to sync straight away, naming the account directly where Android allows it.
+
+### Look
+- The "+" on the month widget sits in the middle of its button, and the button no longer touches the widget's edge.
+
 ## 1.3.11
 
 ### Privacy

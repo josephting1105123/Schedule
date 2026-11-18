@@ -8,6 +8,7 @@ import com.EntropicSoftwareLab.Schedule.data.accounts.ReadKey
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorRepository
 import com.EntropicSoftwareLab.Schedule.data.birthday.BirthdayRepository
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarRepository
+import com.EntropicSoftwareLab.Schedule.data.calendar.UploadSyncWorker
 import com.EntropicSoftwareLab.Schedule.data.settings.SettingsRepository
 import com.EntropicSoftwareLab.Schedule.data.task.TaskRepository
 import com.EntropicSoftwareLab.Schedule.data.task.TaskSync
@@ -46,10 +47,12 @@ class AppContainer(context: Context) {
             },
             // Every write this app makes is pushed to the server now rather than on the sync
             // adapter's own schedule, and the widgets redrawn. requestSync is only queued here, so
-            // the write returns at once.
+            // the write returns at once. UploadSyncWorker then checks the rows really went up and
+            // asks again in the background, with backoff, while any are still waiting.
             onWrite = {
                 refreshWidgets(appContext)
                 runCatching { calendarRepository.requestSync() }
+                runCatching { UploadSyncWorker.afterWrite(appContext) }
             },
             accountPrefs = accountPrefsRepository.prefs,
         )
