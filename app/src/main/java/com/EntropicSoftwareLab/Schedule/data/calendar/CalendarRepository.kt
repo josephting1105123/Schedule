@@ -48,9 +48,11 @@ class CalendarRepository(
     private val io: CoroutineDispatcher = Dispatchers.IO,
     /**
      * Runs after any successful write. One hook here rather than a call at every save site, so a
-     * new write path can't forget to refresh the widget.
+     * new write path can't forget to refresh the widget. Passed `true` when the write removed a
+     * provider row: a deleted row is no longer DIRTY to a non-sync-adapter query, so the hook can't
+     * see it waiting and must ask every account to sync rather than only those with dirty rows.
      */
-    private val onWrite: suspend () -> Unit = {},
+    private val onWrite: suspend (deleted: Boolean) -> Unit = {},
     /**
      * Whether Android will tell this app about [Account]'s sync settings — true exactly for the
      * accounts `AccountManager` lists to it. For any other account `getSyncAutomatically` and
@@ -84,7 +86,10 @@ class CalendarRepository(
      *
      * A named request is also made, but only for accounts `AccountManager` shows this app — the
      * only ones Android doesn't silently drop. For those it targets the account directly; the null
-     * request still covers the rest.
+     * request still covers the rest. The named ones go to added accounts only, and never skip an
+     * account that shows a sync pending: `isSyncPending` is true for the provider's own delayed
+     * upload and for a retry in backoff, and an explicit MANUAL+EXPEDITED request bypasses both.
+     * Only [requestPollSync] skips busy accounts.
      */
     suspend fun requestSync() {
         val extras = Bundle().apply {
@@ -94,17 +99,138 @@ class CalendarRepository(
         withContext(io) {
             runCatching { ContentResolver.requestSync(null, CalendarContract.AUTHORITY, extras) }
             runCatching {
-                listCalendars()
-                    .map { it.accountName to it.accountType }
-                    .distinct()
-                    .filter { (_, type) -> type != CalendarContract.ACCOUNT_TYPE_LOCAL }
-                    .map { (name, type) -> Account(name, type) }
-                    .filter { runCatching { accountVisible(it) }.getOrDefault(false) }
-                    .forEach { account ->
-                        runCatching {
-                            ContentResolver.requestSync(account, CalendarContract.AUTHORITY, Bundle(extras))
-                        }
+                // Added accounts only. Busy accounts still get the request: a pending sync may be
+                // the provider's delayed upload or a retry in backoff, and a sync running now may
+                // predate the change being asked for. Only the poll skips busy accounts.
+                SyncTargets.toAsk(
+                    addedSyncAccounts(),
+                    isVisible = { runCatching { accountVisible(Account(it.name, it.type)) }.getOrDefault(false) },
+                    isBusy = { false },
+                ).forEach { target ->
+                    runCatching {
+                        ContentResolver.requestSync(
+                            Account(target.name, target.type),
+                            CalendarContract.AUTHORITY,
+                            Bundle(extras),
+                        )
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * The on-screen poll's request (every 20 s while the app is in front): only the added accounts
+     * that are visible to the app and neither syncing nor already queued.
+     *
+     * Measured on the user's phone (adb `dumpsys content`, 2026-11-18): Google's calendar adapter
+     * is `allowParallelSyncs=false`, so one account syncs at a time, while the phone has ten Google
+     * accounts and the app only three added. The old poll queued one null-account request (every
+     * account) plus a named one per account every 20 s, and the queue sat at 11-15 pending calendar
+     * syncs for good; one account's request waited about three minutes for its turn though each
+     * sync takes 0.5-2 s. Null-account requests for accounts the app can't see ran as 0.0 s no-ops
+     * (nothing up, nothing down), which only occupy the queue.
+     *
+     * So a pass asks just the added, idle accounts, by name. The every-account request goes out
+     * only on [firstPass] (the app coming to the front), to catch accounts it can't name. Each
+     * call has its own `runCatching`; a failed busy check counts as not busy, so we still ask.
+     *
+     * This is the only request that skips an account with a sync active or pending, because the
+     * next poll is 20 s away. Pending is also true of a delayed provider upload or a retry in
+     * backoff, which is why [requestSync] and [requestUploadSync] never skip on it.
+     */
+    suspend fun requestPollSync(firstPass: Boolean) {
+        val extras = Bundle().apply {
+            putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)
+            putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true)
+        }
+        withContext(io) {
+            if (firstPass) {
+                runCatching { ContentResolver.requestSync(null, CalendarContract.AUTHORITY, Bundle(extras)) }
+            }
+            runCatching {
+                SyncTargets.toAsk(
+                    addedSyncAccounts(),
+                    isVisible = { runCatching { accountVisible(Account(it.name, it.type)) }.getOrDefault(false) },
+                    isBusy = { isBusy(Account(it.name, it.type)) },
+                ).forEach { target ->
+                    runCatching {
+                        ContentResolver.requestSync(
+                            Account(target.name, target.type),
+                            CalendarContract.AUTHORITY,
+                            Bundle(extras),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /** The added accounts (every account when none was added) that have a calendar here. */
+    private suspend fun addedSyncAccounts(): List<CalendarAccount> =
+        CalendarFilter.inAddedAccounts(listCalendars(), accountPrefs.first())
+            .map { CalendarAccount(it.accountName, it.accountType) }
+            .distinct()
+
+    /**
+     * Whether [account] has a sync running or queued. Only [requestPollSync] uses it: a pending
+     * sync can be the provider's own delayed upload or a retry in backoff, which an explicit
+     * request would bypass, so the user-initiated paths never skip on it. A failed check is "not
+     * busy": better one request too many than none.
+     */
+    private fun isBusy(account: Account): Boolean = runCatching {
+        ContentResolver.isSyncActive(account, CalendarContract.AUTHORITY) ||
+            ContentResolver.isSyncPending(account, CalendarContract.AUTHORITY)
+    }.getOrDefault(false)
+
+    /**
+     * Asks Google's adapter to upload what this app just wrote, accounts with rows waiting first.
+     *
+     * [requestSync] with a null account syncs every account in `AccountManager` order, so an edit
+     * on the second account can queue behind a full sync of the first. A request that names the
+     * account and sets `SYNC_EXTRAS_UPLOAD` skips that queue and does only the upload. But Android
+     * drops a named request silently unless the account is visible to this app, so an account that
+     * isn't gets the null-account request as a fallback (without the upload flag, since that one
+     * is the general one).
+     *
+     * When the dirty rows can't be read, or none show, this is plain [requestSync]: a deleted row
+     * is no longer visible to a non-sync-adapter query, so "nothing waiting" can still mean "a
+     * delete is waiting". Not for pull-to-refresh or the on-screen poll, which want every account.
+     *
+     * The named request is always sent, even when the account already shows a sync pending:
+     * `isSyncPending` is true for any queued sync, including the provider's own delayed (~30 s)
+     * upload after a write and a retry sitting in exponential backoff, and an explicit
+     * MANUAL+EXPEDITED request is what bypasses both. `SyncManager` dedupes identical requests, so
+     * repeating one costs nothing. Only [requestPollSync] may skip a busy account.
+     */
+    suspend fun requestUploadSync() {
+        val counts = dirtyCountsByAccount()
+        if (counts.isNullOrEmpty()) {
+            requestSync()
+            return
+        }
+        withContext(io) {
+            var fallback = false
+            counts.filterValues { it > 0 }.keys.forEach { key ->
+                val account = Account(key.name, key.type)
+                val visible = runCatching { accountVisible(account) }.getOrDefault(false)
+                if (visible) {
+                    val extras = Bundle().apply {
+                        putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)
+                        putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true)
+                        putBoolean(ContentResolver.SYNC_EXTRAS_UPLOAD, true)
+                    }
+                    runCatching { ContentResolver.requestSync(account, CalendarContract.AUTHORITY, extras) }
+                } else {
+                    fallback = true
+                }
+            }
+            if (fallback) {
+                val extras = Bundle().apply {
+                    putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)
+                    putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true)
+                }
+                runCatching { ContentResolver.requestSync(null, CalendarContract.AUTHORITY, extras) }
             }
         }
     }
@@ -114,16 +240,30 @@ class CalendarRepository(
      * uploaded yet, across every synced account. Null when it can't be read.
      * Only calendars that sync and that the user can write to count, so a row the adapter will never upload can't keep the background worker asking forever.
      */
-    suspend fun pendingUploadCount(): Int? = withContext(io) {
+    suspend fun pendingUploadCount(): Int? = dirtyCountsByAccount()?.values?.sum()
+
+    /**
+     * The same rows as [pendingUploadCount], per account. Null when the provider can't be read,
+     * which must never be taken for an empty map: "nothing waiting" and "couldn't look" are
+     * different answers, and treating the second as the first would read as an upload finishing.
+     */
+    suspend fun dirtyCountsByAccount(): Map<CalendarAccount, Int>? = withContext(io) {
         runCatching {
             resolver.query(
                 CalendarContract.Events.CONTENT_URI,
-                arrayOf(CalendarContract.Events._ID),
+                arrayOf(CalendarContract.Events.ACCOUNT_NAME, CalendarContract.Events.ACCOUNT_TYPE),
                 "${CalendarContract.Events.DIRTY} = 1 AND ${CalendarContract.Events.ACCOUNT_TYPE} != ? AND " +
                     "${CalendarContract.Events.SYNC_EVENTS} = 1 AND ${CalendarContract.Events.CALENDAR_ACCESS_LEVEL} >= ${CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR}",
                 arrayOf(CalendarContract.ACCOUNT_TYPE_LOCAL),
                 null,
-            )?.use { it.count }
+            )?.use { c ->
+                val counts = LinkedHashMap<CalendarAccount, Int>()
+                while (c.moveToNext()) {
+                    val key = CalendarAccount(c.getString(0).orEmpty(), c.getString(1).orEmpty())
+                    counts[key] = (counts[key] ?: 0) + 1
+                }
+                counts
+            }
         }.getOrNull()
     }
 
@@ -153,6 +293,7 @@ class CalendarRepository(
                 AccountSyncStatus(
                     accountName = name,
                     accountType = type,
+                    visible = visible,
                     masterAutoSync = master,
                     autoSync = if (!visible) null else runCatching {
                         ContentResolver.getSyncAutomatically(account, CalendarContract.AUTHORITY)
@@ -439,7 +580,7 @@ class CalendarRepository(
         // timezone and RRULE-vs-DTEND rules are applied, so insert and update cannot drift apart.
         val uri = resolver.insert(CalendarContract.Events.CONTENT_URI, eventValues(event, zone))
         val id = uri?.lastPathSegment?.toLongOrNull()
-        if (id != null) onWrite()
+        if (id != null) onWrite(false)
         id
     }
 
@@ -447,7 +588,7 @@ class CalendarRepository(
     suspend fun deleteEvent(eventId: Long): Boolean = withContext(io) {
         val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId)
         val deleted = resolver.delete(uri, null, null) > 0
-        if (deleted) onWrite()
+        if (deleted) onWrite(true)
         deleted
     }
 
@@ -538,7 +679,7 @@ class CalendarRepository(
             RecurrenceScope.ThisEvent -> insertException(details, edit, zone)
             RecurrenceScope.ThisAndFollowing -> splitSeries(details, edit, zone)
         }
-        if (ok) onWrite()
+        if (ok) onWrite(false)
         ok
     }
 
@@ -663,13 +804,16 @@ class CalendarRepository(
     ): Boolean = withContext(io) {
         if (!details.isWritable) return@withContext false
         val effective = if (details.isRecurring) scope else RecurrenceScope.AllEvents
+        // True when a provider row was removed, as opposed to a cancelled-occurrence insert or an
+        // UNTIL cap, which leave a DIRTY row behind.
+        var rowDeleted = false
         val ok = when (effective) {
             RecurrenceScope.AllEvents -> {
                 val uri = ContentUris.withAppendedId(
                     CalendarContract.Events.CONTENT_URI,
                     details.eventId,
                 )
-                resolver.delete(uri, null, null) > 0
+                (resolver.delete(uri, null, null) > 0).also { rowDeleted = it }
             }
 
             RecurrenceScope.ThisEvent -> {
@@ -701,7 +845,7 @@ class CalendarRepository(
                 if (capped == null) {
                     // Cancelling from the first occurrence onward is cancelling the series. An UNTIL
                     // earlier than DTSTART would instead leave a row that renders nowhere but exists.
-                    resolver.delete(uri, null, null) > 0
+                    (resolver.delete(uri, null, null) > 0).also { rowDeleted = it }
                 } else {
                     val values = ContentValues().apply {
                         put(CalendarContract.Events.RRULE, capped)
@@ -710,7 +854,7 @@ class CalendarRepository(
                 }
             }
         }
-        if (ok) onWrite()
+        if (ok) onWrite(rowDeleted)
         ok
     }
 
@@ -937,7 +1081,7 @@ class CalendarRepository(
             }
             val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId)
             val ok = resolver.update(uri, values, null, null) > 0
-            if (ok) onWrite()
+            if (ok) onWrite(false)
             ok
         }
 

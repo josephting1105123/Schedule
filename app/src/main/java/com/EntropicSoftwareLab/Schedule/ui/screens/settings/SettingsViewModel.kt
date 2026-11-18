@@ -9,6 +9,8 @@ import com.EntropicSoftwareLab.Schedule.data.calendar.AccountSyncStatus
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarAccount
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarInfo
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarRepository
+import com.EntropicSoftwareLab.Schedule.data.calendar.UploadTimingEntry
+import com.EntropicSoftwareLab.Schedule.data.calendar.UploadTimingRepository
 import com.EntropicSoftwareLab.Schedule.data.settings.SettingsRepository
 import com.EntropicSoftwareLab.Schedule.di.AppContainer
 import kotlinx.coroutines.delay
@@ -29,6 +31,8 @@ data class SettingsUiState(
     val phoneAccounts: List<CalendarAccount> = emptyList(),
     /** Every calendar the provider lists, before the account filter. */
     val allCalendars: List<CalendarInfo> = emptyList(),
+    /** Per account, when its current upload started waiting and how long the last one took. */
+    val uploadTimings: Map<CalendarAccount, UploadTimingEntry> = emptyMap(),
 ) {
     val selectedCalendar: CalendarInfo?
         get() = calendars.firstOrNull { it.id == selectedCalendarId }
@@ -38,6 +42,7 @@ class SettingsViewModel(
     private val repository: CalendarRepository,
     private val settings: SettingsRepository,
     private val accountPrefs: AccountPrefsRepository,
+    private val uploadTiming: UploadTimingRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsUiState())
@@ -51,6 +56,11 @@ class SettingsViewModel(
                 _state.update { it.copy(prefs = prefs) }
                 loadCalendars()
                 refreshSyncStatus()
+            }
+        }
+        viewModelScope.launch {
+            uploadTiming.timings.collect { timings ->
+                _state.update { it.copy(uploadTimings = timings) }
             }
         }
     }
@@ -125,6 +135,7 @@ class SettingsViewModel(
                     repository = container.calendarRepository,
                     settings = container.settingsRepository,
                     accountPrefs = container.accountPrefsRepository,
+                    uploadTiming = container.uploadTimingRepository,
                 ) as T
         }
     }

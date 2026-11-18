@@ -100,6 +100,13 @@
     <string name="settings_calendar_autosync">Calendar auto-sync: %1$s</string>
     <string name="settings_waiting_to_upload">Waiting to upload: %1$d</string>
     <string name="settings_syncing_now">Syncing now…</string>
+    <string name="settings_not_visible">Schedule can\'t ask this account alone, so its uploads wait behind other accounts.</string>
+    <string name="settings_let_sync_directly">Let Schedule sync it directly</string>
+    <string name="settings_upload_waiting_for">Waiting to upload for %1$s</string>
+    <string name="settings_upload_last_took">Last upload took %1$s</string>
+    <string name="settings_duration_seconds">%1$d s</string>
+    <string name="settings_duration_min_sec">%1$d min %2$d s</string>
+    <string name="settings_duration_hr_min">%1$d h %2$d min</string>
     <plurals name="settings_account_count">
         <item quantity="one">%d account</item>
         <item quantity="other">%d accounts</item>

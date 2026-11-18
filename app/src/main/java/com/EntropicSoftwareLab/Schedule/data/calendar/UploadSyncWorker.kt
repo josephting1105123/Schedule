@@ -38,11 +38,12 @@ class UploadSyncWorker(
     override suspend fun doWork(): Result {
         // `container` is lateinit and WorkManager can start a job before Application.onCreate has
         // set it; try again later rather than lose the retry ladder.
-        val repo = try {
-            (applicationContext as? ScheduleApp)?.container?.calendarRepository
+        val container = try {
+            (applicationContext as? ScheduleApp)?.container
         } catch (e: UninitializedPropertyAccessException) {
             return Result.retry()
         } ?: return Result.success()
+        val repo = container.calendarRepository
         // The user turned the phone's sync off: a manual request would override that choice.
         val masterOn = runCatching { ContentResolver.getMasterSyncAutomatically() }.getOrDefault(true)
         if (!masterOn) return Result.success()
@@ -53,9 +54,17 @@ class UploadSyncWorker(
         } catch (e: Exception) {
             null
         } ?: return Result.success()
+        // Tells the Settings timing whether the rows went up since the last look.
+        try {
+            container.recordUploadTiming()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Diagnostic only.
+        }
         if (pending == 0) return Result.success()
         try {
-            repo.requestSync()
+            repo.requestUploadSync()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

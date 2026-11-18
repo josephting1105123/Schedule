@@ -11,6 +11,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.EntropicSoftwareLab.Schedule.ScheduleApp
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -84,6 +85,12 @@ class CalendarChangeWorker(
             .onFailure { if (it is CancellationException) throw it }
         runCatching { refreshWidgets(applicationContext) }
             .onFailure { if (it is CancellationException) throw it }
+        // Records only: a finished upload shows up as a provider change, and asking for a sync here
+        // would loop. The container may not exist yet when WorkManager starts this before
+        // Application.onCreate has set it; skip then.
+        runCatching {
+            (applicationContext as? ScheduleApp)?.container?.recordUploadTiming()
+        }.onFailure { if (it is CancellationException) throw it }
         return Result.success()
     }
 

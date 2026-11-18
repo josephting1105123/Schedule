@@ -127,7 +127,11 @@ class TaskSync(
         }
 
         tasks.setKnown(cal.id, TaskSyncOutcome.knownAfter(plan, remote, applied, failedInserts, failedDeletes))
-        if (remoteOps > 0) runCatching { calendar.requestSync() }
+        if (remoteOps > 0) {
+            // A deleted row is no longer DIRTY to the upload check, so a delete asks every account.
+            if (toRun.remoteDeletes.isNotEmpty()) runCatching { calendar.requestSync() }
+            else runCatching { calendar.requestUploadSync() }
+        }
     }
 
     companion object {

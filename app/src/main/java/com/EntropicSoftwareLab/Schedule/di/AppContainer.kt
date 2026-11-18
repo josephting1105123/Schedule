@@ -9,16 +9,20 @@ import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorRepository
 import com.EntropicSoftwareLab.Schedule.data.birthday.BirthdayRepository
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarRepository
 import com.EntropicSoftwareLab.Schedule.data.calendar.UploadSyncWorker
+import com.EntropicSoftwareLab.Schedule.data.calendar.UploadTimingRepository
 import com.EntropicSoftwareLab.Schedule.data.settings.SettingsRepository
 import com.EntropicSoftwareLab.Schedule.data.task.TaskRepository
 import com.EntropicSoftwareLab.Schedule.data.task.TaskSync
 import com.EntropicSoftwareLab.Schedule.widget.refreshWidgets
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -48,14 +52,30 @@ class AppContainer(context: Context) {
             // Every write this app makes is pushed to the server now rather than on the sync
             // adapter's own schedule, and the widgets redrawn. requestSync is only queued here, so
             // the write returns at once. UploadSyncWorker then checks the rows really went up and
-            // asks again in the background, with backoff, while any are still waiting.
-            onWrite = {
+            // asks again in the background, with backoff, while any are still waiting. The upload
+            // timing clock starts here, before the request, at the write itself.
+            onWrite = { deleted ->
+                runCatching { recordUploadTiming() }
                 refreshWidgets(appContext)
-                runCatching { calendarRepository.requestSync() }
+                // A delete leaves no DIRTY row for the upload check to find, so it asks every account.
+                if (deleted) runCatching { calendarRepository.requestSync() }
+                else runCatching { calendarRepository.requestUploadSync() }
                 runCatching { UploadSyncWorker.afterWrite(appContext) }
             },
             accountPrefs = accountPrefsRepository.prefs,
         )
+    }
+
+    /** How long each account's uploads take, shown on the Settings sync card. */
+    val uploadTimingRepository: UploadTimingRepository by lazy { UploadTimingRepository(appContext) }
+
+    /**
+     * Looks at which rows are still waiting to upload and lets [uploadTimingRepository] start or
+     * stop each account's clock. A failed read records nothing: it must not be taken for an upload
+     * finishing. Public so the background workers can call it; never requests a sync itself.
+     */
+    suspend fun recordUploadTiming() {
+        uploadTimingRepository.record { calendarRepository.dirtyCountsByAccount() }
     }
 
     val settingsRepository: SettingsRepository by lazy {
@@ -117,17 +137,23 @@ class AppContainer(context: Context) {
      * background. It used to be one request on opening, throttled to once a minute, which is why
      * reopening the app straight after an edit usually asked for nothing.
      *
+     * Each pass asks only the added accounts that are idle (`requestPollSync`), because the Google
+     * adapter syncs one account at a time and an every-account request every 20 s kept the queue at
+     * 11-15 entries. The every-account request goes out only on coming to the front.
+     *
      * Fails quietly without calendar permission — the permission gate is on screen then anyway.
      */
     suspend fun syncWhileVisible() {
         // Birthdays saved while nothing could be written, or deleted in Google since, are put
         // right before the first sync request so a new event goes up with it.
         runCatching { birthdayRepository.reconcile() }
+        var firstPass = true
         while (true) {
             // Tasks first, so a task edited since the last pass goes up with this sync request. It
             // never throws; the result is ignored and the next pass tries again.
             runCatching { taskSync.sync() }
-            runCatching { calendarRepository.requestSync() }
+            runCatching { calendarRepository.requestPollSync(firstPass) }
+            firstPass = false
             delay(VISIBLE_SYNC_INTERVAL_MS)
         }
     }
@@ -154,6 +180,32 @@ class AppContainer(context: Context) {
      * asks every account to sync. The first value DataStore replays on collection is ignored.
      */
     init {
+        // Every provider change, which is how a finished upload shows: the adapter clears DIRTY and
+        // that fires the observer. It only records, never asks for a sync (a sync writes rows, which
+        // would fire this again). CalendarChangeWorker does the same with the app closed.
+        appScope.launch {
+            // Without READ_CALENDAR (before the permission screen, or revoked) registering the
+            // observer throws SecurityException; retry later instead of letting it kill the process.
+            calendarRepository.observeChanges()
+                .retryWhen { cause, _ ->
+                    if (cause is SecurityException) {
+                        delay(30_000)
+                        true
+                    } else {
+                        false
+                    }
+                }
+                .catch { }
+                .collect {
+                    try {
+                        recordUploadTiming()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // Diagnostic only.
+                    }
+                }
+        }
         appScope.launch {
             // The widgets read the Birthday tick and the hidden birthdays, so those redraw them; only
             // a change to which accounts or calendars are read invalidates the directory and syncs.

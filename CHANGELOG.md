@@ -2,6 +2,12 @@
 
 The newest version is at the top.
 
+## 1.4.2
+
+- After you change an event, Schedule asks Google to upload only the account that has the change, instead of syncing every account starting with the default one. For this to work on a Google account, Schedule needs your permission once: tap **Let Schedule sync it directly** on the account in Settings → Sync with Google, or pick it when adding the account.
+- The sync card shows how long each account's last upload took, and how long a change has been waiting. Over 30 seconds is marked in amber.
+- Sync no longer piles up while the app is open. Schedule used to ask every Google account on the phone to sync every 20 seconds, and the phone runs those one at a time, so a change could wait minutes for its turn. It now asks only the accounts you added, and only when they aren't already syncing.
+
 ## 1.4.0
 
 - Clock times follow your phone's 12- or 24-hour setting: Today, the hour sheet, the event and task editors and the Today widget.

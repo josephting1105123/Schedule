@@ -1,8 +1,12 @@
 package com.EntropicSoftwareLab.Schedule.ui.screens.settings
 
+import android.accounts.Account
+import android.accounts.AccountManager
 import android.content.Intent
 import android.provider.CalendarContract
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -50,12 +55,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 import com.EntropicSoftwareLab.Schedule.R
 import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefs
 import com.EntropicSoftwareLab.Schedule.data.accounts.AddedAccount
 import com.EntropicSoftwareLab.Schedule.data.accounts.CalendarFilter
 import com.EntropicSoftwareLab.Schedule.data.calendar.AccountSyncStatus
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarAccount
+import com.EntropicSoftwareLab.Schedule.data.calendar.DurationUnit
+import com.EntropicSoftwareLab.Schedule.data.calendar.UploadTiming
+import com.EntropicSoftwareLab.Schedule.data.calendar.UploadTimingEntry
 import com.EntropicSoftwareLab.Schedule.di.LocalAppContainer
 import com.EntropicSoftwareLab.Schedule.ui.components.AppDivider
 import com.EntropicSoftwareLab.Schedule.ui.components.CalendarPickerMenu
@@ -79,6 +88,16 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     /** The account whose name is being edited, or null. */
     var renaming by remember { mutableStateOf<AddedAccount?>(null) }
     var addingAccount by remember { mutableStateOf(false) }
+
+    // Android's own account chooser, which is the only thing that makes an account visible to this
+    // app for good; the card re-reads when it closes, whichever way.
+    val context = LocalContext.current
+    val chooserLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        vm.refreshSyncStatus()
+    }
+    val launchChooser: (String, String) -> Unit = { name, type ->
+        runCatching { chooserLauncher.launch(chooseAccountIntent(name, type)) }
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -151,7 +170,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         }
 
         item {
-            val context = LocalContext.current
             SectionCard(
                 title = stringResource(R.string.settings_sync_title),
                 icon = Icons.Outlined.Sync,
@@ -189,7 +207,12 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                             )
                         }
                         state.syncStatus.forEach { account ->
-                            SyncAccountRows(account, state.prefs)
+                            SyncAccountRows(
+                                account = account,
+                                prefs = state.prefs,
+                                timing = state.uploadTimings[CalendarAccount(account.accountName, account.accountType)],
+                                onLetSyncDirectly = { launchChooser(account.accountName, account.accountType) },
+                            )
                             Spacer(Modifier.height(d.spaceSm))
                         }
                         Text(
@@ -253,12 +276,19 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     }
 
     if (addingAccount) {
-        val context = LocalContext.current
         val addable = state.phoneAccounts.filter { phone -> state.prefs.added.none { it.name == phone.name } }
         AddAccountDialog(
             addable = addable,
             onDismiss = { addingAccount = false },
-            onPick = { vm.addAccount(it); addingAccount = false },
+            onPick = {
+                vm.addAccount(it)
+                addingAccount = false
+                // Only for an account the app can't see yet; the chooser would add nothing otherwise.
+                val seen = runCatching {
+                    Account(it.name, it.type) in AccountManager.get(context).accounts
+                }.getOrDefault(false)
+                if (it.type == GOOGLE_ACCOUNT_TYPE && !seen) launchChooser(it.name, it.type)
+            },
             onSignIn = {
                 runCatching {
                     context.startActivity(
@@ -301,9 +331,42 @@ private fun SettingRow(
     }
 }
 
+private const val GOOGLE_ACCOUNT_TYPE = "com.google"
+
+/** The chooser's own screen for [name], so choosing it makes the account visible to this app. */
+private fun chooseAccountIntent(name: String, type: String): Intent =
+    AccountManager.newChooseAccountIntent(
+        Account(name, type),
+        arrayListOf(Account(name, type)),
+        arrayOf(type),
+        null,
+        null,
+        null,
+        null,
+    )
+
+/** [ms] as "12 s", "3 min 4 s" or "2 h 5 min", from string resources so the units can be translated. */
+@Composable
+private fun uploadDuration(ms: Long): String {
+    val parts = UploadTiming.durationParts(ms)
+    return when (parts.unit) {
+        DurationUnit.Seconds -> stringResource(R.string.settings_duration_seconds, parts.first)
+        DurationUnit.MinutesSeconds -> stringResource(R.string.settings_duration_min_sec, parts.first, parts.second)
+        DurationUnit.HoursMinutes -> stringResource(R.string.settings_duration_hr_min, parts.first, parts.second)
+    }
+}
+
+/** An upload slower than this is flagged as a warning on the card. */
+private const val SLOW_UPLOAD_MS = 30_000L
+
 /** One account's lines in the sync card: its name, then each thing the phone would say about it. */
 @Composable
-private fun SyncAccountRows(account: AccountSyncStatus, prefs: AccountPrefs) {
+private fun SyncAccountRows(
+    account: AccountSyncStatus,
+    prefs: AccountPrefs,
+    timing: UploadTimingEntry?,
+    onLetSyncDirectly: () -> Unit,
+) {
     val colors = AppThemeTokens.colors
     val onText = stringResource(R.string.settings_on)
     val offText = stringResource(R.string.settings_off)
@@ -332,6 +395,24 @@ private fun SyncAccountRows(account: AccountSyncStatus, prefs: AccountPrefs) {
         add(stringResource(R.string.settings_calendar_autosync, onOff(account.autoSync)) to (account.autoSync == false))
         account.pendingUploads?.let { add(stringResource(R.string.settings_waiting_to_upload, it) to (it > 0)) }
         if (account.syncing == true) add(stringResource(R.string.settings_syncing_now) to false)
+        val pendingSince = timing?.pendingSinceMs
+        if (pendingSince != null) {
+            // Ticks once a second while the upload is outstanding, and only then.
+            val elapsed by produceState(
+                initialValue = (System.currentTimeMillis() - pendingSince).coerceAtLeast(0L),
+                key1 = pendingSince,
+            ) {
+                while (true) {
+                    value = (System.currentTimeMillis() - pendingSince).coerceAtLeast(0L)
+                    delay(1_000)
+                }
+            }
+            add(stringResource(R.string.settings_upload_waiting_for, uploadDuration(elapsed)) to (elapsed > SLOW_UPLOAD_MS))
+        }
+        timing?.lastDurationMs?.let { took ->
+            add(stringResource(R.string.settings_upload_last_took, uploadDuration(took)) to (took > SLOW_UPLOAD_MS))
+        }
+        if (!account.visible) add(stringResource(R.string.settings_not_visible) to false)
     }
     lines.forEach { (line, warn) ->
         Text(
@@ -339,6 +420,9 @@ private fun SyncAccountRows(account: AccountSyncStatus, prefs: AccountPrefs) {
             style = MaterialTheme.typography.bodyMedium,
             color = if (warn) colors.warning else colors.textSecondary,
         )
+    }
+    if (!account.visible) {
+        AppTextButton(text = stringResource(R.string.settings_let_sync_directly), onClick = onLetSyncDirectly)
     }
 }
 

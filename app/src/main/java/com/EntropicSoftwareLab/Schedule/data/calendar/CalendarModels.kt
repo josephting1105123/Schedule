@@ -89,6 +89,11 @@ data class AccountSyncStatus(
     val syncing: Boolean?,
     /** Rows changed on this phone and not yet uploaded. */
     val pendingUploads: Int?,
+    /**
+     * Whether Android lets this app ask this account to sync by name. When false the app can only
+     * make the general request, and the account's uploads wait behind the others'.
+     */
+    val visible: Boolean = true,
 )
 
 /**
