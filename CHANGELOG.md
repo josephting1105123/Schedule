@@ -2,6 +2,11 @@
 
 The newest version is at the top.
 
+## 1.4.10
+
+- Changing a repeating event with "This and following events" no longer leaves the old times next to the new ones. When the edit moved the start to an earlier date, the old series kept running up to the occurrence you opened, so those days showed the event twice. The old series now ends before the earlier of the two days.
+- A repeating event with a fixed number of times keeps the right number after "This and following events", instead of repeating forever.
+
 ## 1.4.2
 
 - After you change an event, Schedule asks Google to upload only the account that has the change, instead of syncing every account starting with the default one. For this to work on a Google account, Schedule needs your permission once: tap **Let Schedule sync it directly** on the account in Settings → Sync with Google, or pick it when adding the account.

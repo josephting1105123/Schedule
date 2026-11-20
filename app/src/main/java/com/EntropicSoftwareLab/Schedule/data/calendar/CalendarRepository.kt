@@ -662,7 +662,9 @@ class CalendarRepository(
      *    occurrence an hour later rather than collapsing the series onto one date.
      *  - [RecurrenceScope.ThisEvent] inserts an exception through [CalendarContract.Events.CONTENT_EXCEPTION_URI].
      *    An exception is a standalone event, so it must carry no RRULE of its own.
-     *  - [RecurrenceScope.ThisAndFollowing] caps the original series just before this occurrence and
+     *  - [RecurrenceScope.ThisAndFollowing] caps the original series just before [splitPoint] (this
+     *    occurrence, or the start of the edited day when that is earlier), so the two series never
+     *    overlap, and
      *    inserts a fresh series carrying the edited values. When this occurrence *is* the first, there
      *    is nothing to keep behind it and the whole series is edited instead.
      */
@@ -732,13 +734,29 @@ class CalendarRepository(
 
     private fun splitSeries(details: EventDetails, edit: EventEdit, zone: ZoneId): Boolean {
         val rrule = details.rrule ?: return updateWholeSeries(details, edit, zone)
+        // Cut at the opened occurrence, or at the start of the edited day when that is earlier: the
+        // tail begins at the edited start, so cutting only at the opened occurrence would leave any
+        // occurrences between an earlier edited start and it in both series.
+        val cut = splitPoint(details.instanceStart, edit.start)
         val capped = capRRuleBefore(
             rrule = rrule,
-            instanceStart = details.instanceStart,
+            instanceStart = cut,
             seriesStart = details.seriesStart,
             zone = zone,
             allDay = details.allDay,
-        ) ?: return updateWholeSeries(details, edit, zone)
+        ) ?: return updateWholeSeries(
+            // Nothing is kept behind the cut, so the whole series becomes the edited one starting at
+            // edit.start. Measuring the shift from a later opened occurrence would move the series
+            // earlier than the user asked.
+            details.copy(instanceStart = details.seriesStart),
+            edit,
+            zone,
+        )
+
+        // Count the tail's remaining occurrences before the cap is written: the provider re-expands
+        // Instances during the cap update, so counting afterwards returns 0 and drops the COUNT,
+        // which would make the tail repeat forever.
+        val tailRule = edit.rrule?.let { tailRRule(it, details, cut, zone) }
 
         // Cap first. If the tail insert then fails the user sees a shortened series rather than a
         // duplicated one, which is the recoverable direction — they can undo by editing the end date.
@@ -749,7 +767,7 @@ class CalendarRepository(
         // The tail continues the same series, so it keeps the original's timezone rather than
         // adopting whichever one the user happens to be standing in when they split it.
         val tailValues = eventValues(
-            edit.copy(rrule = edit.rrule?.let { tailRRule(it, details, zone) }),
+            edit.copy(rrule = tailRule),
             zone,
             details.timeZone,
         ).apply { put(CalendarContract.Events.CALENDAR_ID, details.calendarId) }
@@ -764,28 +782,40 @@ class CalendarRepository(
      * rule, so the remaining occurrences are counted off the Instances table rather than reimplemented
      * here. An UNTIL needs no adjustment: it is an absolute date and still means the same day.
      */
-    private fun tailRRule(rrule: String, details: EventDetails, zone: ZoneId): String {
+    private fun tailRRule(
+        rrule: String,
+        details: EventDetails,
+        from: LocalDateTime,
+        zone: ZoneId,
+    ): String {
         if (!rrule.contains("COUNT=", ignoreCase = true)) return rrule
-        val remaining = countRemainingInstances(details, zone)
+        val remaining = countRemainingInstances(details, from, zone)
         val withoutCount = rrule.split(';')
             .filter { !it.trim().startsWith("COUNT=", ignoreCase = true) && it.isNotBlank() }
         return if (remaining <= 0) withoutCount.joinToString(";")
         else (withoutCount + "COUNT=$remaining").joinToString(";")
     }
 
-    /** How many occurrences of [details]' series start at or after the tapped one. */
-    private fun countRemainingInstances(details: EventDetails, zone: ZoneId): Int {
-        val from = details.instanceStart.atZone(zone).toInstant().toEpochMilli()
+    /** How many occurrences of [details]' series start at or after [from], the split point. */
+    private fun countRemainingInstances(details: EventDetails, from: LocalDateTime, zone: ZoneId): Int {
+        val fromMillis = from.atZone(zone).toInstant().toEpochMilli()
         // A COUNT rule is finite by definition, so a wide window is enough to see all of it.
-        val to = details.instanceStart.plusYears(50).atZone(zone).toInstant().toEpochMilli()
+        val toMillis = from.plusYears(50).atZone(zone).toInstant().toEpochMilli()
         val builder = CalendarContract.Instances.CONTENT_URI.buildUpon()
-        ContentUris.appendId(builder, from)
-        ContentUris.appendId(builder, to)
+        ContentUris.appendId(builder, fromMillis)
+        ContentUris.appendId(builder, toMillis)
+        // The window also returns an occurrence that began before the cut but overlaps it; BEGIN
+        // keeps only those that start at or after it. An all-day row's BEGIN is UTC midnight.
+        val beginBound = if (details.allDay) {
+            localDateToUtcMidnight(from.toLocalDate())
+        } else {
+            fromMillis
+        }
         return resolver.query(
             builder.build(),
             arrayOf(CalendarContract.Instances._ID),
-            "${CalendarContract.Instances.EVENT_ID} = ?",
-            arrayOf(details.eventId.toString()),
+            "${CalendarContract.Instances.EVENT_ID} = ? AND ${CalendarContract.Instances.BEGIN} >= ?",
+            arrayOf(details.eventId.toString(), beginBound.toString()),
             null,
         )?.use { it.count } ?: 0
     }

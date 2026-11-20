@@ -216,6 +216,64 @@ class RecurrenceTest {
         assertEquals("FREQ=DAILY;UNTIL=20260722T005959Z", capped)
     }
 
+    // --- where "this and following" cuts ------------------------------------
+
+    @Test
+    fun `an earlier edited date cuts at the start of the edited day`() {
+        val opened = LocalDateTime.of(2026, 12, 25, 13, 0)
+        val startOfEditedDay = LocalDateTime.of(2026, 12, 11, 0, 0)
+        // A later clock time on the edited day must not leave that day's original occurrence behind.
+        assertEquals(startOfEditedDay, splitPoint(opened, LocalDateTime.of(2026, 12, 11, 14, 0)))
+        assertEquals(startOfEditedDay, splitPoint(opened, LocalDateTime.of(2026, 12, 11, 13, 0)))
+    }
+
+    @Test
+    fun `the same day with an earlier time cuts at the opened occurrence`() {
+        val opened = LocalDateTime.of(2026, 12, 25, 13, 0)
+        assertEquals(opened, splitPoint(opened, LocalDateTime.of(2026, 12, 25, 9, 0)))
+    }
+
+    @Test
+    fun `a later edited date cuts at the opened occurrence`() {
+        val opened = LocalDateTime.of(2026, 12, 25, 13, 0)
+        assertEquals(opened, splitPoint(opened, LocalDateTime.of(2026, 12, 26, 13, 0)))
+    }
+
+    @Test
+    fun `moving the start earlier caps the original before the edited day`() {
+        // Opened Fri 25 Dec 13:00, saved as Fri 11 Dec 14:00: the original must stop before 11 Dec,
+        // or the tail would repeat the 11th (and the 18th).
+        val capped = capRRuleBefore(
+            rrule = "FREQ=WEEKLY;WKST=MO;BYDAY=FR",
+            instanceStart = splitPoint(
+                LocalDateTime.of(2026, 12, 25, 13, 0),
+                LocalDateTime.of(2026, 12, 11, 14, 0),
+            ),
+            seriesStart = LocalDateTime.of(2026, 11, 27, 13, 0),
+            zone = kl,
+            allDay = false,
+        )
+        // 11 Dec 00:00 +08:00 minus one second = 10 Dec 15:59:59 UTC.
+        assertEquals("FREQ=WEEKLY;WKST=MO;BYDAY=FR;UNTIL=20261210T155959Z", capped)
+    }
+
+    @Test
+    fun `an all-day series moved to its first day leaves no ghost row`() {
+        // The edited start lands on the series' first day, so the cut is that day's midnight, which
+        // capRRuleBefore refuses. A clock-time cut would have got past the guard.
+        val capped = capRRuleBefore(
+            rrule = "FREQ=WEEKLY;BYDAY=FR",
+            instanceStart = splitPoint(
+                LocalDateTime.of(2026, 12, 25, 0, 0),
+                LocalDateTime.of(2026, 11, 27, 9, 0),
+            ),
+            seriesStart = LocalDateTime.of(2026, 11, 27, 0, 0),
+            zone = kl,
+            allDay = true,
+        )
+        assertNull(capped)
+    }
+
     /**
      * Capping at the first occurrence would leave an UNTIL earlier than DTSTART — a series that can
      * never fire but still exists as a row. Null tells the repository to delete instead.

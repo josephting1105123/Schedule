@@ -211,6 +211,27 @@ fun capRRuleBefore(
     return (kept + "UNTIL=$until").joinToString(";")
 }
 
+/**
+ * Where "this and following" cuts the original series.
+ *
+ * Cutting at the opened occurrence alone leaves the original's occurrences between an earlier
+ * edited start and the opened one, and the tail repeats them (duplicates, reported 2026-11-20). So
+ * when the edited start falls on an earlier *day*, the cut is the start of that day:
+ *  - a clock-time cut at the edited start would keep the original's occurrence earlier on that same
+ *    day (opened 25 Dec 13:00, saved 11 Dec 14:00 would leave 11 Dec 13:00 doubled);
+ *  - an all-day series needs a midnight cut, since a clock-time cut on its first day gets past
+ *    [capRRuleBefore]'s guard and writes an UNTIL earlier than DTSTART, a ghost row.
+ *
+ * Otherwise (same day, or a later one) the cut stays at the opened occurrence. Moving the start
+ * later leaves a gap, which is what the user asked for.
+ */
+fun splitPoint(openedOccurrence: LocalDateTime, editedStart: LocalDateTime): LocalDateTime =
+    if (editedStart.toLocalDate().isBefore(openedOccurrence.toLocalDate())) {
+        editedStart.toLocalDate().atStartOfDay()
+    } else {
+        openedOccurrence
+    }
+
 /** Human-readable text for the picker row, e.g. "Every 2 weeks on Monday, until 30 Aug 2026". */
 fun RepeatSelection.label(start: LocalDate): String = when (this) {
     RepeatSelection.None -> "Does not repeat"
