@@ -2,6 +2,10 @@
 
 The newest version is at the top.
 
+## 1.4.12
+
+- Changing one occurrence of a repeating event ("This event") works again for events that have a colour, including changing the colour itself. The calendar used to refuse it with "The calendar rejected the change."
+
 ## 1.4.10
 
 - Changing a repeating event with "This and following events" no longer leaves the old times next to the new ones. When the edit moved the start to an earlier date, the old series kept running up to the occurrence you opened, so those days showed the event twice. The old series now ends before the earlier of the two days.

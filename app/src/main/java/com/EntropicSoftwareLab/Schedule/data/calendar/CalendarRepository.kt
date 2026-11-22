@@ -714,8 +714,19 @@ class CalendarRepository(
         // and refuses the insert with "Exceptions can't overwrite dtend" otherwise. So the length
         // goes in as DURATION — non-null, or the provider fails to parse it and returns nothing.
         // STATUS is set because the provider marks an exception tentative unless told otherwise.
+        //
+        // The colour key can't go in with the insert. The provider's handleInsertException (AOSP,
+        // and the Xiaomi build on the user's phone, CalendarProvider2.java:2082) checks a non-empty
+        // EVENT_COLOR_KEY by reading the series row's calendar_id before it has moved the cursor
+        // onto that row, so it throws CursorIndexOutOfBoundsException, the exception can't cross
+        // processes, and insert returns null. Every 'this event only' save of a coloured event
+        // failed that way (reported 2026-11-22). So the exception is inserted with the series'
+        // colour cloned in, and the picked key is set afterwards by a plain update, which looks the
+        // key up properly.
+        val colorKey = edit.eventColorKey
         val values = eventValues(edit.copy(rrule = null), zone, details.timeZone).apply {
             remove(CalendarContract.Events.DTEND)
+            if (colorKey != null) remove(CalendarContract.Events.EVENT_COLOR_KEY)
             val duration = if (edit.allDay) {
                 val endDate = maxOf(edit.end.toLocalDate(), edit.start.toLocalDate().plusDays(1))
                 rfc2445Duration(edit.start, endDate.atStartOfDay(), allDay = true)
@@ -729,7 +740,18 @@ class CalendarRepository(
                 originalInstanceTime(details),
             )
         }
-        return resolver.insert(uri, values) != null
+        val inserted = resolver.insert(uri, values) ?: return false
+        if (colorKey == null) return true
+        // The insert came back on the exception URI (exception/<seriesId>/<newId>); the colour goes
+        // through the ordinary Events/<newId> update, which validates the key correctly.
+        val rowUri = ContentUris.withAppendedId(
+            CalendarContract.Events.CONTENT_URI,
+            ContentUris.parseId(inserted),
+        )
+        val colorValues = ContentValues().apply {
+            put(CalendarContract.Events.EVENT_COLOR_KEY, colorKey)
+        }
+        return resolver.update(rowUri, colorValues, null, null) > 0
     }
 
     private fun splitSeries(details: EventDetails, edit: EventEdit, zone: ZoneId): Boolean {
