@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.EntropicSoftwareLab.Schedule.data.task.Task
+import com.EntropicSoftwareLab.Schedule.data.task.TaskRepeat
 import com.EntropicSoftwareLab.Schedule.data.task.TaskRepository
 import com.EntropicSoftwareLab.Schedule.data.task.TaskShow
 import com.EntropicSoftwareLab.Schedule.di.AppContainer
@@ -35,6 +36,7 @@ data class TaskEditorUiState(
      */
     val done: Boolean = false,
     val show: TaskShow = TaskShow.SameDay,
+    val repeat: TaskRepeat? = null,
     val saving: Boolean = false,
     /** Set once a write lands; the screen pops on it. */
     val finished: Boolean = false,
@@ -48,8 +50,9 @@ data class TaskEditorUiState(
  * [com.EntropicSoftwareLab.Schedule.ui.screens.birthday.BirthdayEditorViewModel] makes: creating a
  * task and editing an existing one.
  *
- * Smaller than the event form because a task has no end, no calendar, no colour, no recurrence and
- * no conflict check — a deadline can't clash with anything. It never reaches CalendarContract.
+ * Smaller than the event form because a task has no end, no calendar, no colour and no conflict
+ * check — a deadline can't clash with anything, and its repeat rolls the deadline forward on tick
+ * rather than making occurrences. It never reaches CalendarContract.
  */
 class TaskEditorViewModel(
     private val repository: TaskRepository,
@@ -86,6 +89,7 @@ class TaskEditorViewModel(
                         notes = existing.notes.orEmpty(),
                         done = existing.done,
                         show = existing.show,
+                        repeat = existing.repeat,
                     )
                 }
             }
@@ -104,6 +108,8 @@ class TaskEditorViewModel(
 
     fun setShow(value: TaskShow) = _state.update { it.copy(show = value) }
 
+    fun setRepeat(value: TaskRepeat?) = _state.update { it.copy(repeat = value) }
+
     fun save() {
         val current = _state.value
         if (!current.canSave) return
@@ -118,6 +124,7 @@ class TaskEditorViewModel(
                 notes = current.notes.trim().takeIf { it.isNotBlank() },
                 done = current.done,
                 show = current.show,
+                repeat = current.repeat,
             )
             runCatching { if (editId == null) repository.add(task) else repository.upsert(task) }
                 .onSuccess { _state.update { it.copy(saving = false, finished = true) } }

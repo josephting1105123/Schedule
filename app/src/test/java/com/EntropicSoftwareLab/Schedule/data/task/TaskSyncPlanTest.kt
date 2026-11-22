@@ -1,5 +1,6 @@
 package com.EntropicSoftwareLab.Schedule.data.task
 
+import com.EntropicSoftwareLab.Schedule.data.calendar.RecurrenceFreq
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -564,5 +565,20 @@ class TaskSyncPlanTest {
     fun `a new remote task imports its show option`() {
         val p = plan(emptyList(), listOf(remote("s9", 19).copy(show = TaskShow.UntilDone)))
         assertEquals(TaskShow.UntilDone, upserts(p).single().after.show)
+    }
+
+    // ---- repeat ----
+
+    @Test
+    fun `a newer remote edit carries its repeat rule to the phone`() {
+        val remoteRepeat = TaskRepeat(RecurrenceFreq.Weekly, interval = 2)
+        val p = plan(
+            listOf(local(1, editedAt = 100)),
+            listOf(remote("s1", 11, editedAt = 200).copy(repeat = remoteRepeat)),
+        )
+        val merged = upserts(p).single().after
+        assertEquals(remoteRepeat, merged.repeat)
+        assertEquals(200L, merged.editedAt)
+        assertTrue(p.remoteUpdates.isEmpty())
     }
 }

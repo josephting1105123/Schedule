@@ -60,6 +60,7 @@ object TaskCodec {
         .put("editedAt", t.editedAt)
         .put("tickedAt", t.tickedAt)
         .put("show", t.show.wire)
+        .put("repeat", t.repeat?.wire() ?: JSONObject.NULL)
 
     private fun decodeOne(o: JSONObject): Task? {
         val title = o.stringOrNull("title")?.takeIf { it.isNotBlank() } ?: return null
@@ -83,6 +84,7 @@ object TaskCodec {
             editedAt = o.optLong("editedAt", 0L),
             tickedAt = o.optLong("tickedAt", 0L),
             show = TaskShow.fromWire(o.stringOrNull("show")),
+            repeat = TaskRepeat.fromWire(o.stringOrNull("repeat")),
         )
     }
 

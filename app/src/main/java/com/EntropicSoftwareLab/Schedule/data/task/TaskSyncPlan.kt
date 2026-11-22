@@ -41,6 +41,7 @@ object TaskSyncPlan {
             a.dueTime?.truncatedTo(ChronoUnit.MINUTES) == b.dueTime &&
             normalised(a.notes) == b.notes &&
             a.show == b.show &&
+            a.repeat == b.repeat &&
             a.done == b.done &&
             a.editedAt == b.editedAt &&
             a.tickedAt == b.tickedAt
@@ -65,7 +66,7 @@ object TaskSyncPlan {
 
     private fun sameText(a: RemoteTask, b: RemoteTask): Boolean =
         a.title == b.title && a.due == b.due && a.dueTime == b.dueTime && a.notes == b.notes &&
-            a.show == b.show
+            a.show == b.show && a.repeat == b.repeat
 
     private fun sameAll(a: RemoteTask, b: RemoteTask): Boolean =
         sameText(a, b) && a.done == b.done && a.editedAt == b.editedAt && a.tickedAt == b.tickedAt
@@ -140,7 +141,7 @@ object TaskSyncPlan {
                     if (r.editedAt > l.editedAt) {
                         merged = merged.copy(
                             title = r.title, due = r.due, dueTime = r.dueTime,
-                            notes = r.notes, show = r.show, editedAt = r.editedAt,
+                            notes = r.notes, show = r.show, repeat = r.repeat, editedAt = r.editedAt,
                         )
                     } else if (r.editedAt == l.editedAt && textDiffers) {
                         // Equal stamps with different text: neither app made this edit (both stamp
@@ -148,7 +149,7 @@ object TaskSyncPlan {
                         // stamp it newer than the calendar's tag so the write-back is not a tie.
                         merged = merged.copy(
                             title = r.title, due = r.due, dueTime = r.dueTime,
-                            notes = r.notes, show = r.show, editedAt = maxOf(now, r.editedAt + 1),
+                            notes = r.notes, show = r.show, repeat = r.repeat, editedAt = maxOf(now, r.editedAt + 1),
                         )
                     }
                     if (r.tickedAt > l.tickedAt) {
@@ -186,6 +187,7 @@ object TaskSyncPlan {
                                 editedAt = r.editedAt,
                                 tickedAt = r.tickedAt,
                                 show = r.show,
+                                repeat = r.repeat,
                             ),
                         )
                         knownAfter += sid

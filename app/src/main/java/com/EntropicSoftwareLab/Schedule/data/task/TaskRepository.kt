@@ -14,6 +14,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 
 /**
  * Its own DataStore file, the same reason [com.EntropicSoftwareLab.Schedule.data.birthday.BirthdayRepository]
@@ -101,6 +102,10 @@ class TaskRepository(
      * tap, and a stale copy round-tripped through here would quietly undo an edit made in between.
      * A task that has since been deleted is left deleted rather than resurrected by the write.
      * Only a real change stamps [Task.tickedAt].
+     *
+     * Ticking an unfinished repeating task moves [Task.due] forward to [TaskRepeat.nextDue] and
+     * leaves it unticked, stamping both [Task.editedAt] and [Task.tickedAt]. When the series has
+     * no next date left, the tick finishes the task as normal.
      */
     suspend fun setDone(id: Long, done: Boolean) {
         var changed = false
@@ -110,7 +115,15 @@ class TaskRepository(
             val now = clock()
             prefs[Keys.TASKS] = TaskCodec.encode(
                 current.map {
-                    if (it.id == id && it.done != done) {
+                    if (it.id == id && done && !it.done && it.repeat != null) {
+                        val next = it.repeat.nextDue(it.due, LocalDate.now())
+                        changed = true
+                        if (next != null) {
+                            it.copy(due = next, done = false, editedAt = now, tickedAt = now)
+                        } else {
+                            it.copy(done = true, tickedAt = now)
+                        }
+                    } else if (it.id == id && it.done != done) {
                         changed = true
                         it.copy(done = done, tickedAt = now)
                     } else it

@@ -1,6 +1,9 @@
 package com.EntropicSoftwareLab.Schedule.data.task
 
+import com.EntropicSoftwareLab.Schedule.data.calendar.RecurrenceFreq
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -178,5 +181,37 @@ class TaskCodecTest {
     fun `a blob without a show key decodes to same day`() {
         val decoded = TaskCodec.decode("""[{"id":1,"title":"Legacy","due":20000}]""")
         assertEquals(TaskShow.SameDay, decoded.first().show)
+    }
+
+    @Test
+    fun `round trips a task with a repeat rule`() {
+        val tasks = listOf(
+            Task(
+                id = 1, title = "Daily", due = day, dueTime = null, notes = null, done = false,
+                repeat = TaskRepeat(RecurrenceFreq.Daily),
+            ),
+            Task(
+                id = 2, title = "Biweekly", due = day, dueTime = null, notes = null, done = false,
+                repeat = TaskRepeat(RecurrenceFreq.Weekly, interval = 2, until = LocalDate.of(2026, 12, 31)),
+            ),
+        )
+        assertEquals(tasks, TaskCodec.decode(TaskCodec.encode(tasks)))
+    }
+
+    @Test
+    fun `a malformed repeat decodes to null without failing decodeStrict`() {
+        val json = """[{"id":1,"title":"T","due":20000,"repeat":"garbage"}]"""
+        val decoded = TaskCodec.decode(json)
+        assertEquals(1, decoded.size)
+        assertNull(decoded.first().repeat)
+        val strict = TaskCodec.decodeStrict(json)
+        assertNotNull(strict)
+        assertNull(strict!!.first().repeat)
+    }
+
+    @Test
+    fun `a blob without a repeat key decodes to null repeat`() {
+        val decoded = TaskCodec.decode("""[{"id":1,"title":"Legacy","due":20000}]""")
+        assertNull(decoded.first().repeat)
     }
 }

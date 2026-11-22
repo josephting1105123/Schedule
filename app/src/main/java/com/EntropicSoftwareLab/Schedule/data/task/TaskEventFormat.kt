@@ -39,6 +39,7 @@ data class RemoteTask(
     val editedAt: Long,
     val tickedAt: Long,
     val show: TaskShow = TaskShow.SameDay,
+    val repeat: TaskRepeat? = null,
 )
 
 /**
@@ -52,7 +53,10 @@ data class RemoteTask(
  * - The description is the notes, then a tag line as the *last* line:
  *   `[task] id=<syncId> edited=<epoch ms> ticked=<epoch ms> done=<0|1>`, plus an optional
  *   `show=<same|week|until>` (which Today pages show the task; absent means same, and only a
- *   non-default value is written). An event with no valid tag line is not a task and is ignored.
+ *   non-default value is written), plus an optional `repeat=<freq>[/<interval>[/<until>]]`
+ *   (frequency `day|week|month|year`, interval 1..999, ISO end date `yyyy-MM-dd`; written in
+ *   shortest form, absent when the task does not repeat). An event with no valid tag line is not
+ *   a task and is ignored.
  *
  * Reading goes through the row's own timezone, not the phone's, which is what keeps "17:00" meaning
  * 17:00 after the phone has travelled: [Task.dueTime] is wall-clock with no zone.
@@ -74,14 +78,16 @@ object TaskEventFormat {
         tickedAt: Long,
         done: Boolean,
         show: TaskShow = TaskShow.SameDay,
+        repeat: TaskRepeat? = null,
     ): String =
         "[task] id=$syncId edited=$editedAt ticked=$tickedAt done=${if (done) 1 else 0}" +
-            if (show != TaskShow.SameDay) " show=${show.wire}" else ""
+            (if (show != TaskShow.SameDay) " show=${show.wire}" else "") +
+            (if (repeat != null) " repeat=${repeat.wire()}" else "")
 
     /** Notes, then the tag line last. [Task.syncId] must be set. */
     fun description(task: Task): String {
         val syncId = requireNotNull(task.syncId) { "a task needs a syncId before it is written" }
-        val tag = tag(syncId, task.editedAt, task.tickedAt, task.done, task.show)
+        val tag = tag(syncId, task.editedAt, task.tickedAt, task.done, task.show, task.repeat)
         val notes = task.notes?.trim().orEmpty()
         return if (notes.isNotEmpty()) "$notes\n\n$tag" else tag
     }
@@ -162,6 +168,7 @@ object TaskEventFormat {
             editedAt = keys["edited"]?.toLongOrNull() ?: 0L,
             tickedAt = keys["ticked"]?.toLongOrNull() ?: 0L,
             show = TaskShow.fromWire(keys["show"]),
+            repeat = TaskRepeat.fromWire(keys["repeat"]),
         )
     }
 

@@ -1,5 +1,6 @@
 package com.EntropicSoftwareLab.Schedule.data.task
 
+import com.EntropicSoftwareLab.Schedule.data.calendar.RecurrenceFreq
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -331,5 +332,36 @@ class TaskEventFormatTest {
     @Test
     fun `an unknown show value reads as same day`() {
         assertEquals(TaskShow.SameDay, TaskEventFormat.decode(rawRow("[task] id=abc show=xyz"), kl)!!.show)
+    }
+
+    // ---- repeat ----
+
+    @Test
+    fun `a non-repeating task keeps exactly the old tag, with no repeat key`() {
+        assertFalse(TaskEventFormat.description(task()).contains("repeat="))
+        assertEquals(
+            "[task] id=abc edited=1 ticked=2 done=0",
+            TaskEventFormat.tag("abc", 1, 2, false, TaskShow.SameDay, null),
+        )
+    }
+
+    @Test
+    fun `repeat is written after show and round trips through decode`() {
+        val repeat = TaskRepeat(RecurrenceFreq.Weekly, interval = 2)
+        assertEquals(
+            "[task] id=abc edited=1 ticked=2 done=0 show=week repeat=week/2",
+            TaskEventFormat.tag("abc", 1, 2, false, TaskShow.WeekBefore, repeat),
+        )
+        val t = task().copy(show = TaskShow.WeekBefore, repeat = repeat)
+        val f = TaskEventFormat.fields(t, kl)
+        assertTrue(f.description.contains("show=week repeat=week/2"))
+        assertEquals(repeat, TaskEventFormat.decode(row(f), kl)!!.repeat)
+    }
+
+    @Test
+    fun `a bogus repeat value reads as null without dropping the task`() {
+        val r = TaskEventFormat.decode(rawRow("[task] id=abc repeat=bogus"), kl)
+        assertNotNull(r)
+        assertNull(r!!.repeat)
     }
 }

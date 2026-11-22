@@ -59,6 +59,8 @@ data class Task(
     val tickedAt: Long = 0L,
     /** Which Today pages show it; covered by [editedAt] like the title. */
     val show: TaskShow = TaskShow.SameDay,
+    /** Covered by [editedAt] like the title. Ticking a repeating task moves [due] to [TaskRepeat.nextDue] instead of finishing it. */
+    val repeat: TaskRepeat? = null,
 ) {
     /** Whether the Today page for [date] lists this task; see [shownOn]. */
     fun isShownOn(date: LocalDate, today: LocalDate): Boolean = when {

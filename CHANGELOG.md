@@ -2,6 +2,12 @@
 
 The newest version is at the top.
 
+## 1.4.13
+
+- Tasks can repeat. Open a task and set Repeats to daily, weekly, monthly or yearly, with an interval and an optional end, using the same picker as events.
+- Ticking a repeating task moves it to its next date instead of finishing it. If it was overdue, it moves to the first date on or after today, so one tick catches it up. Once the series has ended, ticking finishes it as before.
+- The repeat syncs to Jarvis through the Tasks calendar (needs Jarvis 0.0.60 or later; an older Jarvis drops the rule when it edits the task).
+
 ## 1.4.12
 
 - Changing one occurrence of a repeating event ("This event") works again for events that have a colour, including changing the colour itself. The calendar used to refuse it with "The calendar rejected the change."

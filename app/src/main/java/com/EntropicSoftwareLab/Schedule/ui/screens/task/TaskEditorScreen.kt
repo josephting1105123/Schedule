@@ -32,7 +32,11 @@ import androidx.compose.ui.res.stringResource
 import com.EntropicSoftwareLab.Schedule.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.EntropicSoftwareLab.Schedule.data.calendar.RepeatSelection
+import com.EntropicSoftwareLab.Schedule.data.calendar.label
 import com.EntropicSoftwareLab.Schedule.data.task.TaskShow
+import com.EntropicSoftwareLab.Schedule.data.task.toRule
+import com.EntropicSoftwareLab.Schedule.data.task.toTaskRepeat
 import com.EntropicSoftwareLab.Schedule.di.LocalAppContainer
 import com.EntropicSoftwareLab.Schedule.ui.components.AppButton
 import com.EntropicSoftwareLab.Schedule.ui.components.AppCard
@@ -40,6 +44,7 @@ import com.EntropicSoftwareLab.Schedule.ui.components.AppDropdownMenuItem
 import com.EntropicSoftwareLab.Schedule.ui.components.AppTintedButton
 import com.EntropicSoftwareLab.Schedule.ui.components.DatePickerSheet
 import com.EntropicSoftwareLab.Schedule.ui.components.EndAnchoredDropdownMenu
+import com.EntropicSoftwareLab.Schedule.ui.components.RepeatPickerDialog
 import com.EntropicSoftwareLab.Schedule.ui.components.ScreenHeader
 import com.EntropicSoftwareLab.Schedule.ui.components.TimePickerSheet
 import com.EntropicSoftwareLab.Schedule.ui.components.rememberClockFormatter
@@ -79,6 +84,7 @@ fun TaskEditorScreen(
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showRepeatPicker by remember { mutableStateOf(false) }
     var showShowMenu by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
 
@@ -162,6 +168,15 @@ fun TaskEditorScreen(
                             text = stringResource(R.string.task_no_time_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textSecondary,
+                        )
+                    }
+
+                    FieldRow(label = stringResource(R.string.editor_repeats), onClick = { showRepeatPicker = true }) {
+                        Text(
+                            text = state.repeat?.toRule()?.label(state.due)
+                                ?: RepeatSelection.None.label(state.due),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = colors.textPrimary,
                         )
                     }
 
@@ -260,6 +275,18 @@ fun TaskEditorScreen(
             initial = state.time,
             onDismiss = { showTimePicker = false },
             onPick = { vm.setTime(it); showTimePicker = false },
+        )
+    }
+
+    if (showRepeatPicker) {
+        RepeatPickerDialog(
+            current = state.repeat?.let { RepeatSelection.Simple(it.toRule()) } ?: RepeatSelection.None,
+            anchor = state.due,
+            onDismiss = { showRepeatPicker = false },
+            onPick = { sel ->
+                vm.setRepeat((sel as? RepeatSelection.Simple)?.rule?.toTaskRepeat(state.due))
+                showRepeatPicker = false
+            },
         )
     }
 
