@@ -124,5 +124,5 @@ object BrandColorAssignment {
     private fun EventInstance.hasOwnColor(): Boolean = eventColorKey != null || eventColor != null
 
     /** Any date; [forDay] has only one, and its identity never escapes. */
-    private val EPOCH: LocalDate = LocalDate.EPOCH
+    private val EPOCH: LocalDate = LocalDate.of(1970, 1, 1)
 }

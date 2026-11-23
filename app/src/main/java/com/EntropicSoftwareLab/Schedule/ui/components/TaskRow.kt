@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -34,7 +35,6 @@ import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Locale
 import com.EntropicSoftwareLab.Schedule.R
 import androidx.compose.ui.res.stringResource
 
@@ -70,6 +70,7 @@ fun TaskRow(
     val colors = AppThemeTokens.colors
     val shape = RoundedCornerShape(d.radiusMd)
     val timeFormat = rememberClockFormatter()
+    val locale = LocalConfiguration.current.locales[0]
 
     val tone = when {
         task.done -> Tone.Neutral
@@ -123,9 +124,9 @@ fun TaskRow(
             verticalArrangement = Arrangement.Center,
         ) {
             Text(
-                text = task.due.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                text = task.due.dayOfWeek.getDisplayName(TextStyle.SHORT, locale)
                     .take(3)
-                    .uppercase(Locale.getDefault()),
+                    .uppercase(locale),
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.SemiBold,

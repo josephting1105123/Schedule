@@ -33,6 +33,7 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.TimeZone
 
 /**
@@ -689,7 +690,7 @@ class CalendarRepository(
         // Applying the edit as a shift is what keeps "all events" from meaning "move the series to
         // the day I happened to open". The delta is measured on the occurrence the user edited and
         // applied to the series anchor.
-        val shifted = if (details.isRecurring) {
+        val shifted = if (details.isRecurring && !edit.rrule.isNullOrBlank()) {
             val delta = java.time.Duration.between(details.instanceStart, edit.start)
             val length = java.time.Duration.between(edit.start, edit.end)
             val newStart = details.seriesStart.plus(delta)
@@ -698,7 +699,12 @@ class CalendarRepository(
             edit
         }
         val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, details.eventId)
-        return resolver.update(uri, eventValues(shifted, zone, details.timeZone), null, null) > 0
+        return resolver.update(
+            uri,
+            eventValues(shifted, zone, details.timeZone.takeUnless { details.allDay }),
+            null,
+            null,
+        ) > 0
     }
 
     private fun insertException(details: EventDetails, edit: EventEdit, zone: ZoneId): Boolean {
@@ -724,7 +730,11 @@ class CalendarRepository(
         // colour cloned in, and the picked key is set afterwards by a plain update, which looks the
         // key up properly.
         val colorKey = edit.eventColorKey
-        val values = eventValues(edit.copy(rrule = null), zone, details.timeZone).apply {
+        val values = eventValues(
+            edit.copy(rrule = null),
+            zone,
+            details.timeZone.takeUnless { details.allDay },
+        ).apply {
             remove(CalendarContract.Events.DTEND)
             if (colorKey != null) remove(CalendarContract.Events.EVENT_COLOR_KEY)
             val duration = if (edit.allDay) {
@@ -744,14 +754,21 @@ class CalendarRepository(
         if (colorKey == null) return true
         // The insert came back on the exception URI (exception/<seriesId>/<newId>); the colour goes
         // through the ordinary Events/<newId> update, which validates the key correctly.
-        val rowUri = ContentUris.withAppendedId(
-            CalendarContract.Events.CONTENT_URI,
-            ContentUris.parseId(inserted),
-        )
+        val rowId = runCatching { ContentUris.parseId(inserted) }.getOrNull()
+            ?.takeIf { it >= 0L }
+            ?: return false
+        val rowUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, rowId)
         val colorValues = ContentValues().apply {
             put(CalendarContract.Events.EVENT_COLOR_KEY, colorKey)
         }
-        return resolver.update(rowUri, colorValues, null, null) > 0
+        val updated = runCatching {
+            resolver.update(rowUri, colorValues, null, null) > 0
+        }.getOrDefault(false)
+        if (!updated) {
+            runCatching { resolver.delete(rowUri, null, null) }
+            return false
+        }
+        return true
     }
 
     private fun splitSeries(details: EventDetails, edit: EventEdit, zone: ZoneId): Boolean {
@@ -778,7 +795,7 @@ class CalendarRepository(
         // Count the tail's remaining occurrences before the cap is written: the provider re-expands
         // Instances during the cap update, so counting afterwards returns 0 and drops the COUNT,
         // which would make the tail repeat forever.
-        val tailRule = edit.rrule?.let { tailRRule(it, details, cut, zone) }
+        val tailRule = edit.rrule?.let { tailRRule(it, details, cut, zone) ?: return false }
 
         // Cap first. If the tail insert then fails the user sees a shortened series rather than a
         // duplicated one, which is the recoverable direction — they can undo by editing the end date.
@@ -791,13 +808,14 @@ class CalendarRepository(
         val tailValues = eventValues(
             edit.copy(rrule = tailRule),
             zone,
-            details.timeZone,
+            details.timeZone.takeUnless { details.allDay },
         ).apply { put(CalendarContract.Events.CALENDAR_ID, details.calendarId) }
         return resolver.insert(CalendarContract.Events.CONTENT_URI, tailValues) != null
     }
 
     /**
-     * The rule for the new tail series.
+     * The rule for the new tail series, or null when the remaining count could not be read from
+     * the provider.
      *
      * A COUNT can't simply be carried over — `COUNT=10` split at the fourth occurrence would give
      * the tail ten more, not the seven that remain. The provider already knows how to expand the
@@ -809,17 +827,21 @@ class CalendarRepository(
         details: EventDetails,
         from: LocalDateTime,
         zone: ZoneId,
-    ): String {
+    ): String? {
         if (!rrule.contains("COUNT=", ignoreCase = true)) return rrule
-        val remaining = countRemainingInstances(details, from, zone)
+        if (!carriesSeriesCount(rrule, details.rrule)) return rrule
+        val remaining = countRemainingInstances(details, from, zone) ?: return null
         val withoutCount = rrule.split(';')
             .filter { !it.trim().startsWith("COUNT=", ignoreCase = true) && it.isNotBlank() }
         return if (remaining <= 0) withoutCount.joinToString(";")
         else (withoutCount + "COUNT=$remaining").joinToString(";")
     }
 
-    /** How many occurrences of [details]' series start at or after [from], the split point. */
-    private fun countRemainingInstances(details: EventDetails, from: LocalDateTime, zone: ZoneId): Int {
+    /**
+     * How many occurrences of [details]' series start at or after [from], the split point,
+     * or null when the provider query fails.
+     */
+    private fun countRemainingInstances(details: EventDetails, from: LocalDateTime, zone: ZoneId): Int? {
         val fromMillis = from.atZone(zone).toInstant().toEpochMilli()
         // A COUNT rule is finite by definition, so a wide window is enough to see all of it.
         val toMillis = from.plusYears(50).atZone(zone).toInstant().toEpochMilli()
@@ -839,7 +861,7 @@ class CalendarRepository(
             "${CalendarContract.Instances.EVENT_ID} = ? AND ${CalendarContract.Instances.BEGIN} >= ?",
             arrayOf(details.eventId.toString(), beginBound.toString()),
             null,
-        )?.use { it.count } ?: 0
+        )?.use { it.count }
     }
 
     /**
@@ -1073,7 +1095,9 @@ class CalendarRepository(
         // A coarse net; BirthdayEvents.isBirthday decides. LIKE is case-insensitive for ASCII.
         val args = arrayOf("%" + BirthdayEvents.CONTACTS_OWNER_SUFFIX, "%birthday", "birthday%")
         val out = mutableListOf<BirthdayEventRow>()
-        resolver.query(CalendarContract.Events.CONTENT_URI, projection, selection, args, null)?.use { c ->
+        val cursor = resolver.query(CalendarContract.Events.CONTENT_URI, projection, selection, args, null)
+            ?: throw IllegalStateException("Calendar query returned no cursor")
+        cursor.use { c ->
             while (c.moveToNext()) {
                 val allDay = c.getInt(3) == 1
                 val start = c.getLong(2)
@@ -1314,3 +1338,53 @@ class CalendarRepository(
 
 /** Convenience for callers holding a [LocalDateTime] pair rather than millis. */
 fun LocalDateTime.toEpochMillis(zone: ZoneId): Long = atZone(zone).toInstant().toEpochMilli()
+
+/**
+ * True when the edited rule's COUNT is the series' own, carried over unchanged, so the tail must
+ * be given what is left of it. False when the user picked a count (or a different rule) in the
+ * editor: that count is meant from the tail's first occurrence and is written as is.
+ *
+ * Compares what the picker can express ([parseRepeat]) rather than raw text, because the editor
+ * rebuilds simple rules with `toRRule` (dropping `WKST=` / `RRULE:` and adding `BYDAY` /
+ * `BYMONTHDAY`). Falls back to a normalised key/value set comparison when either side is
+ * unsupported by the picker.
+ */
+internal fun carriesSeriesCount(edited: String, original: String?): Boolean {
+    if (original == null) return false
+    val a = parseRepeat(edited, ZoneOffset.UTC)
+    val b = parseRepeat(original, ZoneOffset.UTC)
+    if (a is RepeatSelection.Simple && b is RepeatSelection.Simple) {
+        return a.rule.end is RecurrenceEnd.AfterCount &&
+            a.rule.freq == b.rule.freq &&
+            a.rule.interval == b.rule.interval &&
+            a.rule.end == b.rule.end
+    }
+    // Either side unsupported by the picker: keep the normalised key/value set comparison.
+    val (editedCount, editedRest) = splitRRuleCount(edited) ?: return false
+    val (originalCount, originalRest) = splitRRuleCount(original) ?: return false
+    return editedCount == originalCount && editedRest == originalRest
+}
+
+private fun splitRRuleCount(rrule: String): Pair<String, Set<String>>? {
+    var count: String? = null
+    val rest = LinkedHashSet<String>()
+    val body = rrule.trim().removePrefix("RRULE:").trim()
+    for (raw in body.split(';')) {
+        val part = raw.trim()
+        if (part.isEmpty()) continue
+        val eq = part.indexOf('=')
+        if (eq < 0) {
+            rest.add(part)
+            continue
+        }
+        val key = part.substring(0, eq).trim().uppercase(java.util.Locale.ROOT)
+        val value = part.substring(eq + 1).trim()
+        if (key == "COUNT") {
+            if (value.isEmpty() || count != null) return null
+            count = value
+        } else {
+            rest.add("$key=$value")
+        }
+    }
+    return count?.let { it to rest }
+}

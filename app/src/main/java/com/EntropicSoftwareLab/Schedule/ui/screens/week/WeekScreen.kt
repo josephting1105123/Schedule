@@ -47,6 +47,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -83,6 +84,7 @@ import com.EntropicSoftwareLab.Schedule.ui.components.asCalendarColor
 import com.EntropicSoftwareLab.Schedule.ui.components.EVENT_EDGE_WIDTH
 import com.EntropicSoftwareLab.Schedule.ui.components.eventInk
 import com.EntropicSoftwareLab.Schedule.ui.components.eventTint
+import com.EntropicSoftwareLab.Schedule.ui.components.rememberLiveNow
 import com.EntropicSoftwareLab.Schedule.ui.screens.dashboard.EventsSheet
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
@@ -91,7 +93,6 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle as JavaTextStyle
-import java.util.Locale
 import kotlinx.coroutines.launch
 
 private const val DAYS_PER_WEEK = WeekPaging.DAYS_PER_WEEK
@@ -138,19 +139,24 @@ fun WeekScreen(
     val d = AppThemeTokens.dimens
     val scope = rememberCoroutineScope()
 
-    val today = remember { LocalDate.now() }
+    val now by rememberLiveNow()
+    val today = now.toLocalDate()
+    val thisWeek = WeekPaging.weekStart(today)
     // Hoisted above the pager so folding the timetable on one week keeps it folded on the next.
     var timetableOpen by rememberSaveable { mutableStateOf(true) }
-    // Page WEEK_WINDOW_RADIUS is this week, fixed for the screen's life so page maths never shifts.
-    val thisWeek = remember { WeekPaging.weekStart(today) }
+    // Page WEEK_WINDOW_RADIUS is anchorWeek, fixed for the screen's life so page maths never shifts.
+    val anchorWeek = remember { WeekPaging.weekStart(LocalDate.now()) }
+    val pageForWeek: (LocalDate) -> Int = { week ->
+        (WeekViewModel.WEEK_WINDOW_RADIUS + WeekPaging.weeksBetween(anchorWeek, week))
+            .coerceIn(0L, WeekViewModel.WEEK_WINDOW_RADIUS * 2L)
+            .toInt()
+    }
     val pagerState = rememberPagerState(
         // The ViewModel outlives this composable across tab switches, so open where it left off.
-        initialPage = (WeekViewModel.WEEK_WINDOW_RADIUS + WeekPaging.weeksBetween(thisWeek, vm.state.value.visibleWeek))
-            .coerceIn(0L, WeekViewModel.WEEK_WINDOW_RADIUS * 2L)
-            .toInt(),
+        initialPage = pageForWeek(state.visibleWeek),
     ) { WeekViewModel.WEEK_WINDOW_RADIUS * 2 + 1 }
     val weekForPage: (Int) -> LocalDate = { page ->
-        thisWeek.plusWeeks((page - WeekViewModel.WEEK_WINDOW_RADIUS).toLong())
+        anchorWeek.plusWeeks((page - WeekViewModel.WEEK_WINDOW_RADIUS).toLong())
     }
 
     // settledPage decides which week is *visible*; a fling across several must not make each week
@@ -175,6 +181,7 @@ fun WeekScreen(
             WeekPage(
                 weekStart = weekForPage(page),
                 today = today,
+                now = now.toLocalTime(),
                 state = state,
                 zone = zone,
                 onAddEventAt = onAddEventAt,
@@ -191,7 +198,7 @@ fun WeekScreen(
             TodayPill(
                 today = today,
                 onClick = {
-                    scope.launch { pagerState.animateScrollToPage(WeekViewModel.WEEK_WINDOW_RADIUS) }
+                    scope.launch { pagerState.animateScrollToPage(pageForWeek(thisWeek)) }
                 },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -206,6 +213,7 @@ fun WeekScreen(
 private fun WeekPage(
     weekStart: LocalDate,
     today: LocalDate,
+    now: LocalTime,
     state: WeekUiState,
     zone: ZoneId,
     onAddEventAt: (LocalDate, Int) -> Unit,
@@ -260,14 +268,14 @@ private fun WeekPage(
     // not yank the table back under a user who has scrolled it. Keeps trying until the week's rows
     // have arrived, so a page opening before its data loads still lands on its first event.
     var didInitialScroll by rememberSaveable(weekStart) { mutableStateOf(false) }
-    LaunchedEffect(blocksByDate, timetableOpen) {
+    LaunchedEffect(blocksByDate, loading, timetableOpen) {
         if (didInitialScroll || !timetableOpen) return@LaunchedEffect
         val firstHour = blocksByDate.values.flatten().minOfOrNull { it.startMinute / 60 }
         val focusHour = minOf(firstHour ?: DEFAULT_FOCUS_HOUR, DEFAULT_FOCUS_HOUR)
         // Less the pinned dates' height, which would otherwise sit over the hour being shown.
         val offset = with(density) { (HOUR_HEIGHT * focusHour - HEADINGS_HEIGHT).roundToPx() }
         listState.scrollToItem(gridIndex, offset.coerceAtLeast(0))
-        if (firstHour != null) didInitialScroll = true
+        if (firstHour != null || !loading) didInitialScroll = true
     }
 
     LazyColumn(
@@ -329,6 +337,7 @@ private fun WeekPage(
                     TimetableGrid(
                         days = days,
                         today = today,
+                        now = now,
                         blocksByDate = blocksByDate,
                         colorFor = colorFor,
                         onBlockTap = { selected = it },
@@ -489,6 +498,7 @@ private fun DayHeadingsRow(days: List<LocalDate>, today: LocalDate, onOpenDay: (
 private fun TimetableGrid(
     days: List<LocalDate>,
     today: LocalDate,
+    now: LocalTime,
     blocksByDate: Map<LocalDate, List<WeekGrid.Block>>,
     colorFor: (EventInstance) -> Color,
     onBlockTap: (EventInstance) -> Unit,
@@ -592,7 +602,6 @@ private fun TimetableGrid(
 
         // Now, across today's column.
         if (todayColumn >= 0) {
-            val now = LocalTime.now()
             val y = HOUR_HEIGHT * ((now.hour * 60 + now.minute) / 60f) + d.spaceSm
             Box(
                 Modifier
@@ -721,6 +730,7 @@ private fun DayHeading(
     modifier: Modifier = Modifier,
 ) {
     val colors = AppThemeTokens.colors
+    val locale = LocalConfiguration.current.locales[0]
     Column(
         modifier = modifier
             .clickable(role = Role.Button, onClickLabel = stringResource(R.string.week_open_day), onClick = onClick)
@@ -728,7 +738,7 @@ private fun DayHeading(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = date.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, Locale.getDefault()),
+            text = date.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, locale),
             style = MaterialTheme.typography.bodySmall,
             color = if (isToday) colors.greenText else colors.textSecondary,
         )

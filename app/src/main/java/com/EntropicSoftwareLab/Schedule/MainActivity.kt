@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +18,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.EntropicSoftwareLab.Schedule.di.AppContainer
@@ -47,7 +50,8 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         val container = (application as ScheduleApp).container
-        readWidgetLaunch(intent, container)
+        // Only on a fresh launch: a recreation (rotation) re-delivers the same intent.
+        if (savedInstanceState == null) readWidgetLaunch(intent, container)
         // A sync on every return to the front, and every 20s while on screen. See syncWhileVisible.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) { container.syncWhileVisible() }
@@ -61,9 +65,17 @@ class MainActivity : ComponentActivity() {
                         color = AppThemeTokens.colors.background,
                     ) {
                         val context = LocalContext.current
-                        // Re-checked on recreation, so revoking access in system settings (which
-                        // restarts the process) drops the user back to the gate.
+                        // Re-checked on recreation and on resume, so granting or revoking access in
+                        // system settings takes effect as soon as the user returns.
                         var granted by remember { mutableStateOf(context.hasCalendarPermissions()) }
+                        val lifecycleOwner = LocalLifecycleOwner.current
+                        DisposableEffect(lifecycleOwner) {
+                            val observer = LifecycleEventObserver { _, event ->
+                                if (event == Lifecycle.Event.ON_RESUME) granted = context.hasCalendarPermissions()
+                            }
+                            lifecycleOwner.lifecycle.addObserver(observer)
+                            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                        }
                         if (granted) {
                             // Warm the calendar list and palettes now, so tapping "+" later opens a
                             // form that is already filled in rather than one that fills itself in
@@ -104,16 +116,28 @@ class MainActivity : ComponentActivity() {
      * existing until the user answers. See [AppContainer.pendingWidgetLaunch].
      */
     private fun readWidgetLaunch(intent: Intent?, container: AppContainer) {
-        val epochDay = intent?.getLongExtra(WidgetLaunchIntents.EXTRA_FOCUS_DATE, NO_DATE)
-            ?: return
-        if (epochDay == NO_DATE) return
-        // The activity is exported, so the extra can come from any app. An out-of-range epoch day
-        // makes LocalDate.ofEpochDay throw; ignore the launch request instead of crashing.
-        val date = runCatching { LocalDate.ofEpochDay(epochDay) }.getOrNull() ?: return
-        container.pendingWidgetLaunch.value = WidgetLaunch(
-            date = date,
-            addEvent = intent.getBooleanExtra(WidgetLaunchIntents.EXTRA_ADD_EVENT, false),
-        )
+        if (intent == null) return
+        // Reopened from Recents, the system hands back the intent the task began with.
+        val fromHistory = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
+        if (!fromHistory) {
+            val epochDay = intent.getLongExtra(WidgetLaunchIntents.EXTRA_FOCUS_DATE, NO_DATE)
+            if (epochDay != NO_DATE) {
+                // The activity is exported, so the extra can come from any app. An out-of-range
+                // epoch day makes LocalDate.ofEpochDay throw; ignore the launch request instead of
+                // crashing.
+                val date = runCatching { LocalDate.ofEpochDay(epochDay) }.getOrNull()
+                if (date != null) {
+                    container.pendingWidgetLaunch.value = WidgetLaunch(
+                        date = date,
+                        addEvent = intent.getBooleanExtra(WidgetLaunchIntents.EXTRA_ADD_EVENT, false),
+                    )
+                }
+            }
+        }
+        // Consumed either way, so nothing replays it.
+        intent.removeExtra(WidgetLaunchIntents.EXTRA_FOCUS_DATE)
+        intent.removeExtra(WidgetLaunchIntents.EXTRA_ADD_EVENT)
+        setIntent(intent)
     }
 
     private companion object {

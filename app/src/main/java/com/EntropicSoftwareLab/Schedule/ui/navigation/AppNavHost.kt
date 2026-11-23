@@ -196,7 +196,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
         if (launch.addEvent) {
             // Seeded with the next whole hour rather than a fixed one: "+" from the widget means
             // "something now-ish", and midnight would be wrong for almost every use of it.
-            navController.navigate(addEventRoute(launch.date, LocalTime.now().hour))
+            navController.navigate(addEventRoute(launch.date, (LocalTime.now().hour + 1).coerceAtMost(23)))
         }
     }
 
@@ -302,7 +302,9 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                     onOpenDay = openDayOnToday,
                     // The next whole hour, as the widget's "+" seeds it: a fixed hour would be wrong
                     // for most of the day.
-                    onAddEvent = { date -> navController.navigate(addEventRoute(date, LocalTime.now().hour)) },
+                    onAddEvent = { date ->
+                        navController.navigate(addEventRoute(date, (LocalTime.now().hour + 1).coerceAtMost(23)))
+                    },
                 )
             }
             composable(Destination.Settings.route) { SettingsScreen() }

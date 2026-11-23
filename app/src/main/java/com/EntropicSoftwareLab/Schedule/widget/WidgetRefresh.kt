@@ -46,8 +46,8 @@ class WidgetRefreshWorker(
 
         /**
          * 30 minutes keeps battery use low: a calendar widget doesn't need fresher data than that,
-         * since [CalendarChangeWorker] already redraws on every real change. It also bounds midnight
-         * rollover staleness to that same window. (WorkManager's own floor is 15 minutes.)
+         * since [CalendarChangeWorker] already redraws on every real change, and [DayChangeReceiver]
+         * redraws at midnight and on clock or time-zone changes. (WorkManager's own floor is 15 minutes.)
          */
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<WidgetRefreshWorker>(30, TimeUnit.MINUTES)

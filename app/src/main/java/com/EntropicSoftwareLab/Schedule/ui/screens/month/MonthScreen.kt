@@ -88,6 +88,7 @@ import com.EntropicSoftwareLab.Schedule.ui.components.ModeSlider
 import com.EntropicSoftwareLab.Schedule.ui.components.ScreenHeader
 import com.EntropicSoftwareLab.Schedule.ui.components.TodayPill
 import com.EntropicSoftwareLab.Schedule.ui.components.asCalendarColor
+import com.EntropicSoftwareLab.Schedule.ui.components.rememberLiveNow
 import com.EntropicSoftwareLab.Schedule.ui.components.sortForAgenda
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
@@ -99,7 +100,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
-import java.util.Locale
 import kotlin.math.abs
 
 private val MONTH_TITLE: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM yyyy")
@@ -176,12 +176,14 @@ fun MonthScreen(
     val zone = container.zone
     val d = AppThemeTokens.dimens
 
-    val today = remember { LocalDate.now() }
-    // The pager's page MONTH_PAGE_RADIUS is this month, fixed for the screen's life, so page maths
+    val now by rememberLiveNow()
+    val today = now.toLocalDate()
+    val thisMonth = YearMonth.from(today)
+    // The pager's page MONTH_PAGE_RADIUS is baseMonth, fixed for the screen's life, so page maths
     // never shifts under a swipe. Always six rows per month (MonthGrid): a month that renders five
     // leaves the pinned grid a different height from its neighbours, so every swipe would resize the
     // agenda below it.
-    val baseMonth = remember { YearMonth.from(today) }
+    val baseMonth = remember { YearMonth.now() }
     // Sunday first, as the Week page and the widget are — not the locale's choice. See WeekPaging.
     val firstDayOfWeek = WeekPaging.FIRST_DAY
     val listState = rememberLazyListState()
@@ -294,7 +296,7 @@ fun MonthScreen(
                 // Back to this month, landing on today. Only while browsing — on this month there is
                 // nowhere to go back to, and a title that reacts to a tap by doing nothing reads as
                 // broken.
-                onTitleClick = if (state.visibleMonth != baseMonth) {
+                onTitleClick = if (state.visibleMonth != thisMonth) {
                     { vm.selectDate(today) }
                 } else {
                     null
@@ -433,7 +435,7 @@ fun MonthScreen(
 
         // Back to this month, as Today and Week have. The month's title does the same on a tap, but
         // nothing on screen said so. Only while browsing — on this month it would go nowhere.
-        if (state.visibleMonth != baseMonth) {
+        if (state.visibleMonth != thisMonth) {
             TodayPill(
                 today = today,
                 onClick = { vm.selectDate(today) },
@@ -690,8 +692,12 @@ private fun monthSubtitle(state: MonthUiState): String {
     // eventsByDate spans five months, so the header counts only the visible one — and counts
     // each occurrence once, because the map repeats a multi-day event on every day it covers and
     // summing the lists would report a three-week trip as twenty-one events.
-    val events = state.eventsByDate
+    val visibleEvents = state.eventsByDate
         .filterKeys { YearMonth.from(it) == state.visibleMonth }
+    if (state.loading && visibleEvents.isEmpty()) {
+        return stringResource(R.string.today_reading_calendar)
+    }
+    val events = visibleEvents
         .values.flatten()
         .distinctBy { it.instanceId }
         .size
@@ -816,10 +822,11 @@ private fun AgendaDayBlock(
 
 @Composable
 private fun WeekdayHeader(firstDayOfWeek: DayOfWeek, modifier: Modifier = Modifier) {
+    val locale = LocalConfiguration.current.locales[0]
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         MonthGrid.weekdayOrder(firstDayOfWeek).forEach { dayOfWeek ->
             Text(
-                text = dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                text = dayOfWeek.getDisplayName(TextStyle.NARROW, locale),
                 style = MaterialTheme.typography.bodySmall,
                 color = AppThemeTokens.colors.textSecondary,
                 textAlign = TextAlign.Center,

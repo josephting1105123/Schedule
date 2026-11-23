@@ -8,9 +8,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import java.io.IOException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.retryWhen
 
 /**
  * Its own DataStore file, for the same reason birthdays have one: every `edit` rewrites the file.
@@ -34,8 +36,13 @@ class AccountPrefsRepository(private val context: Context) {
 
     val prefs: Flow<AccountPrefs> =
         context.accountStore.data
+            .retryWhen { cause, attempt ->
+                if (cause !is IOException) return@retryWhen false
+                emit(emptyPreferences())
+                delay((attempt + 1).coerceAtMost(30) * 1_000L)
+                true
+            }
             .map { AccountPrefsCodec.decode(it[Keys.PREFS]) }
-            .catch { emit(AccountPrefs()) }
 
     private suspend fun update(change: (AccountPrefs) -> AccountPrefs) {
         context.accountStore.edit { store ->

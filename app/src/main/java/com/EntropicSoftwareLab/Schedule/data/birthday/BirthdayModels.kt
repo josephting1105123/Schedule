@@ -1,7 +1,6 @@
 package com.EntropicSoftwareLab.Schedule.data.birthday
 
 import java.time.LocalDate
-import java.time.Period
 
 /**
  * A birthday. Two sources merge into one list (see [BirthdayEvents.merge]):
@@ -43,7 +42,8 @@ data class Birthday(
     /** Years elapsed as of [date], or null when no birth year was given. */
     fun ageOn(date: LocalDate): Int? {
         val birthYear = year ?: return null
-        return Period.between(occurrenceIn(birthYear), date).years
+        val had = !date.isBefore(occurrenceIn(date.year))
+        return date.year - birthYear - (if (had) 0 else 1)
     }
 
     companion object {

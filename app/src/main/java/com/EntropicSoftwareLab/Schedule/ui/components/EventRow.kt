@@ -16,10 +16,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -27,6 +29,7 @@ import com.EntropicSoftwareLab.Schedule.data.calendar.EventInstance
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import com.EntropicSoftwareLab.Schedule.R
 import androidx.compose.ui.res.stringResource
 
@@ -82,20 +85,33 @@ fun EventRow(
                     color = colors.textSecondary,
                 )
             } else {
+                val start = event.localStart(zone)
+                val end = event.localEnd(zone)
                 Text(
-                    text = event.localStart(zone).format(timeFormat),
+                    text = start.format(timeFormat),
                     style = MaterialTheme.typography.bodyLarge.merge(TabularFigures),
                     color = colors.textPrimary,
                     maxLines = 1,
                     softWrap = false,
                 )
                 Text(
-                    text = event.localEnd(zone).format(timeFormat),
+                    text = end.format(timeFormat),
                     style = MaterialTheme.typography.bodySmall.merge(TabularFigures),
                     color = colors.textSecondary,
                     maxLines = 1,
                     softWrap = false,
                 )
+                if (end.minusNanos(1).toLocalDate().isAfter(start.toLocalDate())) {
+                    val locale = LocalConfiguration.current.locales[0]
+                    val dayFormat = remember(locale) { DateTimeFormatter.ofPattern("EEE", locale) }
+                    Text(
+                        text = end.format(dayFormat),
+                        style = MaterialTheme.typography.bodySmall.merge(TabularFigures),
+                        color = colors.textSecondary,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
             }
         }
         Spacer(Modifier.width(d.spaceMd))

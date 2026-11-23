@@ -43,6 +43,15 @@ class BirthdayTest {
     }
 
     @Test
+    fun `ageOn for 29 February turns on 28 February in a common year and 29 February in a leap year`() {
+        val birthday = leapBirthday(year = 2000)
+        assertEquals(23, birthday.ageOn(LocalDate.of(2023, 2, 28)))
+        assertEquals(22, birthday.ageOn(LocalDate.of(2023, 2, 27)))
+        assertEquals(23, birthday.ageOn(LocalDate.of(2024, 2, 28)))
+        assertEquals(24, birthday.ageOn(LocalDate.of(2024, 2, 29)))
+    }
+
+    @Test
     fun `byDate resolves each birthday onto every year the range touches`() {
         val birthdays = listOf(ordinaryBirthday(year = 1990))
         val byDate = Birthday.byDate(

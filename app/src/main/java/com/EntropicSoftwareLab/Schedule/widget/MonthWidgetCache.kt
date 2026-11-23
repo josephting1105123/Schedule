@@ -76,6 +76,7 @@ internal object MonthWidgetCache {
         val key = Key(month, zone, firstDayOfWeek)
         entries[key]?.let { if (nowMillis - it.loadedAtMillis < TTL_MS) return it.eventsByDate }
 
+        val gen = _generation.value
         // The visible 42 days rather than the calendar month — the days spilling in from either side
         // have to carry their own events or they render bare.
         val days = MonthGrid.days(month, firstDayOfWeek)
@@ -90,8 +91,12 @@ internal object MonthWidgetCache {
             suppressed,
         )
         val byDate = MonthChips.byDate(events, zone)
-        entries[key] = Entry(nowMillis, byDate)
-        trim(month)
+        if (_generation.value == gen) {
+            val entry = Entry(nowMillis, byDate)
+            entries[key] = entry
+            // A clear() between the check and the put would otherwise keep pre-change rows.
+            if (_generation.value != gen) entries.remove(key, entry) else trim(month)
+        }
         return byDate
     }
 

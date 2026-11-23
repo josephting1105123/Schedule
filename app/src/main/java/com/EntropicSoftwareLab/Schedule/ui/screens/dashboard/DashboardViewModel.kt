@@ -144,6 +144,13 @@ class DashboardViewModel(
         _pendingFocus.compareAndSet(request, null)
     }
 
+    /**
+     * Bumped at the start of every [onCalendarChanged] refresh. An [ensureLoaded] that started
+     * before the bump read pre-change rows, so its result is dropped rather than written over the
+     * fresh cache.
+     */
+    private var cacheGeneration = 0
+
     init {
         viewModelScope.launch {
             // Emits immediately, then again on every provider change — an in-app insert, a Google
@@ -258,9 +265,9 @@ class DashboardViewModel(
      * of truth for the list and re-emits within a frame, so writing the new value here as well would
      * put a second copy on screen that a failed write could leave permanently wrong.
      */
-    fun setTaskDone(id: Long, done: Boolean) {
+    fun setTaskDone(id: Long, done: Boolean, seenDue: LocalDate? = null) {
         viewModelScope.launch {
-            runCatching { taskRepository.setDone(id, done) }
+            runCatching { taskRepository.setDone(id, done, seenDue) }
                 .onFailure { e ->
                     _state.update { it.copy(error = e.message ?: "Couldn't update that task.") }
                 }
@@ -277,9 +284,16 @@ class DashboardViewModel(
         val current = _state.value
         if (date in current.eventsByDate || date in current.loadingDates) return
         _state.update { it.copy(loadingDates = it.loadingDates + date) }
+        val gen = cacheGeneration
         viewModelScope.launch {
             try {
                 val events = repository.eventsOnDay(date, zoneProvider())
+                if (gen != cacheGeneration) {
+                    _state.update {
+                        if (date in it.loadingDates) it.copy(loadingDates = it.loadingDates - date) else it
+                    }
+                    return@launch
+                }
                 _state.update {
                     val merged = it.eventsByDate + (date to events)
                     it.copy(
@@ -291,14 +305,22 @@ class DashboardViewModel(
                 }
             } catch (e: SecurityException) {
                 _state.update {
-                    it.copy(loadingDates = it.loadingDates - date, error = "Calendar access was revoked.")
+                    if (gen != cacheGeneration) {
+                        if (date in it.loadingDates) it.copy(loadingDates = it.loadingDates - date) else it
+                    } else {
+                        it.copy(loadingDates = it.loadingDates - date, error = "Calendar access was revoked.")
+                    }
                 }
             } catch (e: Exception) {
                 _state.update {
-                    it.copy(
-                        loadingDates = it.loadingDates - date,
-                        error = e.message ?: "Couldn't read the calendar.",
-                    )
+                    if (gen != cacheGeneration) {
+                        if (date in it.loadingDates) it.copy(loadingDates = it.loadingDates - date) else it
+                    } else {
+                        it.copy(
+                            loadingDates = it.loadingDates - date,
+                            error = e.message ?: "Couldn't read the calendar.",
+                        )
+                    }
                 }
             }
         }
@@ -343,6 +365,7 @@ class DashboardViewModel(
     }
 
     private suspend fun onCalendarChanged() {
+        val gen = ++cacheGeneration
         val zone = zoneProvider()
         try {
             val calendars = repository.listCalendars().associateBy { it.id }
@@ -351,6 +374,7 @@ class DashboardViewModel(
             val center = _state.value.visibleDate
             val window = (-1..1).map { center.plusDays(it.toLong()) }
             val fresh = window.associateWith { repository.eventsOnDay(it, zone) }
+            if (gen != cacheGeneration) return
             _state.update {
                 it.copy(
                     calendarsById = calendars,
@@ -366,9 +390,13 @@ class DashboardViewModel(
             // was just evicted and nothing else would fetch it — the pager only reloads on settle.
             showDate(_state.value.visibleDate)
         } catch (e: SecurityException) {
-            _state.update { it.copy(error = "Calendar access was revoked.") }
+            if (gen == cacheGeneration) {
+                _state.update { it.copy(error = "Calendar access was revoked.") }
+            }
         } catch (e: Exception) {
-            _state.update { it.copy(error = e.message ?: "Couldn't read the calendar.") }
+            if (gen == cacheGeneration) {
+                _state.update { it.copy(error = e.message ?: "Couldn't read the calendar.") }
+            }
         }
     }
 

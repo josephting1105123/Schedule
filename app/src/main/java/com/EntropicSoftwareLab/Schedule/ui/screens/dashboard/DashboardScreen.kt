@@ -60,10 +60,10 @@ import com.EntropicSoftwareLab.Schedule.ui.components.TaskRow
 import com.EntropicSoftwareLab.Schedule.ui.components.TodayPill
 import com.EntropicSoftwareLab.Schedule.ui.components.asCalendarColor
 import com.EntropicSoftwareLab.Schedule.ui.components.rememberClockFormatter
+import com.EntropicSoftwareLab.Schedule.ui.components.rememberLiveNow
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 import com.EntropicSoftwareLab.Schedule.ui.theme.TabularFigures
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
@@ -98,7 +98,8 @@ fun DashboardScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val zone = container.zone
     val d = AppThemeTokens.dimens
-    val today = remember { LocalDate.now() }
+    val now by rememberLiveNow()
+    val today = now.toLocalDate()
 
     val pagerState = rememberPagerState(initialPage = DashboardViewModel.DAY_WINDOW_RADIUS) {
         DashboardViewModel.DAY_WINDOW_RADIUS * 2 + 1
@@ -142,9 +143,12 @@ fun DashboardScreen(
     val pendingFocus by vm.pendingFocus.collectAsStateWithLifecycle()
     LaunchedEffect(pendingFocus) {
         val request = pendingFocus ?: return@LaunchedEffect
-        if (request.animate) pagerState.animateScrollToPage(request.page)
-        else pagerState.scrollToPage(request.page)
-        vm.consumeFocus(request)
+        try {
+            if (request.animate) pagerState.animateScrollToPage(request.page)
+            else pagerState.scrollToPage(request.page)
+        } finally {
+            vm.consumeFocus(request)
+        }
     }
 
     // Pull down from the top of a day to sync. The box reads the day's own LazyColumn through nested
@@ -164,6 +168,8 @@ fun DashboardScreen(
         ) { page ->
             DayPage(
                 date = dateForPage(page),
+                today = today,
+                currentHour = now.hour,
                 state = state,
                 zone = zone,
                 onHourTap = { date, hour, occupied ->
@@ -222,17 +228,18 @@ fun DashboardScreen(
 @Composable
 private fun DayPage(
     date: LocalDate,
+    today: LocalDate,
+    currentHour: Int,
     state: DashboardUiState,
     zone: ZoneId,
     onHourTap: (date: LocalDate, hour: Int, occupied: Boolean) -> Unit,
     onEditEvent: (EventInstance) -> Unit,
     onEditBirthday: (Birthday) -> Unit,
     onEditTask: (Task) -> Unit,
-    onToggleTask: (id: Long, done: Boolean) -> Unit,
+    onToggleTask: (id: Long, done: Boolean, seenDue: LocalDate) -> Unit,
 ) {
     val d = AppThemeTokens.dimens
     val colors = AppThemeTokens.colors
-    val today = LocalDate.now()
 
     // Keyed on the map's own list for this date (the same instance until the data changes) and on
     // the birthdays that strip provider rows, so the derived lists, and everything below keyed on
@@ -410,7 +417,7 @@ private fun DayPage(
                                 onHourTap(date, hour, !cellIsFree)
                             },
                             taskMarks = taskMarks,
-                            currentHour = if (date == today) LocalTime.now().hour else null,
+                            currentHour = if (date == today) currentHour else null,
                         )
                         Spacer(Modifier.height(d.spaceSm))
                         Text(
@@ -506,7 +513,7 @@ private fun DayPage(
                                 TaskRow(
                                     task = task,
                                     today = today,
-                                    onToggle = { done -> onToggleTask(task.id, done) },
+                                    onToggle = { done -> onToggleTask(task.id, done, task.due) },
                                     onClick = { onEditTask(task) },
                                 )
                             }
@@ -520,7 +527,7 @@ private fun DayPage(
                             TaskRow(
                                 task = task,
                                 today = today,
-                                onToggle = { done -> onToggleTask(task.id, done) },
+                                onToggle = { done -> onToggleTask(task.id, done, task.due) },
                                 onClick = { onEditTask(task) },
                             )
                         }

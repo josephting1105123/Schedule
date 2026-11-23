@@ -21,6 +21,7 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -73,7 +74,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.format.TextStyle as JavaTextStyle
-import java.util.Locale
 import kotlin.math.abs
 
 private val MONTH_ONLY: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM")
@@ -460,6 +460,7 @@ private fun ChevronButton(
 
 @Composable
 private fun WeekdayRow(firstDayOfWeek: DayOfWeek, edges: List<Dp>) {
+    val locale = LocalContext.current.resources.configuration.locales[0]
     Row(modifier = GlanceModifier.fillMaxWidth().height(WEEKDAY_ROW)) {
         MonthGrid.weekdayOrder(firstDayOfWeek).forEachIndexed { index, day ->
             Box(
@@ -469,7 +470,7 @@ private fun WeekdayRow(firstDayOfWeek: DayOfWeek, edges: List<Dp>) {
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = day.getDisplayName(JavaTextStyle.NARROW, Locale.getDefault()),
+                    text = day.getDisplayName(JavaTextStyle.NARROW, locale),
                     maxLines = 1,
                     style = TextStyle(
                         color = MonthWidgetColors.muted,

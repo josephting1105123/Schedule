@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.Year
 
 data class BirthdayEditorUiState(
     val editing: Boolean = false,
@@ -66,11 +67,20 @@ class BirthdayEditorViewModel(
                     return@launch
                 }
                 loaded = existing
+                val displayYear = when {
+                    existing.year != null -> existing.year
+                    existing.month == 2 && existing.day == 29 -> {
+                        var y = LocalDate.now().year
+                        while (!Year.isLeap(y.toLong())) y++
+                        y
+                    }
+                    else -> LocalDate.now().year
+                }
                 _state.update {
                     it.copy(
                         loading = false,
                         name = existing.name,
-                        date = existing.occurrenceIn(existing.year ?: LocalDate.now().year),
+                        date = existing.occurrenceIn(displayYear),
                         includeYear = existing.year != null,
                         readOnly = existing.readOnly,
                     )
@@ -83,7 +93,22 @@ class BirthdayEditorViewModel(
 
     fun setDate(value: LocalDate) = _state.update { it.copy(date = value) }
 
-    fun setIncludeYear(value: Boolean) = _state.update { it.copy(includeYear = value) }
+    fun setIncludeYear(value: Boolean) = _state.update {
+        val currentYear = LocalDate.now().year
+        val date = if (value && it.date.year > currentYear) {
+            val year = if (it.date.monthValue == 2 && it.date.dayOfMonth == 29) {
+                var y = currentYear
+                while (!Year.isLeap(y.toLong())) y--
+                y
+            } else {
+                currentYear
+            }
+            LocalDate.of(year, it.date.monthValue, it.date.dayOfMonth)
+        } else {
+            it.date
+        }
+        it.copy(includeYear = value, date = date)
+    }
 
     fun save() {
         val current = _state.value

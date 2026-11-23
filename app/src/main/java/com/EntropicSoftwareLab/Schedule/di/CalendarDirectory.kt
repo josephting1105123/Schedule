@@ -3,6 +3,7 @@ package com.EntropicSoftwareLab.Schedule.di
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarInfo
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarRepository
 import com.EntropicSoftwareLab.Schedule.data.calendar.EventColorOption
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -89,7 +90,13 @@ class CalendarDirectory(
      */
     suspend fun colorsFor(calendar: CalendarInfo): List<EventColorOption> {
         _colorsByCalendar.value[calendar.id]?.let { return it }
-        val fetched = runCatching { repository.eventColors(calendar) }.getOrDefault(emptyList())
+        val fetched = try {
+            repository.eventColors(calendar)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            emptyList()
+        }
         _colorsByCalendar.value = _colorsByCalendar.value + (calendar.id to fetched)
         return fetched
     }

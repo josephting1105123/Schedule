@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -180,20 +181,28 @@ private fun CustomRepeatEditor(
         Modifier.padding(start = d.spaceXl, top = d.spaceSm),
         verticalArrangement = Arrangement.spacedBy(d.spaceSm),
     ) {
+        // Hold the field text locally so clearing it mid-edit doesn't snap back under the cursor.
+        // An empty or zero field leaves the rule at its last valid value; leaving focus restores it.
+        var intervalText by remember(rule.interval) { mutableStateOf(rule.interval.toString()) }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.cmp_every), style = MaterialTheme.typography.bodyLarge, color = colors.textSecondary)
             Spacer(Modifier.width(d.spaceSm))
             OutlinedTextField(
-                value = rule.interval.toString(),
-                onValueChange = { text ->
-                    // An empty field mid-typing must not snap back to 1 under the cursor; treat it
-                    // as 1 only once it becomes a number again.
-                    val n = text.filter { it.isDigit() }.take(3).toIntOrNull()
-                    if (n != null && n >= 1) onChange(rule.copy(interval = n))
+                value = intervalText,
+                onValueChange = { input ->
+                    val digits = input.filter { it.isDigit() }.take(3)
+                    intervalText = digits
+                    digits.toIntOrNull()?.takeIf { it >= 1 }?.let { onChange(rule.copy(interval = it)) }
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.width(84.dp),
+                modifier = Modifier
+                    .width(84.dp)
+                    .onFocusChanged {
+                        if (!it.isFocused && intervalText != rule.interval.toString()) {
+                            intervalText = rule.interval.toString()
+                        }
+                    },
             )
             Spacer(Modifier.width(d.spaceSm))
             Box {
@@ -238,6 +247,7 @@ private fun CustomRepeatEditor(
         )
 
         val count = (rule.end as? RecurrenceEnd.AfterCount)?.count ?: 10
+        var countText by remember(count) { mutableStateOf(count.toString()) }
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = rule.end is RecurrenceEnd.AfterCount,
@@ -247,15 +257,24 @@ private fun CustomRepeatEditor(
             Text(stringResource(R.string.cmp_after), style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary)
             Spacer(Modifier.width(d.spaceSm))
             OutlinedTextField(
-                value = count.toString(),
-                onValueChange = { text ->
-                    val n = text.filter { it.isDigit() }.take(4).toIntOrNull()
-                    if (n != null && n >= 1) onChange(rule.copy(end = RecurrenceEnd.AfterCount(n)))
+                value = countText,
+                onValueChange = { input ->
+                    val digits = input.filter { it.isDigit() }.take(4)
+                    countText = digits
+                    digits.toIntOrNull()?.takeIf { it >= 1 }?.let {
+                        onChange(rule.copy(end = RecurrenceEnd.AfterCount(it)))
+                    }
                 },
                 singleLine = true,
                 enabled = rule.end is RecurrenceEnd.AfterCount,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.width(96.dp),
+                modifier = Modifier
+                    .width(96.dp)
+                    .onFocusChanged {
+                        if (!it.isFocused && countText != count.toString()) {
+                            countText = count.toString()
+                        }
+                    },
             )
             Spacer(Modifier.width(d.spaceSm))
             Text(stringResource(R.string.cmp_times), style = MaterialTheme.typography.bodyLarge, color = colors.textSecondary)

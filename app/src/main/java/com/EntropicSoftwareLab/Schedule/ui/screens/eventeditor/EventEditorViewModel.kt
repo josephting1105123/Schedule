@@ -25,8 +25,10 @@ import com.EntropicSoftwareLab.Schedule.data.settings.SettingsRepository
 import com.EntropicSoftwareLab.Schedule.di.AppContainer
 import com.EntropicSoftwareLab.Schedule.di.CalendarDirectory
 import com.EntropicSoftwareLab.Schedule.ui.theme.EventColorPalette
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -262,6 +264,7 @@ class EventEditorViewModel(
                     readOnly = !details.isWritable,
                 )
             }
+            loadColorOptions(_state.value.selectedCalendar)
             refreshConflicts()
         } catch (e: SecurityException) {
             _state.update { it.copy(loading = false, error = "Calendar access was revoked.", readOnly = true) }
@@ -333,30 +336,40 @@ class EventEditorViewModel(
     /** [argb] null means "whatever the calendar uses" — the provider gets no colour at all. */
     fun setColor(argb: Int?) = _state.update { it.copy(selectedColor = argb) }
 
+    /** In-flight account-colour load, cancelled whenever the chosen calendar changes. */
+    private var colorOptionsJob: Job? = null
+
     /**
      * Loads the palette for whichever account the chosen calendar belongs to.
      *
-     * This is no longer what the picker shows — it shows the app's own palette plus any custom
-     * colour. It is only the set of colours the *account* offers, kept so a save can pick the
-     * nearest one to write to `EVENT_COLOR_KEY`.
+     * This is what the picker shows (alongside Automatic and any original colour the account can't
+     * set), and also the set of colours the *account* offers so a save can pick the nearest one to
+     * write to `EVENT_COLOR_KEY`.
      *
-     * Which is also why changing calendar no longer clears the user's colour. It used to, because a
-     * key from one account is meaningless to another; an ARGB is meaningless to neither, and the
-     * nearest-key mapping is recomputed against the new account at save time anyway.
+     * Changing calendar does not clear the user's colour. It used to, because a key from one
+     * account is meaningless to another; an ARGB is meaningless to neither, and the nearest-key
+     * mapping is recomputed against the new account at save time anyway.
      */
     private fun loadColorOptions(calendar: CalendarInfo?) {
+        colorOptionsJob?.cancel()
         if (calendar == null) {
             _state.update { it.copy(colorOptions = emptyList()) }
             return
         }
-        // The warm copy when there is one; a query when there isn't. Either way this no longer holds
-        // up the swatch strip, which now comes from the app's own palette rather than the account's.
+        // The warm copy when there is one; a query when there isn't.
         directory.colorsByCalendar.value[calendar.id]?.let { warm ->
             _state.update { it.copy(colorOptions = warm) }
             return
         }
-        viewModelScope.launch {
-            val options = runCatching { directory.colorsFor(calendar) }.getOrDefault(emptyList())
+        colorOptionsJob = viewModelScope.launch {
+            val options = try {
+                directory.colorsFor(calendar)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
+            ensureActive()
             _state.update { it.copy(colorOptions = options) }
         }
     }

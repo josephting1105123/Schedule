@@ -14,7 +14,7 @@ import com.EntropicSoftwareLab.Schedule.data.settings.SettingsRepository
 import com.EntropicSoftwareLab.Schedule.data.task.TaskRepository
 import com.EntropicSoftwareLab.Schedule.data.task.TaskSync
 import com.EntropicSoftwareLab.Schedule.widget.refreshWidgets
-import kotlinx.coroutines.CancellationException
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -147,12 +147,15 @@ class AppContainer(context: Context) {
         // Birthdays saved while nothing could be written, or deleted in Google since, are put
         // right before the first sync request so a new event goes up with it.
         runCatching { birthdayRepository.reconcile() }
+            .onFailure { if (it is CancellationException) throw it }
         var firstPass = true
         while (true) {
             // Tasks first, so a task edited since the last pass goes up with this sync request. It
             // never throws; the result is ignored and the next pass tries again.
             runCatching { taskSync.sync() }
+                .onFailure { if (it is CancellationException) throw it }
             runCatching { calendarRepository.requestPollSync(firstPass) }
+                .onFailure { if (it is CancellationException) throw it }
             firstPass = false
             delay(VISIBLE_SYNC_INTERVAL_MS)
         }

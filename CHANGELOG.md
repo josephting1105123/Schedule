@@ -2,6 +2,39 @@
 
 The newest version is at the top.
 
+## 1.4.14
+
+Fixes from a full bug review.
+
+Events
+- Changing a repeating event with "All events" no longer moves the whole series when you've set it to "Does not repeat".
+- "This and following events" keeps the right number of times. A count you pick yourself ("after 10 times") is kept as picked, and the tail of a synced series gets only the occurrences that were left, instead of up to 1998.
+- An event's own account colours show in the editor even when it isn't in your default calendar.
+- Schedule no longer crashes when assigning event colours on Android 10 to 13.
+- An event that ends after midnight shows the day it ends under its end time.
+
+Today, Week and Month
+- "Today" moves on at midnight. An app left open overnight kept yesterday as today, with the wrong hour highlighted.
+- A deleted event no longer stays on Today or Month after the calendar changes underneath.
+- The week timetable no longer jumps back to 08:00 after a sync in a week with no timed events.
+- Month says "Reading your calendar…" while it loads, instead of "0 events this month".
+- "+" starts a new event at the next whole hour, as intended.
+- The repeat interval and count fields can be cleared and retyped.
+
+Widgets
+- Tapping the month widget's "+" or a day opens the app once. Rotating the phone used to open it again and again, losing what you'd typed.
+- The widgets move on to the new day at midnight and after a clock or time-zone change.
+
+Tasks and birthdays
+- Double-tapping a repeating task's box moves it on by one date, not two.
+- Saving a task that was deleted on another device says so, instead of bringing it back.
+- 29 February birthdays keep their day, and their age is right on 28 February in other years. Ticking "include year" can no longer save a birth year in the future.
+- A calendar read failure no longer makes Schedule forget your birthdays' years.
+
+Other
+- Granting calendar access in system settings is noticed as soon as you come back to the app.
+- Background syncing stops as soon as you leave the app.
+
 ## 1.4.13
 
 - Tasks can repeat. Open a task and set Repeats to daily, weekly, monthly or yearly, with an interval and an optional end, using the same picker as events.

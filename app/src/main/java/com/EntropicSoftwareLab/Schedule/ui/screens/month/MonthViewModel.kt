@@ -151,6 +151,12 @@ class MonthViewModel(
     private val monthCache = LinkedHashMap<YearMonth, List<EventInstance>>()
 
     /**
+     * Bumped whenever [monthCache] is cleared. A fetch that started before the bump returns rows
+     * read before the change, so it is discarded rather than written back over the refetch.
+     */
+    private var cacheGeneration = 0
+
+    /**
      * Every birthday, unfiltered. Used only to strip birthday rows out of the provider's events, so
      * unticking Birthday hides those rows too instead of turning them back into all-day events.
      */
@@ -165,6 +171,7 @@ class MonthViewModel(
         // suspect — there's no cheap way to know which one, so all of them go.
         viewModelScope.launch {
             repository.observeChanges().collect {
+                cacheGeneration++
                 monthCache.clear()
                 reload()
             }
@@ -301,19 +308,22 @@ class MonthViewModel(
      */
     private fun prefetch(month: YearMonth) {
         if (monthCache.containsKey(month)) return
+        val gen = cacheGeneration
         viewModelScope.launch {
             // A failure here just means the month gets fetched for real if the user actually swipes
             // to it, same as before prefetching existed — nothing user-facing to report.
-            val loaded = runCatching {
-                monthCache[month] = repository.eventsInRange(
+            val events = runCatching {
+                repository.eventsInRange(
                     startDate = month.atDay(1),
                     endDateExclusive = month.plusMonths(1).atDay(1),
                     zone = zoneProvider(),
                 )
-            }.isSuccess
+            }.getOrNull() ?: return@launch
+            if (gen != cacheGeneration) return@launch
+            monthCache[month] = events
             trimCache()
             val center = windowCenter
-            if (loaded && abs(ChronoUnit.MONTHS.between(center, month)) <= PUBLISHED_RADIUS) {
+            if (abs(ChronoUnit.MONTHS.between(center, month)) <= PUBLISHED_RADIUS) {
                 publish(center)
             }
         }
@@ -328,29 +338,33 @@ class MonthViewModel(
      */
     private suspend fun ensureLoaded(months: List<YearMonth>, center: YearMonth): Boolean {
         val missing = months.filterNot { monthCache.containsKey(it) }
+        val gen = cacheGeneration
         if (missing.isNotEmpty()) {
             try {
                 val zone = zoneProvider()
                 for (month in missing) {
-                    monthCache[month] = repository.eventsInRange(
+                    val events = repository.eventsInRange(
                         startDate = month.atDay(1),
                         endDateExclusive = month.plusMonths(1).atDay(1),
                         zone = zone,
                     )
+                    if (gen != cacheGeneration) return false
+                    monthCache[month] = events
                 }
             } catch (e: SecurityException) {
-                if (windowCenter == center) {
+                if (gen == cacheGeneration && windowCenter == center) {
                     _state.update { it.copy(loading = false, error = "Calendar access was revoked.") }
                 }
                 return false
             } catch (e: Exception) {
-                if (windowCenter == center) {
+                if (gen == cacheGeneration && windowCenter == center) {
                     _state.update { it.copy(loading = false, error = e.message ?: "Couldn't read the calendar.") }
                 }
                 return false
             }
             trimCache()
         }
+        if (gen != cacheGeneration) return false
         if (windowCenter != center) return true
         publish(center)
         return true

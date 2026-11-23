@@ -68,29 +68,33 @@ class TaskRepository(
     }
 
     /**
-     * Replaces the task with the same id (or adds one if there is none: prefer [add] for new tasks).
+     * Replaces an existing task with the same id and refuses a missing one; new tasks go through [add].
      *
      * An existing task keeps its stored done, tickedAt and syncId: the editor doesn't own them, and
      * the copy it holds may be stale (ticked on the list while the form was open, or synced since).
-     * Either way the edit stamps [Task.editedAt], which is what a sync compares.
+     * The edit stamps [Task.editedAt], which is what a sync compares.
      */
     suspend fun upsert(task: Task) {
+        var missing = false
         context.taskStore.edit { prefs ->
-            prefs.dropSyncHistoryIfDamaged()
             val current = TaskCodec.decode(prefs[Keys.TASKS])
             val existing = current.firstOrNull { it.id == task.id }
-            val now = clock()
-            val stamped = if (existing != null) {
-                task.copy(
-                    done = existing.done,
-                    tickedAt = existing.tickedAt,
-                    syncId = existing.syncId,
-                    editedAt = now,
-                )
-            } else {
-                task.copy(editedAt = now, tickedAt = now)
+            if (existing == null) {
+                missing = true
+                return@edit
             }
+            prefs.dropSyncHistoryIfDamaged()
+            val now = clock()
+            val stamped = task.copy(
+                done = existing.done,
+                tickedAt = existing.tickedAt,
+                syncId = existing.syncId,
+                editedAt = now,
+            )
             prefs[Keys.TASKS] = TaskCodec.encode(current.filterNot { it.id == task.id } + stamped)
+        }
+        if (missing) {
+            throw IllegalStateException("That task was deleted on another device, so it wasn't saved.")
         }
         onChange()
     }
@@ -104,10 +108,12 @@ class TaskRepository(
      * Only a real change stamps [Task.tickedAt].
      *
      * Ticking an unfinished repeating task moves [Task.due] forward to [TaskRepeat.nextDue] and
-     * leaves it unticked, stamping both [Task.editedAt] and [Task.tickedAt]. When the series has
-     * no next date left, the tick finishes the task as normal.
+     * leaves it unticked, stamping both [Task.editedAt] and [Task.tickedAt]. When [seenDue] is
+     * supplied and no longer matches the stored [Task.due], the occurrence has already rolled and
+     * the tap is ignored. When the series has no next date left, the tick finishes the task as
+     * normal.
      */
-    suspend fun setDone(id: Long, done: Boolean) {
+    suspend fun setDone(id: Long, done: Boolean, seenDue: LocalDate? = null) {
         var changed = false
         context.taskStore.edit { prefs ->
             prefs.dropSyncHistoryIfDamaged()
@@ -116,12 +122,16 @@ class TaskRepository(
             prefs[Keys.TASKS] = TaskCodec.encode(
                 current.map {
                     if (it.id == id && done && !it.done && it.repeat != null) {
-                        val next = it.repeat.nextDue(it.due, LocalDate.now())
-                        changed = true
-                        if (next != null) {
-                            it.copy(due = next, done = false, editedAt = now, tickedAt = now)
+                        if (seenDue != null && it.due != seenDue) {
+                            it
                         } else {
-                            it.copy(done = true, tickedAt = now)
+                            val next = it.repeat.nextDue(it.due, LocalDate.now())
+                            changed = true
+                            if (next != null) {
+                                it.copy(due = next, done = false, editedAt = now, tickedAt = now)
+                            } else {
+                                it.copy(done = true, tickedAt = now)
+                            }
                         }
                     } else if (it.id == id && it.done != done) {
                         changed = true
