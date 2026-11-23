@@ -22,18 +22,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.ExpandLess
-import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.People
-import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -42,7 +36,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -55,25 +48,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.delay
 import com.EntropicSoftwareLab.Schedule.R
-import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefs
 import com.EntropicSoftwareLab.Schedule.data.accounts.AddedAccount
 import com.EntropicSoftwareLab.Schedule.data.accounts.CalendarFilter
-import com.EntropicSoftwareLab.Schedule.data.calendar.AccountSyncStatus
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarAccount
-import com.EntropicSoftwareLab.Schedule.data.calendar.DurationUnit
-import com.EntropicSoftwareLab.Schedule.data.calendar.SyncAdvice
-import com.EntropicSoftwareLab.Schedule.data.calendar.SyncHeadline
-import com.EntropicSoftwareLab.Schedule.data.calendar.UploadTiming
-import com.EntropicSoftwareLab.Schedule.data.calendar.UploadTimingEntry
 import com.EntropicSoftwareLab.Schedule.di.LocalAppContainer
 import com.EntropicSoftwareLab.Schedule.ui.components.AppDivider
-import com.EntropicSoftwareLab.Schedule.ui.components.AutostartTip
 import com.EntropicSoftwareLab.Schedule.ui.components.CalendarPickerMenu
 import com.EntropicSoftwareLab.Schedule.ui.components.asCalendarColor
 import com.EntropicSoftwareLab.Schedule.ui.components.calendarLabel
@@ -102,9 +87,28 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     val chooserLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         vm.refreshSyncStatus()
     }
+    // Back from phone sync settings (or anywhere else), the card re-reads so it never keeps a stale warning.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.refreshSyncStatus() }
     val launchChooser: (String, String) -> Unit = { name, type ->
         runCatching { chooserLauncher.launch(chooseAccountIntent(name, type)) }
     }
+    val openPhoneSyncSettings: () -> Unit = {
+        runCatching {
+            context.startActivity(
+                Intent(Settings.ACTION_SYNC_SETTINGS)
+                    .putExtra(Settings.EXTRA_AUTHORITIES, arrayOf(CalendarContract.AUTHORITY))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
+    }
+    val syncInputs = SyncCardInputs(
+        statuses = state.syncStatus,
+        timings = state.uploadTimings,
+        prefs = state.prefs,
+        onSyncNow = vm::syncNow,
+        onOpenPhoneSyncSettings = openPhoneSyncSettings,
+        onLetSyncDirectly = { launchChooser(it.accountName, it.accountType) },
+    )
 
     // Re-reads the card every few seconds while it is open, so it never shows a stale answer.
     // Only while the app is on screen: the poll stops in the background and resumes on return.
@@ -112,13 +116,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(syncOpen, lifecycleOwner) {
         if (syncOpen) {
             lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.watchSyncStatus() }
-        }
-    }
-    // One clock for the card, so "... ago" and the Autostart highlight keep moving while it is open.
-    val now by produceState(System.currentTimeMillis(), syncOpen) {
-        while (syncOpen) {
-            value = System.currentTimeMillis()
-            delay(1_000)
         }
     }
 
@@ -192,83 +189,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        item {
-            SectionCard(
-                title = stringResource(R.string.settings_sync_title),
-                icon = Icons.Outlined.Sync,
-                trailing = {
-                    IconButton(onClick = { syncOpen = !syncOpen }) {
-                        Icon(
-                            imageVector = if (syncOpen) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                            contentDescription = if (syncOpen) stringResource(R.string.settings_hide_sync_details) else stringResource(R.string.settings_show_sync_details),
-                            tint = colors.textSecondary,
-                        )
-                    }
-                },
-            ) {
-                if (!syncOpen) {
-                    val waiting = state.syncStatus.sumOf { it.pendingUploads ?: 0 }
-                    val accounts = state.syncStatus.size
-                    Text(
-                        text = when {
-                            accounts == 0 -> stringResource(R.string.settings_no_synced_accounts)
-                            waiting > 0 -> stringResource(R.string.settings_sync_summary_waiting, accountCount(accounts), waiting)
-                            else -> stringResource(R.string.settings_sync_summary_idle, accountCount(accounts))
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (waiting > 0) colors.warning else colors.textSecondary,
-                    )
-                    AppTextButton(text = stringResource(R.string.settings_sync_now), onClick = vm::syncNow)
-                }
-                AnimatedVisibility(visible = syncOpen) {
-                    Column {
-                        if (state.syncStatus.isEmpty()) {
-                            Text(
-                                text = stringResource(R.string.settings_no_synced_accounts_long),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = colors.textSecondary,
-                            )
-                        }
-                        state.syncStatus.forEach { account ->
-                            SyncAccountRows(
-                                account = account,
-                                prefs = state.prefs,
-                                timing = state.uploadTimings[CalendarAccount(account.accountName, account.accountType)],
-                                now = now,
-                                onLetSyncDirectly = { launchChooser(account.accountName, account.accountType) },
-                            )
-                            Spacer(Modifier.height(d.spaceSm))
-                        }
-                        AutostartTip(
-                            highlight = state.uploadTimings.values.any {
-                                val since = it.pendingSinceMs
-                                since != null && now - since > SLOW_UPLOAD_MS
-                            },
-                        )
-                        Text(
-                            text = stringResource(R.string.settings_sync_help),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textSecondary,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(d.spaceSm)) {
-                            AppTextButton(text = stringResource(R.string.settings_sync_now), onClick = vm::syncNow)
-                            AppTextButton(
-                                text = stringResource(R.string.settings_phone_sync_settings),
-                                onClick = {
-                                    runCatching {
-                                        context.startActivity(
-                                            Intent(Settings.ACTION_SYNC_SETTINGS)
-                                                .putExtra(Settings.EXTRA_AUTHORITIES, arrayOf(CalendarContract.AUTHORITY))
-                                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                                        )
-                                    }
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        item { SyncCard(syncInputs, open = syncOpen, onToggle = { syncOpen = !syncOpen }) }
 
         item {
             SectionCard(title = stringResource(R.string.settings_about)) {
@@ -374,121 +295,6 @@ private fun chooseAccountIntent(name: String, type: String): Intent =
         null,
         null,
     )
-
-/** [ms] as "12 s", "3 min 4 s" or "2 h 5 min", from string resources so the units can be translated. */
-@Composable
-private fun uploadDuration(ms: Long): String {
-    val parts = UploadTiming.durationParts(ms)
-    return when (parts.unit) {
-        DurationUnit.Seconds -> stringResource(R.string.settings_duration_seconds, parts.first)
-        DurationUnit.MinutesSeconds -> stringResource(R.string.settings_duration_min_sec, parts.first, parts.second)
-        DurationUnit.HoursMinutes -> stringResource(R.string.settings_duration_hr_min, parts.first, parts.second)
-    }
-}
-
-/** An upload slower than this is flagged as a warning on the card. */
-private const val SLOW_UPLOAD_MS = 30_000L
-
-/** One account's lines in the sync card: its name, then each thing the phone would say about it. */
-@Composable
-private fun SyncAccountRows(
-    account: AccountSyncStatus,
-    prefs: AccountPrefs,
-    timing: UploadTimingEntry?,
-    now: Long,
-    onLetSyncDirectly: () -> Unit,
-) {
-    val colors = AppThemeTokens.colors
-    val title = CalendarFilter.accountLabel(account.accountName, prefs)
-    Text(
-        text = title,
-        style = MaterialTheme.typography.bodyLarge,
-        color = colors.textPrimary,
-    )
-    if (title != account.accountName) {
-        Text(
-            text = account.accountName,
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.textSecondary,
-        )
-    }
-
-    val rows = account.pendingUploads ?: 0
-    val headline = SyncAdvice.headline(account)
-    val headlineText = when (headline) {
-        SyncHeadline.PhoneSyncOff -> stringResource(R.string.settings_sync_state_phone_off)
-        SyncHeadline.CalendarSyncOff -> stringResource(R.string.settings_sync_state_calendar_off)
-        SyncHeadline.Uploading -> pluralStringResource(R.plurals.settings_sync_state_uploading, rows, rows)
-        SyncHeadline.Waiting -> pluralStringResource(R.plurals.settings_sync_state_waiting, rows, rows)
-        SyncHeadline.WaitingQueued -> pluralStringResource(R.plurals.settings_sync_state_waiting_queued, rows, rows)
-        SyncHeadline.WaitingNotQueued -> pluralStringResource(R.plurals.settings_sync_state_waiting_not_queued, rows, rows)
-        SyncHeadline.Checking -> stringResource(R.string.settings_sync_state_checking)
-        SyncHeadline.UpToDate -> stringResource(R.string.settings_sync_state_up_to_date)
-        SyncHeadline.Unknown -> stringResource(R.string.settings_sync_state_unknown)
-    }
-    val headlineColor = when (headline) {
-        SyncHeadline.PhoneSyncOff, SyncHeadline.CalendarSyncOff, SyncHeadline.Waiting,
-        SyncHeadline.WaitingQueued, SyncHeadline.WaitingNotQueued -> colors.warning
-        SyncHeadline.UpToDate -> colors.success
-        SyncHeadline.Uploading, SyncHeadline.Checking, SyncHeadline.Unknown -> colors.textSecondary
-    }
-    Text(text = headlineText, style = MaterialTheme.typography.bodyMedium, color = headlineColor)
-
-    val pendingSince = timing?.pendingSinceMs
-    if (pendingSince != null && rows > 0) {
-        // Ticks once a second while the upload is outstanding, and only then.
-        val elapsed by produceState(
-            initialValue = (System.currentTimeMillis() - pendingSince).coerceAtLeast(0L),
-            key1 = pendingSince,
-        ) {
-            while (true) {
-                value = (System.currentTimeMillis() - pendingSince).coerceAtLeast(0L)
-                delay(1_000)
-            }
-        }
-        Text(
-            text = stringResource(R.string.settings_upload_waiting_for, uploadDuration(elapsed)),
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (elapsed > SLOW_UPLOAD_MS) colors.warning else colors.textSecondary,
-        )
-    }
-
-    val took = timing?.lastDurationMs
-    val finishedAt = timing?.lastFinishedAtMs
-    if (took != null) {
-        Text(
-            text = if (finishedAt != null) {
-                val ago = (now - finishedAt).coerceAtLeast(0L)
-                stringResource(R.string.settings_upload_last_took_ago, uploadDuration(took), uploadDuration(ago))
-            } else {
-                stringResource(R.string.settings_upload_last_took, uploadDuration(took))
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (took > SLOW_UPLOAD_MS) colors.warning else colors.textSecondary,
-        )
-    }
-
-    val stuck = account.notUploadable ?: 0
-    if (stuck > 0) {
-        Text(
-            text = pluralStringResource(R.plurals.settings_not_uploadable, stuck, stuck),
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.textSecondary,
-        )
-    }
-
-    if (!account.visible) {
-        Text(
-            text = stringResource(R.string.settings_not_visible),
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.textSecondary,
-        )
-        AppTextButton(text = stringResource(R.string.settings_let_sync_directly), onClick = onLetSyncDirectly)
-    }
-}
-
-@Composable
-private fun accountCount(n: Int): String = pluralStringResource(R.plurals.settings_account_count, n, n)
 
 /** An added account: its nickname over its email, with a dot in its main calendar's colour. */
 @Composable
