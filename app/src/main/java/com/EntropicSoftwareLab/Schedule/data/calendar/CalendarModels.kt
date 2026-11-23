@@ -85,10 +85,20 @@ data class AccountSyncStatus(
     val masterAutoSync: Boolean?,
     /** This account's own Calendar sync switch. */
     val autoSync: Boolean?,
-    /** A sync is running or queued for this account right now. */
-    val syncing: Boolean?,
-    /** Rows changed on this phone and not yet uploaded. */
+    /** A sync is running for this account right now (ContentResolver.isSyncActive). */
+    val syncActive: Boolean?,
+    /** A sync is queued for this account (ContentResolver.isSyncPending). */
+    val syncPending: Boolean?,
+    /**
+     * Rows changed on this phone that Google's adapter will upload (syncing, writable calendars),
+     * not yet uploaded.
+     */
     val pendingUploads: Int?,
+    /**
+     * Dirty rows in this account's calendars that don't sync or that the user can't write, which
+     * Google will never upload.
+     */
+    val notUploadable: Int? = null,
     /**
      * Whether Android lets this app ask this account to sync by name. When false the app can only
      * make the general request, and the account's uploads wait behind the others'.

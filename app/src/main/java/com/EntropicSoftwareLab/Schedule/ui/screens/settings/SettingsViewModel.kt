@@ -13,6 +13,7 @@ import com.EntropicSoftwareLab.Schedule.data.calendar.UploadTimingEntry
 import com.EntropicSoftwareLab.Schedule.data.calendar.UploadTimingRepository
 import com.EntropicSoftwareLab.Schedule.data.settings.SettingsRepository
 import com.EntropicSoftwareLab.Schedule.di.AppContainer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -103,6 +104,20 @@ class SettingsViewModel(
             runCatching { repository.syncStatus() }.getOrNull()?.let { status ->
                 _state.update { it.copy(syncStatus = status) }
             }
+        }
+    }
+
+    /** Re-reads the card every 3 s for as long as the caller's coroutine runs (the card being open). */
+    suspend fun watchSyncStatus() {
+        while (true) {
+            try {
+                repository.syncStatus().let { status -> _state.update { it.copy(syncStatus = status) } }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Leave the last reading on screen and try again.
+            }
+            delay(3_000)
         }
     }
 

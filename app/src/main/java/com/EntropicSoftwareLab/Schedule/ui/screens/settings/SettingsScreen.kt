@@ -39,6 +39,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -53,7 +54,10 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 import com.EntropicSoftwareLab.Schedule.R
@@ -63,10 +67,13 @@ import com.EntropicSoftwareLab.Schedule.data.accounts.CalendarFilter
 import com.EntropicSoftwareLab.Schedule.data.calendar.AccountSyncStatus
 import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarAccount
 import com.EntropicSoftwareLab.Schedule.data.calendar.DurationUnit
+import com.EntropicSoftwareLab.Schedule.data.calendar.SyncAdvice
+import com.EntropicSoftwareLab.Schedule.data.calendar.SyncHeadline
 import com.EntropicSoftwareLab.Schedule.data.calendar.UploadTiming
 import com.EntropicSoftwareLab.Schedule.data.calendar.UploadTimingEntry
 import com.EntropicSoftwareLab.Schedule.di.LocalAppContainer
 import com.EntropicSoftwareLab.Schedule.ui.components.AppDivider
+import com.EntropicSoftwareLab.Schedule.ui.components.AutostartTip
 import com.EntropicSoftwareLab.Schedule.ui.components.CalendarPickerMenu
 import com.EntropicSoftwareLab.Schedule.ui.components.asCalendarColor
 import com.EntropicSoftwareLab.Schedule.ui.components.calendarLabel
@@ -97,6 +104,22 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     }
     val launchChooser: (String, String) -> Unit = { name, type ->
         runCatching { chooserLauncher.launch(chooseAccountIntent(name, type)) }
+    }
+
+    // Re-reads the card every few seconds while it is open, so it never shows a stale answer.
+    // Only while the app is on screen: the poll stops in the background and resumes on return.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(syncOpen, lifecycleOwner) {
+        if (syncOpen) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.watchSyncStatus() }
+        }
+    }
+    // One clock for the card, so "... ago" and the Autostart highlight keep moving while it is open.
+    val now by produceState(System.currentTimeMillis(), syncOpen) {
+        while (syncOpen) {
+            value = System.currentTimeMillis()
+            delay(1_000)
+        }
     }
 
     LazyColumn(
@@ -211,10 +234,17 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                                 account = account,
                                 prefs = state.prefs,
                                 timing = state.uploadTimings[CalendarAccount(account.accountName, account.accountType)],
+                                now = now,
                                 onLetSyncDirectly = { launchChooser(account.accountName, account.accountType) },
                             )
                             Spacer(Modifier.height(d.spaceSm))
                         }
+                        AutostartTip(
+                            highlight = state.uploadTimings.values.any {
+                                val since = it.pendingSinceMs
+                                since != null && now - since > SLOW_UPLOAD_MS
+                            },
+                        )
                         Text(
                             text = stringResource(R.string.settings_sync_help),
                             style = MaterialTheme.typography.bodySmall,
@@ -365,17 +395,10 @@ private fun SyncAccountRows(
     account: AccountSyncStatus,
     prefs: AccountPrefs,
     timing: UploadTimingEntry?,
+    now: Long,
     onLetSyncDirectly: () -> Unit,
 ) {
     val colors = AppThemeTokens.colors
-    val onText = stringResource(R.string.settings_on)
-    val offText = stringResource(R.string.settings_off)
-    val unknownText = stringResource(R.string.settings_unknown)
-    fun onOff(value: Boolean?): String = when (value) {
-        true -> onText
-        false -> offText
-        null -> unknownText
-    }
     val title = CalendarFilter.accountLabel(account.accountName, prefs)
     Text(
         text = title,
@@ -389,39 +412,77 @@ private fun SyncAccountRows(
             color = colors.textSecondary,
         )
     }
-    val lines = buildList {
-        // The phone-wide switch overrides the account's own, so an "on" under an "off" is still off.
-        if (account.masterAutoSync == false) add(stringResource(R.string.settings_phone_autosync_off) to true)
-        add(stringResource(R.string.settings_calendar_autosync, onOff(account.autoSync)) to (account.autoSync == false))
-        account.pendingUploads?.let { add(stringResource(R.string.settings_waiting_to_upload, it) to (it > 0)) }
-        if (account.syncing == true) add(stringResource(R.string.settings_syncing_now) to false)
-        val pendingSince = timing?.pendingSinceMs
-        if (pendingSince != null) {
-            // Ticks once a second while the upload is outstanding, and only then.
-            val elapsed by produceState(
-                initialValue = (System.currentTimeMillis() - pendingSince).coerceAtLeast(0L),
-                key1 = pendingSince,
-            ) {
-                while (true) {
-                    value = (System.currentTimeMillis() - pendingSince).coerceAtLeast(0L)
-                    delay(1_000)
-                }
-            }
-            add(stringResource(R.string.settings_upload_waiting_for, uploadDuration(elapsed)) to (elapsed > SLOW_UPLOAD_MS))
-        }
-        timing?.lastDurationMs?.let { took ->
-            add(stringResource(R.string.settings_upload_last_took, uploadDuration(took)) to (took > SLOW_UPLOAD_MS))
-        }
-        if (!account.visible) add(stringResource(R.string.settings_not_visible) to false)
+
+    val rows = account.pendingUploads ?: 0
+    val headline = SyncAdvice.headline(account)
+    val headlineText = when (headline) {
+        SyncHeadline.PhoneSyncOff -> stringResource(R.string.settings_sync_state_phone_off)
+        SyncHeadline.CalendarSyncOff -> stringResource(R.string.settings_sync_state_calendar_off)
+        SyncHeadline.Uploading -> pluralStringResource(R.plurals.settings_sync_state_uploading, rows, rows)
+        SyncHeadline.Waiting -> pluralStringResource(R.plurals.settings_sync_state_waiting, rows, rows)
+        SyncHeadline.WaitingQueued -> pluralStringResource(R.plurals.settings_sync_state_waiting_queued, rows, rows)
+        SyncHeadline.WaitingNotQueued -> pluralStringResource(R.plurals.settings_sync_state_waiting_not_queued, rows, rows)
+        SyncHeadline.Checking -> stringResource(R.string.settings_sync_state_checking)
+        SyncHeadline.UpToDate -> stringResource(R.string.settings_sync_state_up_to_date)
+        SyncHeadline.Unknown -> stringResource(R.string.settings_sync_state_unknown)
     }
-    lines.forEach { (line, warn) ->
+    val headlineColor = when (headline) {
+        SyncHeadline.PhoneSyncOff, SyncHeadline.CalendarSyncOff, SyncHeadline.Waiting,
+        SyncHeadline.WaitingQueued, SyncHeadline.WaitingNotQueued -> colors.warning
+        SyncHeadline.UpToDate -> colors.success
+        SyncHeadline.Uploading, SyncHeadline.Checking, SyncHeadline.Unknown -> colors.textSecondary
+    }
+    Text(text = headlineText, style = MaterialTheme.typography.bodyMedium, color = headlineColor)
+
+    val pendingSince = timing?.pendingSinceMs
+    if (pendingSince != null && rows > 0) {
+        // Ticks once a second while the upload is outstanding, and only then.
+        val elapsed by produceState(
+            initialValue = (System.currentTimeMillis() - pendingSince).coerceAtLeast(0L),
+            key1 = pendingSince,
+        ) {
+            while (true) {
+                value = (System.currentTimeMillis() - pendingSince).coerceAtLeast(0L)
+                delay(1_000)
+            }
+        }
         Text(
-            text = line,
+            text = stringResource(R.string.settings_upload_waiting_for, uploadDuration(elapsed)),
             style = MaterialTheme.typography.bodyMedium,
-            color = if (warn) colors.warning else colors.textSecondary,
+            color = if (elapsed > SLOW_UPLOAD_MS) colors.warning else colors.textSecondary,
         )
     }
+
+    val took = timing?.lastDurationMs
+    val finishedAt = timing?.lastFinishedAtMs
+    if (took != null) {
+        Text(
+            text = if (finishedAt != null) {
+                val ago = (now - finishedAt).coerceAtLeast(0L)
+                stringResource(R.string.settings_upload_last_took_ago, uploadDuration(took), uploadDuration(ago))
+            } else {
+                stringResource(R.string.settings_upload_last_took, uploadDuration(took))
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (took > SLOW_UPLOAD_MS) colors.warning else colors.textSecondary,
+        )
+    }
+
+    val stuck = account.notUploadable ?: 0
+    if (stuck > 0) {
+        Text(
+            text = pluralStringResource(R.plurals.settings_not_uploadable, stuck, stuck),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textSecondary,
+        )
+    }
+
     if (!account.visible) {
+        Text(
+            text = stringResource(R.string.settings_not_visible),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textSecondary,
+        )
         AppTextButton(text = stringResource(R.string.settings_let_sync_directly), onClick = onLetSyncDirectly)
     }
 }

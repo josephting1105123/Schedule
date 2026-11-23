@@ -29,6 +29,10 @@
     <string name="perm_declined">Access was declined. Turn on Calendar in system settings to continue.</string>
     <string name="perm_open_settings">Open settings</string>
     <string name="perm_grant">Grant access</string>
+    <string name="perm_autostart_title">On a Xiaomi phone?</string>
+    <string name="perm_autostart_body">Turn on Autostart for Google Calendar as well. It uploads the events you add here, and without Autostart they can take minutes to reach Google. In the list, it\'s the Calendar with the blue 31 icon.</string>
+    <string name="autostart_tip_body">On Xiaomi, Redmi and POCO phones, turn on Autostart for Google Calendar. Google Calendar does the uploading, and without Autostart your changes can wait for minutes until it happens to run. In the list, it\'s the Calendar with the blue 31 icon, not Xiaomi\'s own Calendar.</string>
+    <string name="autostart_open_settings">Open Autostart settings</string>
 
     <!-- Month -->
     <string name="month_back_to_this_month">Back to this month</string>
@@ -88,18 +92,37 @@
     <string name="settings_sync_summary_idle">%1$s · nothing waiting to upload</string>
     <string name="settings_sync_now">Sync now</string>
     <string name="settings_no_synced_accounts_long">No synced accounts — events here stay on this phone.</string>
-    <string name="settings_sync_help">Changes you make here are uploaded by the phone\'s own Google sync. If \"Waiting to upload\" stays above zero, check that auto-sync is on for Calendar and that battery saving isn\'t stopping background sync.</string>
+    <string name="settings_sync_help">Schedule saves your changes to the phone\'s calendar, and Google\'s own sync uploads them, usually within seconds. Times are as Schedule saw them, so they can read long if the app was closed.</string>
     <string name="settings_phone_sync_settings">Phone sync settings</string>
     <string name="settings_about">About</string>
     <string name="settings_about_body">Schedule reads the calendars already synced to this device. No account, no server, no analytics — nothing typed or scheduled here leaves the phone.</string>
     <string name="settings_version">Version %1$s</string>
-    <string name="settings_on">on</string>
-    <string name="settings_off">off</string>
-    <string name="settings_unknown">unknown</string>
-    <string name="settings_phone_autosync_off">Phone auto-sync: off</string>
-    <string name="settings_calendar_autosync">Calendar auto-sync: %1$s</string>
-    <string name="settings_waiting_to_upload">Waiting to upload: %1$d</string>
-    <string name="settings_syncing_now">Syncing now…</string>
+    <string name="settings_sync_state_phone_off">Phone auto-sync is off. Nothing uploads until it\'s back on.</string>
+    <string name="settings_sync_state_calendar_off">Calendar sync is off for this account. Changes stay on this phone.</string>
+    <plurals name="settings_sync_state_uploading">
+        <item quantity="one">Uploading %d change now…</item>
+        <item quantity="other">Uploading %d changes now…</item>
+    </plurals>
+    <plurals name="settings_sync_state_waiting">
+        <item quantity="one">%d change waiting to upload</item>
+        <item quantity="other">%d changes waiting to upload</item>
+    </plurals>
+    <plurals name="settings_sync_state_waiting_queued">
+        <item quantity="one">%d change waiting · upload queued</item>
+        <item quantity="other">%d changes waiting · upload queued</item>
+    </plurals>
+    <plurals name="settings_sync_state_waiting_not_queued">
+        <item quantity="one">%d change waiting · no upload queued, tap Sync now</item>
+        <item quantity="other">%d changes waiting · no upload queued, tap Sync now</item>
+    </plurals>
+    <string name="settings_sync_state_checking">Up to date · checking Google for changes…</string>
+    <string name="settings_sync_state_up_to_date">Up to date</string>
+    <string name="settings_sync_state_unknown">Upload status unknown</string>
+    <string name="settings_upload_last_took_ago">Last upload took %1$s, %2$s ago</string>
+    <plurals name="settings_not_uploadable">
+        <item quantity="one">%d change is in a calendar Google won\'t upload (sync off or read-only)</item>
+        <item quantity="other">%d changes are in calendars Google won\'t upload (sync off or read-only)</item>
+    </plurals>
     <string name="settings_not_visible">Schedule can\'t ask this account alone, so its uploads wait behind other accounts.</string>
     <string name="settings_let_sync_directly">Let Schedule sync it directly</string>
     <string name="settings_upload_waiting_for">Waiting to upload for %1$s</string>

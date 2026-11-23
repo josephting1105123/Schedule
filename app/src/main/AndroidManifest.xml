@@ -14,6 +14,8 @@
         <intent>
             <action android:name="android.content.SyncAdapter" />
         </intent>
+        <!-- Lets the app see whether Google Calendar is installed, for the Autostart tip. -->
+        <package android:name="com.google.android.calendar" />
     </queries>
 
     <application

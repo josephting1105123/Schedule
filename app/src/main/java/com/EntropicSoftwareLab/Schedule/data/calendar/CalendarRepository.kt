@@ -277,8 +277,12 @@ class CalendarRepository(
      * asking for a sync. So when changes don't reach Google, the answer is on the phone: auto-sync
      * off for the account (Settings → Accounts), a battery saver holding background sync, or the
      * adapter failing on a row. This makes the first two visible and counts the rows stuck behind
-     * them. Every part is read in its own runCatching: a provider that hides DIRTY from ordinary
-     * callers leaves [AccountSyncStatus.pendingUploads] null rather than the whole card empty.
+     * them. [AccountSyncStatus.pendingUploads] counts only rows Google's adapter will upload
+     * (syncing, writable calendars, the same filter as [dirtyCountsByAccount]); dirty rows it will
+     * never upload are [AccountSyncStatus.notUploadable]. Active and queued syncs are read apart,
+     * because the app's own poll keeps one queued. Every part is read in its own runCatching: a
+     * provider that hides DIRTY from ordinary callers leaves the counts null rather than the whole
+     * card empty.
      */
     suspend fun syncStatus(): List<AccountSyncStatus> = withContext(io) {
         val master = runCatching { ContentResolver.getMasterSyncAutomatically() }.getOrNull()
@@ -299,9 +303,11 @@ class CalendarRepository(
                     autoSync = if (!visible) null else runCatching {
                         ContentResolver.getSyncAutomatically(account, CalendarContract.AUTHORITY)
                     }.getOrNull(),
-                    syncing = if (!visible) null else runCatching {
-                        ContentResolver.isSyncActive(account, CalendarContract.AUTHORITY) ||
-                            ContentResolver.isSyncPending(account, CalendarContract.AUTHORITY)
+                    syncActive = if (!visible) null else runCatching {
+                        ContentResolver.isSyncActive(account, CalendarContract.AUTHORITY)
+                    }.getOrNull(),
+                    syncPending = if (!visible) null else runCatching {
+                        ContentResolver.isSyncPending(account, CalendarContract.AUTHORITY)
                     }.getOrNull(),
                     pendingUploads = runCatching {
                         resolver.query(
@@ -309,7 +315,22 @@ class CalendarRepository(
                             arrayOf(CalendarContract.Events._ID),
                             "${CalendarContract.Events.DIRTY} = 1 AND " +
                                 "${CalendarContract.Events.ACCOUNT_NAME} = ? AND " +
-                                "${CalendarContract.Events.ACCOUNT_TYPE} = ?",
+                                "${CalendarContract.Events.ACCOUNT_TYPE} = ? AND " +
+                                "${CalendarContract.Events.SYNC_EVENTS} = 1 AND " +
+                                "${CalendarContract.Events.CALENDAR_ACCESS_LEVEL} >= ${CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR}",
+                            arrayOf(name, type),
+                            null,
+                        )?.use { it.count }
+                    }.getOrNull(),
+                    notUploadable = runCatching {
+                        resolver.query(
+                            CalendarContract.Events.CONTENT_URI,
+                            arrayOf(CalendarContract.Events._ID),
+                            "${CalendarContract.Events.DIRTY} = 1 AND " +
+                                "${CalendarContract.Events.ACCOUNT_NAME} = ? AND " +
+                                "${CalendarContract.Events.ACCOUNT_TYPE} = ? AND " +
+                                "(${CalendarContract.Events.SYNC_EVENTS} = 0 OR " +
+                                "${CalendarContract.Events.CALENDAR_ACCESS_LEVEL} < ${CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR})",
                             arrayOf(name, type),
                             null,
                         )?.use { it.count }

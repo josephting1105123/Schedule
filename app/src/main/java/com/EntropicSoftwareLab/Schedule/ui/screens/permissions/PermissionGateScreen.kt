@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.Icon
@@ -35,6 +37,9 @@ import androidx.core.content.ContextCompat
 import com.EntropicSoftwareLab.Schedule.R
 import com.EntropicSoftwareLab.Schedule.ui.components.AppButton
 import com.EntropicSoftwareLab.Schedule.ui.components.AppCard
+import com.EntropicSoftwareLab.Schedule.ui.components.AppTextButton
+import com.EntropicSoftwareLab.Schedule.ui.components.openAutostartSettings
+import com.EntropicSoftwareLab.Schedule.ui.components.shouldShowAutostartTip
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 
 val CALENDAR_PERMISSIONS = arrayOf(
@@ -59,6 +64,7 @@ fun PermissionGateScreen(onGranted: () -> Unit) {
     // Android silently denies once the user has picked "don't ask again"; when that happens the
     // only route left is the app's settings page.
     var permanentlyDenied by remember { mutableStateOf(false) }
+    val showAutostartTip = remember { context.shouldShowAutostartTip() }
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -81,7 +87,7 @@ fun PermissionGateScreen(onGranted: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         AppCard(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(d.spaceXl)) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(d.spaceXl)) {
                 Icon(
                     imageVector = Icons.Outlined.CalendarMonth,
                     contentDescription = null,
@@ -112,6 +118,25 @@ fun PermissionGateScreen(onGranted: () -> Unit) {
                     AppButton(text = stringResource(R.string.perm_open_settings), onClick = { context.openAppSettings() })
                 } else {
                     AppButton(text = stringResource(R.string.perm_grant), onClick = { launcher.launch(CALENDAR_PERMISSIONS) })
+                }
+
+                if (showAutostartTip) {
+                    Spacer(Modifier.height(d.spaceLg))
+                    Text(
+                        text = stringResource(R.string.perm_autostart_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = colors.textPrimary,
+                    )
+                    Spacer(Modifier.height(d.spaceXs))
+                    Text(
+                        text = stringResource(R.string.perm_autostart_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.textSecondary,
+                    )
+                    AppTextButton(
+                        text = stringResource(R.string.autostart_open_settings),
+                        onClick = { context.openAutostartSettings() },
+                    )
                 }
             }
         }

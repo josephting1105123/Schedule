@@ -2,6 +2,15 @@
 
 The newest version is at the top.
 
+## 1.4.15
+
+A clearer Sync with Google card.
+
+- Each account now has one plain status line: up to date, uploading, waiting (and whether an upload is queued), or sync turned off.
+- "Waiting to upload" counts only changes Google will actually upload. Changes in calendars that don't sync or are read-only are listed separately, so they no longer look like a stuck upload.
+- The card updates every few seconds while it's open, and shows how long ago the last upload finished.
+- On Xiaomi, Redmi and POCO phones, the card and the first-run calendar access screen ask you to turn on Autostart for Google Calendar. Google Calendar does the uploading, and without Autostart changes could wait for minutes before reaching Google.
+
 ## 1.4.14
 
 Fixes from a full bug review.
