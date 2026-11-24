@@ -2,14 +2,20 @@
 
 The newest version is at the top.
 
-## 1.4.16
+## 1.4.17
 
-Two Today widgets, taken from the Today page.
-
-- Day at a glance (4×2): the Today page's two rows of hour cells, 00 to 11 and 12 to 23. Each event is a bar across the hours it takes, the current hour is highlighted, and a task's deadline shows as a thin mark. Tap it to open Today.
+- New first-open setup: a privacy page (what Schedule reads, what stays on the phone and what reaches Google through calendar sync, with a link to the full policy) that you agree to, then a permissions page with Calendar access and, on Xiaomi, Redmi and POCO phones, Autostart for Google Calendar. It shows once after this update too.
+- The Sync with Google card is now Calendar sync: one row when closed, with a sync button beside the status, and a small card per account when open, showing whether sync is on, what's waiting and the last upload, with a full-width button when something needs fixing.
+- Fixed a crash when opening the app for the first time, before calendar access is granted.
+- Two new Today widgets. Day at a glance (4×2): the Today page's two rows of hour cells, 00 to 11 and 12 to 23. Each event is a bar across the hours it takes; when events overlap, the later one shows only in the Agenda and the app. The current hour is highlighted, and a task's deadline shows as a thin mark. Tap it to open Today.
 - Agenda (2×2, and you can stretch it): today's events as a list that scrolls, laid out like the Today page's agenda, with the start time over the end time and all-day events first. Events that have ended drop off. Tap an event to see the whole day, or + to add one. The old Today widget turns into this one.
 - Both widgets take their colours from your wallpaper on Android 12 and later.
-- Both widgets now show a proper preview when you pick them from the launcher's widget list. Before, the list showed "Couldn't add widget" instead of a preview.
+- The Month widget's preview in the launcher's widget list works again, and on Android 12 and later the two Today widgets show their own previews.
+
+## 1.4.16
+
+- The open Sync with Google card is shorter: one status per account instead of two, no lines between checks, and a single Sync now button.
+- On Xiaomi, Redmi and POCO phones, the Autostart advice for Google Calendar is now on the first-open page, which shows once more after this update and stays until you tap Continue. Settings no longer mentions it.
 
 ## 1.4.15
 

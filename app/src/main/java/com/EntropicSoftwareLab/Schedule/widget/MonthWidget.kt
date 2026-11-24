@@ -771,7 +771,7 @@ internal fun Int?.orBrand(): Color =
  * from the user's account and a free colour picker, so they span the whole wheel and one fixed text
  * colour is unreadable on some of them however carefully it is picked.
  */
-internal fun onChipColor(fill: Color): Color =
+private fun onChipColor(fill: Color): Color =
     if (fill.luminance() > 0.179f) WidgetTokens.OnLightFill else WidgetTokens.OnDarkFill
 
 /** Tapping `+` on a month that isn't this one should land on that month, not on today. */

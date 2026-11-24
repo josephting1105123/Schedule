@@ -11,9 +11,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -27,7 +29,8 @@ import com.EntropicSoftwareLab.Schedule.di.LocalAppContainer
 import com.EntropicSoftwareLab.Schedule.di.WidgetLaunch
 import com.EntropicSoftwareLab.Schedule.widget.WidgetLaunchIntents
 import com.EntropicSoftwareLab.Schedule.ui.navigation.AppNavHost
-import com.EntropicSoftwareLab.Schedule.ui.screens.permissions.PermissionGateScreen
+import com.EntropicSoftwareLab.Schedule.ui.screens.permissions.OnboardingScreen
+import com.EntropicSoftwareLab.Schedule.ui.screens.permissions.PermissionsStep
 import com.EntropicSoftwareLab.Schedule.ui.screens.permissions.hasCalendarPermissions
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppTheme
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
@@ -76,17 +79,36 @@ class MainActivity : ComponentActivity() {
                             lifecycleOwner.lifecycle.addObserver(observer)
                             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
                         }
-                        if (granted) {
-                            // Warm the calendar list and palettes now, so tapping "+" later opens a
-                            // form that is already filled in rather than one that fills itself in
-                            // while the user waits. Here rather than in Application.onCreate for two
-                            // reasons: the query throws without permission, and a provider read
-                            // before the first frame is the cold-start cost AppContainer's laziness
-                            // exists to avoid. warm() is idempotent, so recomposition is free.
-                            LaunchedEffect(Unit) { container.calendarDirectory.warm() }
-                            AppNavHost()
-                        } else {
-                            PermissionGateScreen(onGranted = { granted = true })
+                        // null while DataStore loads: show nothing for that frame rather than flash the wrong screen.
+                        val onboardingDone by remember { container.settingsRepository.onboardingDone }
+                            .collectAsState(initial = null)
+                        val scope = rememberCoroutineScope()
+                        when (onboardingDone) {
+                            null -> Unit
+                            false -> OnboardingScreen(
+                                calendarGranted = granted,
+                                onGranted = { granted = true },
+                                onFinish = { scope.launch { container.settingsRepository.markOnboardingDone() } },
+                            )
+                            true -> if (!granted) {
+                                // Access revoked after setup: the permissions page alone, closing itself on grant.
+                                PermissionsStep(
+                                    stepLabel = null,
+                                    calendarGranted = false,
+                                    onGranted = { granted = true },
+                                    finishText = null,
+                                    onFinish = {},
+                                )
+                            } else {
+                                // Warm the calendar list and palettes now, so tapping "+" later opens a
+                                // form that is already filled in rather than one that fills itself in
+                                // while the user waits. Here rather than in Application.onCreate for two
+                                // reasons: the query throws without permission, and a provider read
+                                // before the first frame is the cold-start cost AppContainer's laziness
+                                // exists to avoid. warm() is idempotent, so recomposition is free.
+                                LaunchedEffect(Unit) { container.calendarDirectory.warm() }
+                                AppNavHost()
+                            }
                         }
                     }
                 }

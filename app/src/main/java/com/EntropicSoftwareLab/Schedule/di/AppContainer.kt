@@ -2,6 +2,7 @@ package com.EntropicSoftwareLab.Schedule.di
 
 import android.accounts.AccountManager
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefsRepository
 import com.EntropicSoftwareLab.Schedule.data.accounts.ReadKey
@@ -99,7 +100,26 @@ class AppContainer(context: Context) {
      * further down, which is safe because the lambda only runs after construction.
      */
     val taskRepository: TaskRepository by lazy {
-        TaskRepository(appContext, onChange = { appScope.launch { taskSync.sync() } })
+        TaskRepository(appContext, onChange = {
+            appScope.launch {
+                // Each step on its own: a failed sync must not skip the redraw, and the redraw is
+                // what puts a changed deadline on the Day at a glance widget.
+                try {
+                    taskSync.sync()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w("AppContainer", "Task sync failed", e)
+                }
+                try {
+                    refreshWidgets(appContext)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w("AppContainer", "Widget refresh failed", e)
+                }
+            }
+        })
     }
 
     /**
@@ -187,8 +207,8 @@ class AppContainer(context: Context) {
         // that fires the observer. It only records, never asks for a sync (a sync writes rows, which
         // would fire this again). CalendarChangeWorker does the same with the app closed.
         appScope.launch {
-            // Without READ_CALENDAR (before the permission screen, or revoked) registering the
-            // observer throws SecurityException; retry later instead of letting it kill the process.
+            // providerChanges() waits for READ_CALENDAR itself, so this retry is only a backstop
+            // for a SecurityException from elsewhere in the flow; it must not kill the process.
             calendarRepository.observeChanges()
                 .retryWhen { cause, _ ->
                     if (cause is SecurityException) {

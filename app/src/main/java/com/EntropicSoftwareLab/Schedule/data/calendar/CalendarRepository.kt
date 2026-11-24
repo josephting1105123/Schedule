@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.CalendarContract
+import android.util.Log
 import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefs
 import com.EntropicSoftwareLab.Schedule.data.accounts.CalendarFilter
 import com.EntropicSoftwareLab.Schedule.data.birthday.Birthday
@@ -19,6 +20,7 @@ import com.EntropicSoftwareLab.Schedule.data.task.TaskEventFields
 import com.EntropicSoftwareLab.Schedule.data.task.TaskEventRow
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -1286,7 +1288,11 @@ class CalendarRepository(
      * rejected it. A one-off carries `DTEND` and no `RRULE`/`DURATION`; writing both is rejected.
      *
      * The three task writes do **not** call `onWrite`: it redraws the widgets and requests a sync
-     * per call, tasks are not on any widget, and `TaskSync` asks for one sync after the whole pass.
+     * per call, and `TaskSync` asks for one sync after the whole pass. Tasks do reach the widgets
+     * (Day at a glance draws deadline marks), through `TaskRepository`'s `onChange` in
+     * `AppContainer`, which redraws them after each task change the user makes (add, edit, tick,
+     * delete). A task a sync pass pulls in from the Tasks calendar waits for the next widget
+     * refresh.
      */
     suspend fun insertTaskEvent(calendarId: Long, fields: TaskEventFields): Long? = withContext(io) {
         val values = ContentValues().apply {
@@ -1345,14 +1351,29 @@ class CalendarRepository(
     /**
      * Emits once immediately, then whenever any calendar data changes — an in-app insert, a Google
      * sync landing, or an edit made in another app. [conflate] keeps a burst of sync notifications
-     * from queuing up a re-query per event.
+     * from queuing up a re-query per event. Without calendar permission it waits, retrying every 2 s,
+     * and emits again once access is granted.
      */
     private fun providerChanges(): Flow<Unit> = callbackFlow {
         trySend(Unit)
         val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) { trySend(Unit) }
         }
-        resolver.registerContentObserver(CalendarContract.CONTENT_URI, true, observer)
+        // No READ_CALENDAR yet (first open, before the permission page). Any exception from here
+        // reached some collector's uncaught handler and killed the process, so wait for the grant
+        // instead of failing: retry every 2 s, then emit again so readers reload with access.
+        var waited = false
+        while (true) {
+            try {
+                resolver.registerContentObserver(CalendarContract.CONTENT_URI, true, observer)
+                break
+            } catch (e: SecurityException) {
+                if (!waited) Log.w("CalendarRepository", "No calendar permission yet; waiting to observe changes", e)
+                waited = true
+                delay(2_000)
+            }
+        }
+        if (waited) trySend(Unit)
         awaitClose { resolver.unregisterContentObserver(observer) }
     }.conflate()
 }

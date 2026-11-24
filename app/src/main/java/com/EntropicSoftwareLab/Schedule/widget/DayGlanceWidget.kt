@@ -2,6 +2,12 @@ package com.EntropicSoftwareLab.Schedule.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -81,61 +87,97 @@ private val BAR_TITLE_INK = ColorProvider(day = Color(0xFF18202B), night = Color
 /** Same order the picker shows — see [EventColorPalette.assignmentOrder]. */
 private val BRAND_PALETTE: List<Int> = EventColorPalette.assignmentOrder.map { it.argb }
 
+/** Everything the widget draws, read in one pass so the seed and every live reload agree. */
+private data class DayGlanceData(
+    val today: LocalDate,
+    val lane0: List<List<HourGrid.HourSlice>>?,
+    val colors: Map<Long, Int>,
+    val taskMarks: List<List<TaskGrid.Mark>>,
+    val currentHour: Int,
+)
+
+/**
+ * Reads events, colours, today's tasks and the current hour. An unreadable calendar, colour store
+ * or task list (permission missing, provider down) falls back to empty rather than crashing the
+ * host launcher; cancellation still propagates.
+ */
+private suspend fun loadDayGlance(context: Context): DayGlanceData {
+    val zone = ZoneId.systemDefault()
+    val today = LocalDate.now()
+
+    val byDate: Map<LocalDate, List<EventInstance>> = try {
+        MonthWidgetCache.load(context, YearMonth.from(today), zone, WeekPaging.FIRST_DAY)
+    } catch (e: SecurityException) {
+        emptyMap()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        emptyMap()
+    }
+
+    val colors: Map<Long, Int> = try {
+        val picks = EventColorRepository(context).overrides.first()
+        BrandColorAssignment.forDates(byDate, picks, BRAND_PALETTE)
+    } catch (e: SecurityException) {
+        emptyMap()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        emptyMap()
+    }
+
+    val todays = byDate[today].orEmpty()
+    // Only lane 0 is drawn here. Clash lanes (index >= 1) are not drawn: a 4x2 widget has no
+    // vertical room to stack extra bands, and the Agenda widget and the app show the full detail.
+    val lane0 = HourGrid.lanes(todays, today, zone).getOrNull(0)
+
+    val dueToday = try {
+        TaskRepository(context).tasks.first().filter { it.due == today }
+    } catch (e: SecurityException) {
+        emptyList()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    return DayGlanceData(
+        today = today,
+        lane0 = lane0,
+        colors = colors,
+        taskMarks = TaskGrid.byHour(dueToday),
+        currentHour = LocalTime.now(zone).hour,
+    )
+}
+
 class DayGlanceWidget : GlanceAppWidget() {
 
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now()
-
-        val byDate: Map<LocalDate, List<EventInstance>> = try {
-            MonthWidgetCache.load(context, YearMonth.from(today), zone, WeekPaging.FIRST_DAY)
-        } catch (e: SecurityException) {
-            emptyMap()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            emptyMap()
-        }
-
-        val colors: Map<Long, Int> = try {
-            val picks = EventColorRepository(context).overrides.first()
-            BrandColorAssignment.forDates(byDate, picks, BRAND_PALETTE)
-        } catch (e: SecurityException) {
-            emptyMap()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            emptyMap()
-        }
-
-        val todays = byDate[today].orEmpty()
-        // Only lane 0 is drawn here. Clash lanes (index >= 1) are not drawn: a 4x2 widget has no
-        // vertical room to stack extra bands, and the Agenda widget and the app show the full detail.
-        val lane0 = HourGrid.lanes(todays, today, zone).getOrNull(0)
-
-        val dueToday = try {
-            TaskRepository(context).tasks.first().filter { it.due == today }
-        } catch (e: SecurityException) {
-            emptyList()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            emptyList()
-        }
-        val taskMarks = TaskGrid.byHour(dueToday)
-        val currentHour = LocalTime.now(zone).hour
+        // Generation first: a refresh landing during the load below leaves this behind, so the
+        // effect in provideContent reloads instead of trusting a seed that may predate it.
+        val seedGeneration = MonthWidgetCache.generation.value
+        // Read before provideContent so the first frame already has data.
+        val seed = loadDayGlance(context)
 
         provideContent {
+            var data by remember { mutableStateOf(seed) }
+            // Glance 1.1.1's update/updateAll don't restart provideGlance while a session is alive,
+            // so a refresh bumps this and the live session reloads itself (same as MonthWidget).
+            val generation by MonthWidgetCache.generation.collectAsState()
+            LaunchedEffect(generation) {
+                if (generation != seedGeneration) data = loadDayGlance(context)
+            }
+
             GlanceTheme {
                 DayGlanceBody(
                     context = context,
-                    today = today,
-                    lane0 = lane0,
-                    colors = colors,
-                    taskMarks = taskMarks,
-                    currentHour = currentHour,
+                    today = data.today,
+                    lane0 = data.lane0,
+                    colors = data.colors,
+                    taskMarks = data.taskMarks,
+                    currentHour = data.currentHour,
                 )
             }
         }
@@ -226,9 +268,15 @@ private fun DayGlanceBody(
 
 /**
  * Horizontal offset in dp of a time [t] hours (0f..12f) from the half-day row's first hour.
+ *
+ * An end on a whole hour ([isEnd]) is the right edge of the cell before it, not the left edge of
+ * the next, so a bar ending at 10:00 doesn't reach across the gap and touch the 10:00 cell. Same
+ * rule as `DayHourGrid`'s `xAt`.
  */
-internal fun hourOffsetX(t: Float, cellW: Dp, gap: Dp): Dp {
-    val i = min(floor(t).toInt(), 11).coerceAtLeast(0)
+internal fun hourOffsetX(t: Float, cellW: Dp, gap: Dp, isEnd: Boolean = false): Dp {
+    val whole = floor(t).toInt()
+    val cell = if (isEnd && whole > 0 && t == whole.toFloat()) whole - 1 else whole
+    val i = min(cell, 11).coerceAtLeast(0)
     val f = t - i
     return (cellW + gap) * i + cellW * f
 }
@@ -418,7 +466,7 @@ private fun buildBarSegments(
     var cursor = 0.dp
     for (run in runs) {
         val startX = hourOffsetX(run.start, cellW, gap)
-        val endX = hourOffsetX(run.end, cellW, gap)
+        val endX = hourOffsetX(run.end, cellW, gap, isEnd = true)
         val gapW = startX - cursor
         val needed = if (gapW > 0.dp) 2 else 1
         if (out.size + needed > MAX_OVERLAY_SEGMENTS) break

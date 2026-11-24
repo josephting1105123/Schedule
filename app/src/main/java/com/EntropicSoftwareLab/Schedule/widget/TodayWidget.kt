@@ -3,7 +3,12 @@ package com.EntropicSoftwareLab.Schedule.widget
 import android.content.Context
 import android.text.format.DateFormat
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.ColorFilter
@@ -58,59 +63,94 @@ private val HEADER_HEIGHT = 24.dp
 /** Same order the picker shows — see [EventColorPalette.assignmentOrder]. */
 private val BRAND_PALETTE: List<Int> = EventColorPalette.assignmentOrder.map { it.argb }
 
+/** Everything the widget draws, read in one pass so the seed and every live reload agree. */
+private data class TodayData(
+    val today: LocalDate,
+    val allDay: List<EventInstance>,
+    val timed: List<EventInstance>,
+    val colors: Map<Long, Int>,
+    val zone: ZoneId,
+    val is24Hour: Boolean,
+)
+
+/**
+ * Reads today's events and their colours. An unreadable calendar or colour store (permission not
+ * granted yet, or revoked) shows the empty state rather than crashing the host launcher;
+ * cancellation still propagates.
+ */
+private suspend fun loadToday(context: Context): TodayData {
+    val zone = ZoneId.systemDefault()
+    val today = LocalDate.now()
+
+    val byDate: Map<LocalDate, List<EventInstance>> = try {
+        // The month widget's cache, so a birthday the user hides is already gone — all-day rows
+        // are shown here, and a birthday is one.
+        MonthWidgetCache.load(context, YearMonth.from(today), zone, WeekPaging.FIRST_DAY)
+    } catch (e: SecurityException) {
+        emptyMap()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        emptyMap()
+    }
+
+    val todays = byDate[today].orEmpty()
+    val allDay = todays.filter { it.allDay }.sortedBy { it.title }
+    val timed = todays.filterNot { it.allDay }.sortedBy { it.startMillis }
+
+    // The user's picks, then a brand colour for anything nobody coloured — the same rule the app's
+    // Today and Month pages apply, over the whole 42 days so a multi-day event keeps one colour.
+    val colors: Map<Long, Int> = try {
+        val picks = EventColorRepository(context).overrides.first()
+        BrandColorAssignment.forDates(byDate, picks, BRAND_PALETTE)
+    } catch (e: SecurityException) {
+        emptyMap()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        emptyMap()
+    }
+
+    return TodayData(
+        today = today,
+        allDay = allDay,
+        timed = timed,
+        colors = colors,
+        zone = zone,
+        // Read per load so a changed 12/24-hour setting shows on the next refresh.
+        is24Hour = DateFormat.is24HourFormat(context),
+    )
+}
+
 class TodayWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now()
-
+        // Generation first: a refresh landing during the load below leaves this behind, so the
+        // effect in provideContent reloads instead of trusting a seed that may predate it.
+        val seedGeneration = MonthWidgetCache.generation.value
         // Read before provideContent so the first frame already has data — Glance has no loading
         // state worth showing at this size.
-        val byDate: Map<LocalDate, List<EventInstance>> = try {
-            // The month widget's cache, so a birthday the user hides is already gone — all-day rows
-            // are shown here, and a birthday is one.
-            MonthWidgetCache.load(context, YearMonth.from(today), zone, WeekPaging.FIRST_DAY)
-        } catch (e: SecurityException) {
-            // Permission not granted yet, or revoked. Show the empty state rather than crashing the
-            // host launcher.
-            emptyMap()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            emptyMap()
-        }
-
-        val todays = byDate[today].orEmpty()
-        val allDay = todays.filter { it.allDay }.sortedBy { it.title }
-        val timed = todays.filterNot { it.allDay }.sortedBy { it.startMillis }
-
-        // The user's picks, then a brand colour for anything nobody coloured — the same rule the app's
-        // Today and Month pages apply, over the whole 42 days so a multi-day event keeps one colour.
-        val colors = try {
-            val picks = EventColorRepository(context).overrides.first()
-            BrandColorAssignment.forDates(byDate, picks, BRAND_PALETTE)
-        } catch (e: SecurityException) {
-            emptyMap()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            emptyMap()
-        }
-
-        // Read per render of the session so a changed 12/24-hour setting shows on the next refresh.
-        val is24Hour = DateFormat.is24HourFormat(context)
+        val seed = loadToday(context)
 
         provideContent {
+            var data by remember { mutableStateOf(seed) }
+            // Glance 1.1.1's update/updateAll don't restart provideGlance while a session is alive,
+            // so a refresh bumps this and the live session reloads itself (same as MonthWidget).
+            val generation by MonthWidgetCache.generation.collectAsState()
+            LaunchedEffect(generation) {
+                if (generation != seedGeneration) data = loadToday(context)
+            }
+
             GlanceTheme {
                 WidgetBody(
                     context = context,
-                    today = today,
-                    allDay = allDay,
-                    timed = timed,
-                    hadTimed = timed.isNotEmpty(),
-                    colors = colors,
-                    zone = zone,
-                    is24Hour = is24Hour,
+                    today = data.today,
+                    allDay = data.allDay,
+                    timed = data.timed,
+                    hadTimed = data.timed.isNotEmpty(),
+                    colors = data.colors,
+                    zone = data.zone,
+                    is24Hour = data.is24Hour,
                 )
             }
         }
@@ -257,7 +297,7 @@ private fun AgendaRow(
         ) {}
         Spacer(GlanceModifier.width(8.dp))
         // 1 child (all-day) or 2 children (timed); limit 10.
-        Column(modifier = GlanceModifier.width(if (is24Hour) 40.dp else 58.dp)) {
+        Column(modifier = GlanceModifier.width(if (is24Hour) 40.dp else 64.dp)) {
             if (event.allDay) {
                 Text(
                     text = "All day",

@@ -24,15 +24,36 @@
     <string name="bday_delete">Delete</string>
 
     <!-- Permission gate -->
-    <string name="perm_title">Calendar access</string>
-    <string name="perm_body">Schedule reads the calendars already synced to this device so it can show your day and tell you when you\'re free. Events you add here sync back through your Google account. Nothing is sent anywhere else.</string>
     <string name="perm_declined">Access was declined. Turn on Calendar in system settings to continue.</string>
     <string name="perm_open_settings">Open settings</string>
     <string name="perm_grant">Grant access</string>
-    <string name="perm_autostart_title">On a Xiaomi phone?</string>
+    <string name="perm_granted">Calendar access granted</string>
     <string name="perm_autostart_body">Turn on Autostart for Google Calendar as well. It uploads the events you add here, and without Autostart they can take minutes to reach Google. In the list, it\'s the Calendar with the blue 31 icon.</string>
-    <string name="autostart_tip_body">On Xiaomi, Redmi and POCO phones, turn on Autostart for Google Calendar. Google Calendar does the uploading, and without Autostart your changes can wait for minutes until it happens to run. In the list, it\'s the Calendar with the blue 31 icon, not Xiaomi\'s own Calendar.</string>
     <string name="autostart_open_settings">Open Autostart settings</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_step">Step %1$d of %2$d</string>
+    <string name="onboarding_privacy_title">Your privacy</string>
+    <string name="onboarding_privacy_subtitle">Schedule works only with what\'s already on this phone.</string>
+    <string name="onboarding_point_offline_title">No internet access</string>
+    <string name="onboarding_point_offline_body">No internet permission, so it can\'t send anything.</string>
+    <string name="onboarding_point_local_title">App data stays on your phone</string>
+    <string name="onboarding_point_local_body">Settings and your lists are kept in the app\'s private storage. Events, tasks and birthdays are also written to your calendar.</string>
+    <string name="onboarding_point_nothing_title">Nothing collected</string>
+    <string name="onboarding_point_nothing_body">No account, ads, analytics or crash reports.</string>
+    <string name="onboarding_point_google_title">Your calendar syncs through Google</string>
+    <string name="onboarding_point_google_body">Events in a Google calendar reach Google through the phone\'s own calendar sync, under Google\'s privacy policy.</string>
+    <string name="onboarding_read_policy">Read the full privacy policy</string>
+    <string name="onboarding_agree">I\'ve read and agree to the privacy policy</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_permissions_title">Permissions</string>
+    <string name="onboarding_permissions_subtitle">Calendar access is needed. On some phones one more setting keeps uploads quick.</string>
+    <string name="onboarding_perm_calendar_title">Calendar</string>
+    <string name="onboarding_perm_calendar_body">To show your day and add events to it.</string>
+    <string name="onboarding_perm_autostart_title">Autostart for Google Calendar</string>
+    <string name="onboarding_badge_required">Required</string>
+    <string name="onboarding_badge_xiaomi">Xiaomi</string>
+    <string name="onboarding_finish">Finish setup</string>
 
     <!-- Month -->
     <string name="month_back_to_this_month">Back to this month</string>
@@ -84,12 +105,11 @@
     <string name="settings_default_calendar">Default calendar</string>
     <string name="settings_none_available">None available</string>
     <string name="settings_new_events_hint">New events are added here and sync through that account.</string>
-    <string name="settings_sync_title">Sync with Google</string>
+    <string name="settings_sync_title">Calendar sync</string>
     <string name="settings_hide_sync_details">Hide sync details</string>
     <string name="settings_show_sync_details">Show sync details</string>
     <string name="settings_sync_now">Sync now</string>
     <string name="settings_no_synced_accounts_long">No synced accounts — events here stay on this phone.</string>
-    <string name="settings_phone_sync_settings">Phone sync settings</string>
     <string name="settings_sync_verdict_phone_off">Phone auto-sync is off, so nothing uploads</string>
     <string name="settings_sync_verdict_calendar_off">Calendar sync is off for %1$s</string>
     <string name="settings_sync_verdict_up_to_date">Everything is on Google</string>
@@ -101,59 +121,27 @@
         <item quantity="one">%1$d change stuck for %2$s</item>
         <item quantity="other">%1$d changes stuck for %2$s</item>
     </plurals>
-    <string name="settings_sync_status_up_to_date">Up to date</string>
-    <string name="settings_sync_status_waiting">%1$d waiting</string>
-    <string name="settings_sync_status_off">Off</string>
-    <string name="settings_sync_status_syncing">Syncing</string>
-    <string name="settings_sync_check_phone">Phone auto-sync</string>
-    <string name="settings_sync_check_calendar_plain">Calendar sync</string>
-    <string name="settings_sync_check_reach_plain">Schedule can reach it</string>
-    <string name="settings_sync_check_last_upload">Last upload</string>
-    <string name="settings_sync_last_took">took %1$s</string>
-    <string name="settings_sync_check_on">On</string>
-    <string name="settings_sync_check_unknown">Unknown</string>
+    <string name="settings_sync_chip_on">Sync on</string>
+    <string name="settings_sync_chip_off">Sync off</string>
+    <string name="settings_sync_chip_unknown">Sync ?</string>
+    <string name="settings_sync_allow_faster">Allow faster uploads</string>
+    <string name="settings_sync_last_upload_ago">Last upload %1$s ago</string>
+    <plurals name="settings_sync_waiting_line">
+        <item quantity="one">%d change waiting</item>
+        <item quantity="other">%d changes waiting</item>
+    </plurals>
     <string name="settings_sync_text_elapsed">%1$s · %2$s</string>
-    <string name="settings_sync_last_took_ago">took %1$s · %2$s ago</string>
-    <string name="settings_sync_status_uploading">Uploading</string>
-    <string name="settings_sync_a11y_ok">OK</string>
-    <string name="settings_sync_a11y_attention">Needs attention</string>
-    <string name="settings_sync_a11y_active">In progress</string>
-    <string name="settings_sync_times_caveat">Times are as Schedule saw them, so they can read long if the app was closed.</string>
-    <string name="settings_sync_check_not_uploadable">Won\'t upload</string>
-    <string name="settings_sync_check_uploads">Uploads</string>
     <string name="settings_sync_turn_on">Turn on</string>
-    <string name="settings_sync_allow">Allow</string>
     <string name="settings_sync_fix_hint">If changes stay stuck, check that battery saving isn\'t stopping background sync.</string>
     <string name="settings_about">About</string>
     <string name="settings_about_body">Schedule reads the calendars already synced to this device. No account, no server, no analytics — nothing typed or scheduled here leaves the phone.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_syncing_now">Syncing now…</string>
-    <string name="settings_sync_state_phone_off">Phone auto-sync is off. Nothing uploads until it\'s back on.</string>
-    <string name="settings_sync_state_calendar_off">Calendar sync is off for this account. Changes stay on this phone.</string>
-    <plurals name="settings_sync_state_uploading">
-        <item quantity="one">Uploading %d change now…</item>
-        <item quantity="other">Uploading %d changes now…</item>
-    </plurals>
-    <plurals name="settings_sync_state_waiting">
-        <item quantity="one">%d change waiting to upload</item>
-        <item quantity="other">%d changes waiting to upload</item>
-    </plurals>
-    <plurals name="settings_sync_state_waiting_queued">
-        <item quantity="one">%d change waiting · upload queued</item>
-        <item quantity="other">%d changes waiting · upload queued</item>
-    </plurals>
-    <plurals name="settings_sync_state_waiting_not_queued">
-        <item quantity="one">%d change waiting · no upload queued, tap Sync now</item>
-        <item quantity="other">%d changes waiting · no upload queued, tap Sync now</item>
-    </plurals>
-    <string name="settings_sync_state_checking">Up to date · checking Google for changes…</string>
-    <string name="settings_sync_state_up_to_date">Up to date</string>
     <string name="settings_sync_state_unknown">Upload status unknown</string>
     <plurals name="settings_not_uploadable">
         <item quantity="one">%d change is in a calendar Google won\'t upload (sync off or read-only)</item>
         <item quantity="other">%d changes are in calendars Google won\'t upload (sync off or read-only)</item>
     </plurals>
-    <string name="settings_not_visible">Schedule can\'t ask this account alone, so its uploads wait behind other accounts.</string>
     <string name="settings_duration_seconds">%1$d s</string>
     <string name="settings_duration_min_sec">%1$d min %2$d s</string>
     <string name="settings_duration_hr_min">%1$d h %2$d min</string>

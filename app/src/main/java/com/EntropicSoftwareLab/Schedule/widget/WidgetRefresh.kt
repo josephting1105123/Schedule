@@ -66,8 +66,9 @@ class WidgetRefreshWorker(
 }
 
 /**
- * Redraws both widgets whenever the calendar provider changes — a Google sync, another calendar app,
- * this app — without waiting for the 30-minute [WidgetRefreshWorker].
+ * Redraws all three widgets (Agenda, Day at a glance, Month) whenever the calendar provider
+ * changes — a Google sync, another calendar app, this app — without waiting for the 30-minute
+ * [WidgetRefreshWorker].
  *
  * A content-URI trigger fires once and is spent, so each run arms the next before it returns.
  * `APPEND_OR_REPLACE` rather than `REPLACE`: this run is itself the unique work, and replacing it
@@ -116,12 +117,12 @@ class CalendarChangeWorker(
 /**
  * Push an update now — call after any write so no widget contradicts the app.
  *
- * Every widget, each in its own `runCatching`: one failing must not skip the other, and a widget
+ * Every widget, each in its own `runCatching`: one failing must not skip the others, and a widget
  * type nobody has placed on a launcher still throws from `updateAll` on some hosts. One function
  * rather than one call per widget at each site, so a new write path can't refresh half of them.
  */
 suspend fun refreshWidgets(context: Context) {
-    // Before either update: a refresh means the calendar may have changed, and the month widget
+    // Before any update: a refresh means the calendar may have changed, and the month widget
     // would otherwise redraw from the neighbour months it warmed before the change.
     MonthWidgetCache.clear()
     runCatching { TodayWidget().updateAll(context) }

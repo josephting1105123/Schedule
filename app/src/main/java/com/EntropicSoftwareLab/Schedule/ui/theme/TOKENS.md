@@ -13,11 +13,11 @@ Surfaces in this app that must stay in lockstep:
 
 1. **Compose** — `ui/theme/Color.kt`, `AppColors.kt`, `Dimens.kt`, `Elevation.kt`, `Motion.kt`, `Glass.kt`
 2. **Glance widget** — `widget/WidgetTokens.kt`. Glance runs outside the Compose composition, so it cannot
-   read `LocalAppColors`; the widget re-declares the handful of colours it needs as `ColorProvider`s
-   from the same hex values below. Glance requires a `night` value on every `ColorProvider`, so the
-   Today widget's providers set `night` equal to `day` — the widget stays light even if the system is
-   in dark mode, matching the app. (`MonthWidgetColors` is a separate, deliberately fixed dark-plum
-   design and is untouched by any of this.)
+   read `LocalAppColors`. The file now holds only what the Month widget still needs: its fallback
+   event fill (`LightGreen`, with the deprecated alias `DarkGreen`) and its two on-fill inks
+   (`OnLightFill`, `OnDarkFill`), plus `MonthWidgetColors`, a separate, deliberately fixed dark-plum
+   design. The two Today widgets (Agenda, Day at a glance) don't use this file: they take their
+   colours from `GlanceTheme` (wallpaper colours on Android 12 and later).
 
 There is deliberately **no XML theme mirror** — this app is 100% Compose. `res/values/themes.xml` carries
 only the startup window background, which tracks `background` below via `@color/window_background`.

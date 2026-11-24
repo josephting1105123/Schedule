@@ -5,32 +5,17 @@ import androidx.glance.text.FontFamily
 import androidx.compose.ui.graphics.Color
 
 /**
- * The widget's copy of the design tokens.
+ * What the Month widget still reads from the app's design tokens, duplicated here by hand.
  *
  * Glance renders outside the Compose composition, so it can't read `LocalAppColors`. These values
- * are duplicated from `ui/theme/Color.kt` by hand — if a colour changes there, change it here too
- * (TOKENS.md records this as the second surface).
- *
- * A widget sits on the launcher's wallpaper rather than on the app's window, so its surface is the
- * app's **card** colour and there is no `background` here at all: what the user is looking at is one
- * card floating on whatever is behind it, which is exactly what the Month page's calendar is.
- *
- * The app is light-only now. Every [ColorProvider] here still carries a `night` value (Glance
- * requires one), but it is set equal to `day` on purpose, so nothing here follows system dark mode,
- * matching the app itself. Of this object only `DarkGreen`, `OnLightFill` and `OnDarkFill` are still
- * read, by the widgets' chip helpers; the light card and text providers have no readers left. The two
- * Today widgets (Agenda, Day at a glance) take `GlanceTheme.colors` (Material You) instead, and
- * `MonthWidgetColors` below is the month widget's deliberate fixed dark-plum design, never day/night.
+ * are copied from `ui/theme/Color.kt` — if a colour changes there, change it here too (TOKENS.md
+ * records this as the second surface). Only the fallback event fill and the two inks drawn on an
+ * event's own colour are left; the two Today widgets (Agenda, Day at a glance) take
+ * `GlanceTheme.colors` (Material You) and `FontFamily.SansSerif` instead, and
+ * `MonthWidgetColors` below is the month widget's deliberate fixed dark-plum design, never
+ * day/night.
  */
 internal object WidgetTokens {
-    val LightCard = Color(0xFFFFFFFF)
-
-    private val LightTextPrimary = Color(0xFF18202B)
-    private val LightTextSecondary = Color(0xFF4F5A6B)
-
-    /** WCAG-safe blue accent text on the card (>=4.5:1). Matches `AppColors.greenText`. */
-    private val LightGreenText = Color(0xFF1F5AE6)
-
     /** Blue accent fill. Matches `AppColors.green`. Name is historical, see `AppColors.green`. */
     val LightGreen = Color(0xFF2F6BFF)
 
@@ -42,36 +27,12 @@ internal object WidgetTokens {
     @Deprecated("Use LightGreen — this alias exists only for MonthWidget.kt's existing call site.")
     val DarkGreen = LightGreen
 
-    // 1dp glass border on the app's cards; on the widget it rules one week off from the next, the
-    // same job MonthChipLayer gives it on the Month page.
-    private val LightHairline = Color(0x1418202B)   // ink @ 8%
-
-    // A day from the neighbouring month stays readable and recedes — DayCell's
-    // `textSecondary.copy(alpha = 0.4f)`, flattened here because Glance has no alpha modifier.
-    private val LightOutOfMonth = Color(0x664F5A6B)
-
     // Text drawn *on* an event's own colour, which is not the card colour. A band can be any colour
     // the user picked, so the month widget chooses between these by the fill's luminance rather than
     // by the theme — a pale band still needs dark text on it. Raw Colors, not ColorProviders: the
     // choice is made per band before a provider is built.
     val OnLightFill = Color(0xFF101215)
     val OnDarkFill = Color(0xFFFAFAFA)
-
-    val card = ColorProvider(day = LightCard, night = LightCard)
-    val textPrimary = ColorProvider(day = LightTextPrimary, night = LightTextPrimary)
-    val textSecondary = ColorProvider(day = LightTextSecondary, night = LightTextSecondary)
-    val outOfMonth = ColorProvider(day = LightOutOfMonth, night = LightOutOfMonth)
-    val greenText = ColorProvider(day = LightGreenText, night = LightGreenText)
-    val green = ColorProvider(day = LightGreen, night = LightGreen)
-    val hairline = ColorProvider(day = LightHairline, night = LightHairline)
-
-    /**
-     * The app is a single-voice serif system (`ui/theme/Type.kt`), and a widget rendering the same
-     * calendar in the platform sans-serif reads as a different app's. `FontFamily.Serif` resolves to
-     * the platform serif, which is what `FontFamily.Serif` in Compose resolves to as well, so the two
-     * surfaces land on the same typeface without either bundling a font.
-     */
-    val serif = FontFamily.Serif
 }
 
 /**

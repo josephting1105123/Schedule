@@ -5,17 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import com.EntropicSoftwareLab.Schedule.R
 import com.EntropicSoftwareLab.Schedule.data.calendar.SyncAdvice
-import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 
 fun Context.isGoogleCalendarInstalled(): Boolean =
     runCatching { packageManager.getApplicationInfo(SyncAdvice.GOOGLE_CALENDAR_PACKAGE, 0); true }
@@ -50,23 +40,3 @@ fun Context.openAutostartSettings() {
 }
 
 private const val ACTION_MIUI_AUTOSTART = "miui.intent.action.OP_AUTO_START"
-
-/** The Autostart advice and a button to the page that has the switch. Nothing off Xiaomi phones. */
-@Composable
-fun AutostartTip(highlight: Boolean, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val show = remember { context.shouldShowAutostartTip() }
-    if (!show) return
-    val colors = AppThemeTokens.colors
-    Column(modifier) {
-        Text(
-            text = stringResource(R.string.autostart_tip_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (highlight) colors.warning else colors.textSecondary,
-        )
-        AppTextButton(
-            text = stringResource(R.string.autostart_open_settings),
-            onClick = { context.openAutostartSettings() },
-        )
-    }
-}
