@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What the launcher's widget picker shows for DayGlanceWidget before it is placed.
+
+  Plain RemoteViews-compatible containers in neutral light tones: Glance 1.1.1 has no preview API.
+  Two rows of 12 hour cells with hour 10 highlighted as the current hour.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#F1F4EC"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp"
+    tools:ignore="HardcodedText">
+
+    <!-- Label row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="18dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:textColor="#43483F"
+            android:text="Day at a glance" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:textColor="#43483F"
+            android:text="Tue 24 Nov" />
+    </LinearLayout>
+
+    <!-- Morning half: 00..11 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="38dp"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal">
+
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="00" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="01" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="02" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="03" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="04" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="05" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="06" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="07" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="08" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="09" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell.Current"><TextView style="@style/WidgetPreview.GlanceHour.Current" android:text="10" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell.Last"><TextView style="@style/WidgetPreview.GlanceHour" android:text="11" /></FrameLayout>
+    </LinearLayout>
+
+    <!-- Afternoon half: 12..23 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="38dp"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal">
+
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="12" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="13" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="14" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="15" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="16" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="17" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="18" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="19" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="20" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="21" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="22" /></FrameLayout>
+        <FrameLayout style="@style/WidgetPreview.GlanceCell.Last"><TextView style="@style/WidgetPreview.GlanceHour" android:text="23" /></FrameLayout>
+    </LinearLayout>
+
+</LinearLayout>

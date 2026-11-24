@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Schedule</string>
-    <string name="widget_description">Today\'s remaining events at a glance.</string>
+    <string name="widget_description">Today\'s agenda as a scrolling list.</string>
+    <string name="day_glance_widget_description">Your day as 24 hour cells, like the Today page.</string>
     <string name="month_widget_description">The month, with your events on it.</string>
 </resources>

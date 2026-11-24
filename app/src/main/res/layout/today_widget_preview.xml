@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What the launcher's widget picker shows for TodayWidget (Agenda) before it is placed.
+
+  Plain RemoteViews-compatible containers in neutral light tones: Glance 1.1.1 has no preview API.
+  Keep in step with TodayWidget.kt by eye.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#F1F4EC"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp"
+    tools:ignore="HardcodedText">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="24dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif"
+            android:textSize="13sp"
+            android:maxLines="1"
+            android:textColor="#43483F"
+            android:text="Agenda" />
+
+        <FrameLayout
+            android:layout_width="32dp"
+            android:layout_height="24dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:tint="#43483F"
+                android:src="@drawable/ic_widget_add" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="6dp" />
+
+    <!-- Rows -->
+    <LinearLayout style="@style/WidgetPreview.TodayRow">
+        <FrameLayout style="@style/WidgetPreview.TodayBar" android:background="#039BE5" />
+        <LinearLayout style="@style/WidgetPreview.TodayTimes">
+            <TextView style="@style/WidgetPreview.TodayStart" android:text="09:00" />
+            <TextView style="@style/WidgetPreview.TodayEnd" android:text="10:30" />
+        </LinearLayout>
+        <TextView style="@style/WidgetPreview.TodayTitle" android:text="Team standup" />
+    </LinearLayout>
+
+    <LinearLayout style="@style/WidgetPreview.TodayRow">
+        <FrameLayout style="@style/WidgetPreview.TodayBar" android:background="#0B8043" />
+        <LinearLayout style="@style/WidgetPreview.TodayTimes">
+            <TextView style="@style/WidgetPreview.TodayStart" android:text="12:00" />
+            <TextView style="@style/WidgetPreview.TodayEnd" android:text="13:00" />
+        </LinearLayout>
+        <TextView style="@style/WidgetPreview.TodayTitle" android:text="Lunch with Mei" />
+    </LinearLayout>
+
+    <LinearLayout style="@style/WidgetPreview.TodayRow">
+        <FrameLayout style="@style/WidgetPreview.TodayBar" android:background="#8E24AA" />
+        <LinearLayout style="@style/WidgetPreview.TodayTimes">
+            <TextView style="@style/WidgetPreview.TodayStart" android:text="14:00" />
+            <TextView style="@style/WidgetPreview.TodayEnd" android:text="16:00" />
+        </LinearLayout>
+        <TextView style="@style/WidgetPreview.TodayTitle" android:text="Thesis writing" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -2,6 +2,15 @@
 
 The newest version is at the top.
 
+## 1.4.16
+
+Two Today widgets, taken from the Today page.
+
+- Day at a glance (4×2): the Today page's two rows of hour cells, 00 to 11 and 12 to 23. Each event is a bar across the hours it takes, the current hour is highlighted, and a task's deadline shows as a thin mark. Tap it to open Today.
+- Agenda (2×2, and you can stretch it): today's events as a list that scrolls, laid out like the Today page's agenda, with the start time over the end time and all-day events first. Events that have ended drop off. Tap an event to see the whole day, or + to add one. The old Today widget turns into this one.
+- Both widgets take their colours from your wallpaper on Android 12 and later.
+- Both widgets now show a proper preview when you pick them from the launcher's widget list. Before, the list showed "Couldn't add widget" instead of a preview.
+
 ## 1.4.15
 
 A clearer Sync with Google card.

@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Styles for layout/month_widget_preview.xml only.
+  Styles for layout/month_widget_preview.xml, layout/today_widget_preview.xml, and
+  layout/day_glance_widget_preview.xml.
 
-  The preview is a still of the widget written in plain views, because the widget itself is Glance
-  and Glance 1.1.1 has no way to render a preview (`providePreview` and `setWidgetPreviews` arrived
-  after it). Forty-two day cells written out longhand would be six attributes each; these carry the
-  repetition so the layout stays readable enough to keep in step with MonthWidget.kt by eye.
+  The preview is a still of the widget written in plain containers, because the widget itself is
+  Glance and Glance 1.1.1 has no way to render a preview (`providePreview` and `setWidgetPreviews`
+  arrived after it). Forty-two day cells written out longhand would be six attributes each; these
+  carry the repetition so the layout stays readable enough to keep in step with MonthWidget.kt by eye.
 
   The dots are AAPT's implicit inheritance — `WidgetPreview.Day` extends `WidgetPreview` — so the
   base below has to exist even though it sets only the one thing every child shares.
@@ -94,7 +95,7 @@
         <item name="android:textColor">@color/widget_month_text</item>
     </style>
 
-    <!-- The lavender "+" pill. -->
+    <!-- The lavender "+" pill (month widget). -->
     <style name="WidgetPreview.AddPill">
         <item name="android:layout_width">52dp</item>
         <item name="android:layout_height">30dp</item>
@@ -103,6 +104,86 @@
         <item name="android:background">@drawable/widget_month_add_pill</item>
         <item name="android:textSize">22sp</item>
         <item name="android:textColor">@color/widget_month_on_pill</item>
+    </style>
+
+    <!-- layout/today_widget_preview.xml: Agenda rows (colour bar, start/end times, title). -->
+    <style name="WidgetPreview.TodayRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingTop">5dp</item>
+        <item name="android:paddingBottom">5dp</item>
+    </style>
+
+    <style name="WidgetPreview.TodayBar">
+        <item name="android:layout_width">3dp</item>
+        <item name="android:layout_height">32dp</item>
+        <item name="android:layout_marginEnd">8dp</item>
+    </style>
+
+    <style name="WidgetPreview.TodayTimes">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginEnd">8dp</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+    <style name="WidgetPreview.TodayStart">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">#1A1C18</item>
+    </style>
+
+    <style name="WidgetPreview.TodayEnd">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">#43483F</item>
+    </style>
+
+    <style name="WidgetPreview.TodayTitle">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:textColor">#1A1C18</item>
+    </style>
+
+    <!-- layout/day_glance_widget_preview.xml: 24 hour cells across two half-day rows. -->
+    <style name="WidgetPreview.GlanceCell">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginEnd">2dp</item>
+        <item name="android:background">#DFE6D8</item>
+        <item name="android:paddingStart">3dp</item>
+        <item name="android:paddingTop">2dp</item>
+    </style>
+
+    <style name="WidgetPreview.GlanceCell.Current">
+        <item name="android:background">#C5E8B8</item>
+    </style>
+
+    <style name="WidgetPreview.GlanceCell.Last">
+        <item name="android:layout_marginEnd">0dp</item>
+    </style>
+
+    <style name="WidgetPreview.GlanceHour">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">#43483F</item>
+    </style>
+
+    <style name="WidgetPreview.GlanceHour.Current">
+        <item name="android:textColor">#1A1C18</item>
     </style>
 
 </resources>

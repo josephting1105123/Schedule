@@ -760,7 +760,7 @@ private fun DotCluster(day: DayDots, overrides: Map<Long, Int>, geo: Geometry) {
  * back as. An event with no colour of its own falls back to the brand green, as `asCalendarColor`
  * does on every in-app surface — a band with no background would be a title floating on the card.
  */
-private fun Int?.orBrand(): Color =
+internal fun Int?.orBrand(): Color =
     if (this == null || this == 0) WidgetTokens.DarkGreen else Color(this or ALPHA_OPAQUE)
 
 /**
@@ -771,7 +771,7 @@ private fun Int?.orBrand(): Color =
  * from the user's account and a free colour picker, so they span the whole wheel and one fixed text
  * colour is unreadable on some of them however carefully it is picked.
  */
-private fun onChipColor(fill: Color): Color =
+internal fun onChipColor(fill: Color): Color =
     if (fill.luminance() > 0.179f) WidgetTokens.OnLightFill else WidgetTokens.OnDarkFill
 
 /** Tapping `+` on a month that isn't this one should land on that month, not on today. */

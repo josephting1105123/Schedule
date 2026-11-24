@@ -116,7 +116,7 @@ class CalendarChangeWorker(
 /**
  * Push an update now — call after any write so no widget contradicts the app.
  *
- * Both widgets, each in its own `runCatching`: one failing must not skip the other, and a widget
+ * Every widget, each in its own `runCatching`: one failing must not skip the other, and a widget
  * type nobody has placed on a launcher still throws from `updateAll` on some hosts. One function
  * rather than one call per widget at each site, so a new write path can't refresh half of them.
  */
@@ -125,6 +125,8 @@ suspend fun refreshWidgets(context: Context) {
     // would otherwise redraw from the neighbour months it warmed before the change.
     MonthWidgetCache.clear()
     runCatching { TodayWidget().updateAll(context) }
+        .onFailure { if (it is CancellationException) throw it }
+    runCatching { DayGlanceWidget().updateAll(context) }
         .onFailure { if (it is CancellationException) throw it }
     runCatching { MonthWidget().updateAll(context) }
         .onFailure { if (it is CancellationException) throw it }

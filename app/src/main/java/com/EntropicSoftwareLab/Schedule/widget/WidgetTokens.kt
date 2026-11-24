@@ -16,9 +16,11 @@ import androidx.compose.ui.graphics.Color
  * card floating on whatever is behind it, which is exactly what the Month page's calendar is.
  *
  * The app is light-only now. Every [ColorProvider] here still carries a `night` value (Glance
- * requires one), but it is set equal to `day` on purpose — the Today widget stays the same light
- * card in system dark mode rather than following it, matching the app itself. `MonthWidgetColors`
- * below is unrelated to this and untouched: it is a deliberate fixed dark-plum design, never day/night.
+ * requires one), but it is set equal to `day` on purpose, so nothing here follows system dark mode,
+ * matching the app itself. Of this object only `DarkGreen`, `OnLightFill` and `OnDarkFill` are still
+ * read, by the widgets' chip helpers; the light card and text providers have no readers left. The two
+ * Today widgets (Agenda, Day at a glance) take `GlanceTheme.colors` (Material You) instead, and
+ * `MonthWidgetColors` below is the month widget's deliberate fixed dark-plum design, never day/night.
  */
 internal object WidgetTokens {
     val LightCard = Color(0xFFFFFFFF)

@@ -4,16 +4,22 @@ import android.content.Context
 import android.text.format.DateFormat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
-import androidx.glance.action.actionStartActivity
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.appWidgetBackground
+import androidx.glance.appwidget.cornerRadius
+import androidx.glance.appwidget.lazy.LazyColumn
+import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
@@ -25,28 +31,29 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
 import androidx.glance.layout.width
-import androidx.glance.text.FontWeight
+import androidx.glance.text.FontFamily
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import com.EntropicSoftwareLab.Schedule.MainActivity
-import com.EntropicSoftwareLab.Schedule.data.accounts.AccountPrefsRepository
+import com.EntropicSoftwareLab.Schedule.R
 import com.EntropicSoftwareLab.Schedule.data.appearance.BrandColorAssignment
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorRepository
 import com.EntropicSoftwareLab.Schedule.data.appearance.EventColorResolver
-import com.EntropicSoftwareLab.Schedule.data.calendar.CalendarRepository
 import com.EntropicSoftwareLab.Schedule.data.calendar.EventInstance
+import com.EntropicSoftwareLab.Schedule.data.calendar.WeekPaging
 import com.EntropicSoftwareLab.Schedule.ui.components.clockFormatter
 import com.EntropicSoftwareLab.Schedule.ui.theme.EventColorPalette
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-private val HEADER_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM")
-
-/** How many events fit before the widget becomes a wall of text. */
-private const val MAX_ROWS = 5
+private val CARD_RADIUS = 22.dp
+private val CARD_PADDING = 14.dp
+private val HEADER_HEIGHT = 24.dp
 
 /** Same order the picker shows — see [EventColorPalette.assignmentOrder]. */
 private val BRAND_PALETTE: List<Int> = EventColorPalette.assignmentOrder.map { it.argb }
@@ -59,26 +66,33 @@ class TodayWidget : GlanceAppWidget() {
 
         // Read before provideContent so the first frame already has data — Glance has no loading
         // state worth showing at this size.
-        val events = try {
-            // All-day rows are dropped below, and a birthday is an all-day row, so nothing here needs
-            // to strip hidden birthdays; the account filter is all this list takes from the prefs.
-            CalendarRepository(context.contentResolver, accountPrefs = AccountPrefsRepository(context).prefs)
-                .eventsOnDay(today, zone)
-                .filterNot { it.allDay }
-                .sortedBy { it.startMillis }
+        val byDate: Map<LocalDate, List<EventInstance>> = try {
+            // The month widget's cache, so a birthday the user hides is already gone — all-day rows
+            // are shown here, and a birthday is one.
+            MonthWidgetCache.load(context, YearMonth.from(today), zone, WeekPaging.FIRST_DAY)
         } catch (e: SecurityException) {
             // Permission not granted yet, or revoked. Show the empty state rather than crashing the
             // host launcher.
-            emptyList()
+            emptyMap()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            emptyList()
+            emptyMap()
         }
 
-        // The user's picks, then a brand colour for anything nobody coloured — the same rule the app
-        // and the month widget apply, so one event is never two colours across three surfaces.
+        val todays = byDate[today].orEmpty()
+        val allDay = todays.filter { it.allDay }.sortedBy { it.title }
+        val timed = todays.filterNot { it.allDay }.sortedBy { it.startMillis }
+
+        // The user's picks, then a brand colour for anything nobody coloured — the same rule the app's
+        // Today and Month pages apply, over the whole 42 days so a multi-day event keeps one colour.
         val colors = try {
             val picks = EventColorRepository(context).overrides.first()
-            BrandColorAssignment.forDay(events, picks, BRAND_PALETTE)
+            BrandColorAssignment.forDates(byDate, picks, BRAND_PALETTE)
+        } catch (e: SecurityException) {
+            emptyMap()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emptyMap()
         }
@@ -88,7 +102,16 @@ class TodayWidget : GlanceAppWidget() {
 
         provideContent {
             GlanceTheme {
-                WidgetBody(today = today, events = events, colors = colors, zone = zone, is24Hour = is24Hour)
+                WidgetBody(
+                    context = context,
+                    today = today,
+                    allDay = allDay,
+                    timed = timed,
+                    hadTimed = timed.isNotEmpty(),
+                    colors = colors,
+                    zone = zone,
+                    is24Hour = is24Hour,
+                )
             }
         }
     }
@@ -96,90 +119,188 @@ class TodayWidget : GlanceAppWidget() {
 
 @Composable
 private fun WidgetBody(
+    context: Context,
     today: LocalDate,
-    events: List<EventInstance>,
+    allDay: List<EventInstance>,
+    timed: List<EventInstance>,
+    hadTimed: Boolean,
     colors: Map<Long, Int>,
     zone: ZoneId,
     is24Hour: Boolean,
 ) {
     val timeFormat = remember(is24Hour) { clockFormatter(is24Hour) }
     val now = System.currentTimeMillis()
-    val upcoming = events.filter { it.endMillis > now }.take(MAX_ROWS)
+    val remaining = timed.filter { it.endMillis > now }
 
+    // 3 children (limit 10): header, 6dp spacer, body.
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(WidgetTokens.card)
-            .padding(12.dp)
-            .clickable(actionStartActivity<MainActivity>()),
+            .appWidgetBackground()
+            .background(GlanceTheme.colors.widgetBackground)
+            // Ignored on API 29/30; the card is square there.
+            .cornerRadius(CARD_RADIUS)
+            .padding(CARD_PADDING),
     ) {
-        Text(
-            text = today.format(HEADER_FORMAT),
-            style = TextStyle(
-                color = WidgetTokens.textPrimary,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-            ),
-        )
+        Header(context = context, today = today)
         Spacer(GlanceModifier.height(6.dp))
 
-        if (upcoming.isEmpty()) {
-            Text(
-                text = if (events.isEmpty()) "Nothing scheduled" else "Nothing left today",
-                style = TextStyle(color = WidgetTokens.greenText, fontSize = 14.sp),
-            )
-        } else {
-            upcoming.forEach { event ->
-                EventLine(
-                    event = event, colors = colors, zone = zone,
-                    timeFormat = timeFormat, is24Hour = is24Hour,
-                )
-                Spacer(GlanceModifier.height(4.dp))
-            }
-            val hidden = events.count { it.endMillis > now } - upcoming.size
-            if (hidden > 0) {
+        if (allDay.isEmpty() && remaining.isEmpty()) {
+            Box(
+                modifier = GlanceModifier
+                    .fillMaxWidth()
+                    .defaultWeight()
+                    .clickable(actionStartActivity(WidgetLaunchIntents.openDay(context, today))),
+                contentAlignment = Alignment.Center,
+            ) {
                 Text(
-                    text = "+$hidden more",
-                    style = TextStyle(color = WidgetTokens.textSecondary, fontSize = 12.sp),
+                    text = if (hadTimed) "Nothing left today" else "Nothing scheduled",
+                    style = TextStyle(
+                        color = GlanceTheme.colors.onSurfaceVariant,
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.SansSerif,
+                    ),
                 )
+            }
+        } else {
+            LazyColumn(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
+                // instanceId, not eventId: recurring instances share an eventId, and a repeated item
+                // id makes the list reuse one row for both.
+                items(allDay, itemId = { it.instanceId }) { event ->
+                    AgendaRow(
+                        context = context,
+                        today = today,
+                        event = event,
+                        colors = colors,
+                        zone = zone,
+                        is24Hour = is24Hour,
+                        timeFormat = timeFormat,
+                    )
+                }
+                items(remaining, itemId = { it.instanceId }) { event ->
+                    AgendaRow(
+                        context = context,
+                        today = today,
+                        event = event,
+                        colors = colors,
+                        zone = zone,
+                        is24Hour = is24Hour,
+                        timeFormat = timeFormat,
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun EventLine(
+private fun Header(context: Context, today: LocalDate) {
+    // 2 children (limit 10): "Agenda" label and "+" button.
+    Row(
+        modifier = GlanceModifier.fillMaxWidth().height(HEADER_HEIGHT),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Agenda",
+            maxLines = 1,
+            style = TextStyle(
+                color = GlanceTheme.colors.onSurfaceVariant,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.SansSerif,
+            ),
+            modifier = GlanceModifier
+                .defaultWeight()
+                .clickable(actionStartActivity(WidgetLaunchIntents.openDay(context, today))),
+        )
+        Box(
+            modifier = GlanceModifier
+                .width(32.dp)
+                .height(24.dp)
+                .clickable(actionStartActivity(WidgetLaunchIntents.addEvent(context, today))),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                provider = ImageProvider(R.drawable.ic_widget_add),
+                contentDescription = "Add event",
+                modifier = GlanceModifier.size(20.dp),
+                colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurfaceVariant),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AgendaRow(
+    context: Context,
+    today: LocalDate,
     event: EventInstance,
     colors: Map<Long, Int>,
     zone: ZoneId,
-    timeFormat: DateTimeFormatter,
     is24Hour: Boolean,
+    timeFormat: DateTimeFormatter,
 ) {
-    val argb = EventColorResolver.argbFor(event, colors)
+    val fill = EventColorResolver.argbFor(event, colors).orBrand()
+    // 5 children (limit 10): colour bar, spacer, time column, spacer, title.
     Row(
-        modifier = GlanceModifier.fillMaxWidth(),
+        modifier = GlanceModifier
+            .fillMaxWidth()
+            .padding(vertical = 5.dp)
+            .clickable(actionStartActivity(WidgetLaunchIntents.dayAgenda(context, today))),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // A 3dp rule rather than a dot: at this size a dot reads as a bullet, and the rule lines up
-        // down the list so two events sharing a colour are obvious at a glance.
         Box(
-            GlanceModifier
+            modifier = GlanceModifier
                 .width(3.dp)
-                .height(14.dp)
-                .let { m -> if (argb == null) m.background(WidgetTokens.green) else m.background(Color(argb)) },
+                .height(32.dp)
+                .background(fill)
+                .cornerRadius(2.dp),
         ) {}
-        Spacer(GlanceModifier.width(6.dp))
-        Text(
-            text = event.localStart(zone).format(timeFormat),
-            maxLines = 1,
-            style = TextStyle(color = WidgetTokens.greenText, fontSize = 13.sp),
-            // "12:30 PM" needs more room than "12:30".
-            modifier = GlanceModifier.width(if (is24Hour) 46.dp else 64.dp),
-        )
+        Spacer(GlanceModifier.width(8.dp))
+        // 1 child (all-day) or 2 children (timed); limit 10.
+        Column(modifier = GlanceModifier.width(if (is24Hour) 40.dp else 58.dp)) {
+            if (event.allDay) {
+                Text(
+                    text = "All day",
+                    maxLines = 1,
+                    style = TextStyle(
+                        color = GlanceTheme.colors.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.SansSerif,
+                    ),
+                )
+            } else {
+                val start = maxOf(event.localStart(zone), today.atStartOfDay())
+                val end = minOf(event.localEnd(zone), today.plusDays(1).atStartOfDay())
+                Text(
+                    text = start.format(timeFormat),
+                    maxLines = 1,
+                    style = TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.SansSerif,
+                    ),
+                )
+                Text(
+                    text = end.format(timeFormat),
+                    maxLines = 1,
+                    style = TextStyle(
+                        color = GlanceTheme.colors.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.SansSerif,
+                    ),
+                )
+            }
+        }
+        Spacer(GlanceModifier.width(8.dp))
         Text(
             text = event.title,
+            modifier = GlanceModifier.defaultWeight(),
             maxLines = 1,
-            style = TextStyle(color = WidgetTokens.textPrimary, fontSize = 13.sp),
+            style = TextStyle(
+                color = GlanceTheme.colors.onSurface,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.SansSerif,
+            ),
         )
     }
 }

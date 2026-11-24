@@ -69,7 +69,7 @@
     </LinearLayout>
 
     <!-- Week 1 — July spilling in -->
-    <View style="@style/WidgetPreview.Rule" />
+    <FrameLayout style="@style/WidgetPreview.Rule" />
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -85,7 +85,7 @@
     </LinearLayout>
 
     <!-- Week 2 — today (the 5th), and a three-day band -->
-    <View style="@style/WidgetPreview.Rule" />
+    <FrameLayout style="@style/WidgetPreview.Rule" />
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -116,17 +116,17 @@
         android:orientation="horizontal"
         android:layout_marginTop="1dp">
 
-        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="2" />
+        <FrameLayout android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="2" />
         <TextView
             style="@style/WidgetPreview.Chip"
             android:layout_weight="3"
             android:background="#1E88C7"
             android:text="Work" />
-        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="2" />
+        <FrameLayout android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="2" />
     </LinearLayout>
 
     <!-- Week 3 — a band running the whole week -->
-    <View style="@style/WidgetPreview.Rule" />
+    <FrameLayout style="@style/WidgetPreview.Rule" />
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -154,7 +154,7 @@
     </LinearLayout>
 
     <!-- Week 4 — the same band, titled again because layout is packed per week -->
-    <View style="@style/WidgetPreview.Rule" />
+    <FrameLayout style="@style/WidgetPreview.Rule" />
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -182,7 +182,7 @@
     </LinearLayout>
 
     <!-- Week 5 — one day, so this is the chip that gets rounded -->
-    <View style="@style/WidgetPreview.Rule" />
+    <FrameLayout style="@style/WidgetPreview.Rule" />
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -202,7 +202,7 @@
         android:orientation="horizontal"
         android:layout_marginTop="1dp">
 
-        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+        <FrameLayout android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
         <TextView
             style="@style/WidgetPreview.Chip.OnDark"
             android:layout_weight="1"
@@ -211,11 +211,11 @@
             android:background="@drawable/widget_preview_chip"
             android:backgroundTint="#B05A4E"
             android:text="Proposal" />
-        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="5" />
+        <FrameLayout android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="5" />
     </LinearLayout>
 
     <!-- Week 6 — September spilling in -->
-    <View style="@style/WidgetPreview.Rule" />
+    <FrameLayout style="@style/WidgetPreview.Rule" />
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
