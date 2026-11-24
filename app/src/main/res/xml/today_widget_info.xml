@@ -4,9 +4,9 @@
      calendar twice per half hour. -->
 <!-- previewLayout is API 31+, like the month widget's; previewImage still covers 29 and 30. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="110dp"
+    android:minWidth="150dp"
     android:minHeight="110dp"
-    android:minResizeWidth="110dp"
+    android:minResizeWidth="150dp"
     android:minResizeHeight="80dp"
     android:targetCellWidth="2"
     android:targetCellHeight="2"

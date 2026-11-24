@@ -129,7 +129,9 @@ private val MONTH_AND_YEAR: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM
  * `‹`/`›` are lambda actions that change the shown month inside the running session — no broadcast,
  * no restart of [provideGlance] — and the session keeps the months either side loaded, re-warming
  * them in the background after every change, so a tap in either direction redraws from memory.
- * [MonthWidgetCache] sits underneath, so a session that has to start over still finds them.
+ * [MonthWidgetCache] sits underneath, so a session that has to start over still finds them. The
+ * session no longer waits for the provider before its first frame, so a tap that has to restart the
+ * session shows the new month's grid at once and its events when the query returns.
  */
 class MonthWidget : GlanceAppWidget() {
 
@@ -154,10 +156,6 @@ class MonthWidget : GlanceAppWidget() {
         val offsetDay = prefs[MonthWidgetKeys.OFFSET_DAY] ?: 0L
         val initialMonth = MonthWidgetState.monthFor(today, offset, offsetDay)
 
-        // The first frame already has its month's data, the same discipline TodayWidget follows, so
-        // there is no loading state to design at this size.
-        val initialEvents = loadMonth(context, initialMonth, zone, firstDayOfWeek) ?: emptyMap()
-
         val overrides = try {
             EventColorRepository(context).overrides.first()
         } catch (e: Exception) {
@@ -172,11 +170,9 @@ class MonthWidget : GlanceAppWidget() {
             // directly: the session recomposes with a month whose events are already in [loaded],
             // and the offset is persisted in the background for the next time the session starts.
             var shown by remember { mutableStateOf(initialMonth) }
-            val loaded = remember {
-                mutableStateMapOf<YearMonth, Map<LocalDate, List<EventInstance>>>().apply {
-                    put(initialMonth, initialEvents)
-                }
-            }
+            // Starts empty on purpose: the grid draws at once and the month's events arrive afterwards,
+            // in one assignment per month (see the LaunchedEffect below), never piecemeal.
+            val loaded = remember { mutableStateMapOf<YearMonth, Map<LocalDate, List<EventInstance>>>() }
             val scope = rememberCoroutineScope()
             // A calendar write or periodic refresh clears the cache and bumps this; a live session
             // would otherwise keep drawing the months it loaded before the change.
@@ -186,6 +182,7 @@ class MonthWidget : GlanceAppWidget() {
             // in the background, so the *next* tap in either direction also lands on data that is
             // already here. Months more than two away are dropped to keep the session small.
             LaunchedEffect(shown, generation) {
+                // `shown` is loaded first so the month on screen fills before the warm-up of its neighbours.
                 for (month in listOf(shown, shown.plusMonths(1), shown.minusMonths(1))) {
                     loadMonth(context, month, zone, firstDayOfWeek)?.let { loaded[month] = it }
                 }

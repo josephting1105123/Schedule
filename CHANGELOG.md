@@ -2,6 +2,13 @@
 
 The newest version is at the top.
 
+## 1.4.18
+
+- Day at a glance and Agenda have ‹ › buttons to look at the day before or after, as the Month widget does for months. Tap the date (Day at a glance) or the day's name (Agenda) to go back to today. Another day shows all its events, not just the ones still to come.
+- Day at a glance lines events up with their hours exactly; they used to drift a few pixels right across the row. Each event is now a block filling its hours under the hour number, with its title on up to two lines, and slivers too narrow for a title no longer show a lone "…".
+- The Month widget draws the new month's grid straight away when you tap ‹ or ›, and fills in that month's events together a moment later.
+- The Agenda widget can't be made narrower than its header buttons need.
+
 ## 1.4.17
 
 - New first-open setup: a privacy page (what Schedule reads, what stays on the phone and what reaches Google through calendar sync, with a link to the full policy) that you agree to, then a permissions page with Calendar access and, on Xiaomi, Redmi and POCO phones, Autostart for Google Calendar. It shows once after this update too.

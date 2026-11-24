@@ -5,9 +5,9 @@
 <!-- previewLayout is API 31+, like the month widget's; previewImage still covers 29 and 30. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="250dp"
-    android:minHeight="110dp"
+    android:minHeight="116dp"
     android:minResizeWidth="250dp"
-    android:minResizeHeight="110dp"
+    android:minResizeHeight="116dp"
     android:targetCellWidth="4"
     android:targetCellHeight="2"
     android:resizeMode="horizontal|vertical"
