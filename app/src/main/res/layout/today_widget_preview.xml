@@ -35,7 +35,33 @@
             android:text="Agenda" />
 
         <FrameLayout
-            android:layout_width="32dp"
+            android:layout_width="28dp"
+            android:layout_height="24dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:tint="#43483F"
+                android:src="@drawable/ic_widget_chevron_left" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:layout_width="28dp"
+            android:layout_height="24dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:tint="#43483F"
+                android:src="@drawable/ic_widget_chevron_right" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:layout_width="28dp"
             android:layout_height="24dp">
 
             <ImageView

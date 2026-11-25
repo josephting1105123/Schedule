@@ -8,6 +8,7 @@ The newest version is at the top.
 - Day at a glance lines events up with their hours exactly; they used to drift a few pixels right across the row. Each event is now a block filling its hours under the hour number, with its title on up to two lines, and slivers too narrow for a title no longer show a lone "…".
 - The Month widget draws the new month's grid straight away when you tap ‹ or ›, and fills in that month's events together a moment later.
 - The Agenda widget can't be made narrower than its header buttons need.
+- The Month widget's preview in the widget list shows a proper week again (one week had twelve days), and the Agenda and Day at a glance previews show their new ‹ › buttons.
 
 ## 1.4.17
 

@@ -20,7 +20,7 @@
     <!-- Label row -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="18dp"
+        android:layout_height="24dp"
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
@@ -42,6 +42,32 @@
             android:maxLines="1"
             android:textColor="#43483F"
             android:text="Tue 24 Nov" />
+
+        <FrameLayout
+            android:layout_width="28dp"
+            android:layout_height="24dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:tint="#43483F"
+                android:src="@drawable/ic_widget_chevron_left" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:layout_width="28dp"
+            android:layout_height="24dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:tint="#43483F"
+                android:src="@drawable/ic_widget_chevron_right" />
+        </FrameLayout>
     </LinearLayout>
 
     <!-- Morning half: 00..11 -->

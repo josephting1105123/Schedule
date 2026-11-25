@@ -100,15 +100,6 @@
         <TextView style="@style/WidgetPreview.Day" android:text="6" />
         <TextView style="@style/WidgetPreview.Day" android:text="7" />
         <TextView style="@style/WidgetPreview.Day" android:text="8" />
-
-        <FrameLayout style="@style/WidgetPreview.DayCell">
-            <TextView style="@style/WidgetPreview.Today" android:text="5" />
-        </FrameLayout>
-
-        <TextView style="@style/WidgetPreview.Day" android:text="6" />
-        <TextView style="@style/WidgetPreview.Day" android:text="7" />
-        <TextView style="@style/WidgetPreview.Day" android:text="8" />
-        <TextView style="@style/WidgetPreview.Day" android:text="9" />
     </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
