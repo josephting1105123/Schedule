@@ -30,6 +30,9 @@
     <string name="perm_granted">Calendar access granted</string>
     <string name="perm_autostart_body">Turn on Autostart for Google Calendar as well. It uploads the events you add here, and without Autostart they can take minutes to reach Google. In the list, it\'s the Calendar with the blue 31 icon.</string>
     <string name="autostart_open_settings">Open Autostart settings</string>
+    <string name="perm_battery_body_xiaomi">Set Google Calendar\'s Battery saver to No restrictions. Otherwise the phone can stop it syncing while it isn\'t open, and new events wait. Tap below, then Battery saver.</string>
+    <string name="perm_battery_body">Set Google Calendar\'s battery use to Unrestricted. Otherwise the phone can stop it syncing while it isn\'t open, and new events wait. Tap below, then App battery usage.</string>
+    <string name="battery_open_settings">Open Google Calendar settings</string>
 
     <!-- Onboarding -->
     <string name="onboarding_step">Step %1$d of %2$d</string>
@@ -47,10 +50,12 @@
     <string name="onboarding_agree">I\'ve read and agree to the privacy policy</string>
     <string name="onboarding_continue">Continue</string>
     <string name="onboarding_permissions_title">Permissions</string>
-    <string name="onboarding_permissions_subtitle">Calendar access is needed. On some phones one more setting keeps uploads quick.</string>
+    <string name="onboarding_permissions_subtitle">Calendar access is needed. On some phones a setting or two keeps Google Calendar syncing when it isn\'t open.</string>
     <string name="onboarding_perm_calendar_title">Calendar</string>
     <string name="onboarding_perm_calendar_body">To show your day and add events to it.</string>
     <string name="onboarding_perm_autostart_title">Autostart for Google Calendar</string>
+    <string name="onboarding_perm_battery_title">Battery for Google Calendar</string>
+    <string name="onboarding_badge_recommended">Recommended</string>
     <string name="onboarding_badge_required">Required</string>
     <string name="onboarding_badge_xiaomi">Xiaomi</string>
     <string name="onboarding_finish">Finish setup</string>

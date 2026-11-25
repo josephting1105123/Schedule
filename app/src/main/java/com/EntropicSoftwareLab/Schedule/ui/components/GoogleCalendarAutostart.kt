@@ -18,6 +18,18 @@ fun Context.isGoogleCalendarInstalled(): Boolean =
 fun Context.shouldShowAutostartTip(): Boolean =
     SyncAdvice.isXiaomiFamily(Build.MANUFACTURER, Build.BRAND) && isGoogleCalendarInstalled()
 
+/** Google Calendar's app-info page, where its battery use (and on older HyperOS, Autostart) is set. */
+fun Context.openGoogleCalendarAppInfo() {
+    runCatching {
+        startActivity(
+            Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", SyncAdvice.GOOGLE_CALENDAR_PACKAGE, null),
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+}
+
 /**
  * HyperOS/MIUI's own Autostart list, where Google Calendar shows as "Calendar" with the blue 31
  * icon. Google Calendar's app-info page has no Autostart switch on current HyperOS (checked on a
@@ -27,16 +39,7 @@ fun Context.openAutostartSettings() {
     val opened = runCatching {
         startActivity(Intent(ACTION_MIUI_AUTOSTART).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }.isSuccess
-    if (!opened) {
-        runCatching {
-            startActivity(
-                Intent(
-                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.fromParts("package", SyncAdvice.GOOGLE_CALENDAR_PACKAGE, null),
-                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
-        }
-    }
+    if (!opened) openGoogleCalendarAppInfo()
 }
 
 private const val ACTION_MIUI_AUTOSTART = "miui.intent.action.OP_AUTO_START"

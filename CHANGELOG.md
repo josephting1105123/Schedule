@@ -2,13 +2,14 @@
 
 The newest version is at the top.
 
-## 1.4.18
+## 1.4.20
 
 - Day at a glance and Agenda have ‹ › buttons to look at the day before or after, as the Month widget does for months. Tap the date (Day at a glance) or the day's name (Agenda) to go back to today. Another day shows all its events, not just the ones still to come.
 - Day at a glance now looks exactly like the Day page: the same hour cells and numbers, each event a slim bar under its hours, lined up to the pixel (they used to drift a few pixels right across the row). It has a fixed size and can no longer be resized.
 - The Month widget draws the new month's grid straight away when you tap ‹ or ›, and fills in that month's events together a moment later.
 - The Agenda widget can't be made narrower than its header buttons need.
 - The Month widget's preview in the widget list shows a proper week again (one week had twelve days), and the Agenda and Day at a glance previews show their new ‹ › buttons.
+- The permissions page has a Battery for Google Calendar card. Google Calendar does the syncing, and when the phone limits its battery use it stops syncing while it isn't open, so new events wait. The button opens Google Calendar's settings, where you set Battery saver to No restrictions (Xiaomi, Redmi, POCO) or App battery usage to Unrestricted.
 
 ## 1.4.17
 
