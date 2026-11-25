@@ -2,6 +2,10 @@
 
 The newest version is at the top.
 
+## 1.4.19
+
+- The permissions page has a Battery for Google Calendar card. Google Calendar does the syncing, and when the phone limits its battery use it stops syncing while it isn't open, so new events wait. The button opens Google Calendar's settings, where you set Battery saver to No restrictions (Xiaomi, Redmi, POCO) or App battery usage to Unrestricted.
+
 ## 1.4.17
 
 - New first-open setup: a privacy page (what Schedule reads, what stays on the phone and what reaches Google through calendar sync, with a link to the full policy) that you agree to, then a permissions page with Calendar access and, on Xiaomi, Redmi and POCO phones, Autostart for Google Calendar. It shows once after this update too.

@@ -27,9 +27,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.os.Build
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.BatteryChargingFull
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.PhoneAndroid
@@ -62,12 +64,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.EntropicSoftwareLab.Schedule.R
+import com.EntropicSoftwareLab.Schedule.data.calendar.SyncAdvice
 import com.EntropicSoftwareLab.Schedule.ui.components.AppButton
 import com.EntropicSoftwareLab.Schedule.ui.components.AppCard
 import com.EntropicSoftwareLab.Schedule.ui.components.AppDivider
 import com.EntropicSoftwareLab.Schedule.ui.components.AppTextButton
 import com.EntropicSoftwareLab.Schedule.ui.components.AppTonalButton
+import com.EntropicSoftwareLab.Schedule.ui.components.isGoogleCalendarInstalled
 import com.EntropicSoftwareLab.Schedule.ui.components.openAutostartSettings
+import com.EntropicSoftwareLab.Schedule.ui.components.openGoogleCalendarAppInfo
 import com.EntropicSoftwareLab.Schedule.ui.components.shouldShowAutostartTip
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
 
@@ -285,9 +290,9 @@ private fun PrivacyPoint(
 }
 
 /**
- * Permissions page: Calendar access (required) and, on Xiaomi-family phones with Google Calendar
- * installed, Autostart for Google Calendar. Reused standalone when calendar access is revoked after
- * onboarding has already finished.
+ * Permissions page: Calendar access (required), and when Google Calendar is installed, its battery
+ * setting plus, on Xiaomi-family phones, its Autostart. Reused standalone when calendar access is
+ * revoked after onboarding has already finished.
  */
 @Composable
 fun PermissionsStep(
@@ -305,6 +310,8 @@ fun PermissionsStep(
     // only route left is the app's settings page.
     var permanentlyDenied by remember { mutableStateOf(false) }
     val showAutostartTip = remember { context.shouldShowAutostartTip() }
+    val showBatteryTip = remember { context.isGoogleCalendarInstalled() }
+    val isXiaomi = remember { SyncAdvice.isXiaomiFamily(Build.MANUFACTURER, Build.BRAND) }
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -461,6 +468,49 @@ fun PermissionsStep(
                         AppTonalButton(
                             text = stringResource(R.string.autostart_open_settings),
                             onClick = { context.openAutostartSettings() },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+
+            if (showBatteryTip) {
+                Spacer(Modifier.height(d.spaceMd))
+                AppCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(d.spaceLg)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.BatteryChargingFull,
+                                contentDescription = null,
+                                tint = colors.greenText,
+                                modifier = Modifier.size(22.dp),
+                            )
+                            Spacer(Modifier.width(d.spaceSm))
+                            Text(
+                                text = stringResource(R.string.onboarding_perm_battery_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = colors.textPrimary,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Spacer(Modifier.width(d.spaceSm))
+                            PermissionBadge(
+                                text = stringResource(R.string.onboarding_badge_recommended),
+                                fg = colors.textSecondary,
+                                bg = colors.textSecondary.copy(alpha = 0.12f),
+                            )
+                        }
+                        Spacer(Modifier.height(d.spaceXs))
+                        Text(
+                            text = stringResource(
+                                if (isXiaomi) R.string.perm_battery_body_xiaomi else R.string.perm_battery_body,
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colors.textSecondary,
+                        )
+                        Spacer(Modifier.height(d.spaceMd))
+                        AppTonalButton(
+                            text = stringResource(R.string.battery_open_settings),
+                            onClick = { context.openGoogleCalendarAppInfo() },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
