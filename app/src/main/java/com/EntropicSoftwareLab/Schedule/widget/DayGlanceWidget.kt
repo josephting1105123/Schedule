@@ -104,7 +104,7 @@ private val BAR_TITLE_INK = ColorProvider(day = Color(0xFF18202B), night = Color
 /** Same order the picker shows — see [EventColorPalette.assignmentOrder]. */
 private val BRAND_PALETTE: List<Int> = EventColorPalette.assignmentOrder.map { it.argb }
 
-/** Everything the widget draws for [date], read in one pass so the seed and every live reload agree. */
+/** Everything the widget draws for [date], read in one pass so every load agrees. */
 private data class DayGlanceData(
     val date: LocalDate,
     val lane0: List<List<HourGrid.HourSlice>>?,
@@ -169,26 +169,24 @@ class DayGlanceWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // Generation first: a refresh landing during the load below leaves this behind, so the
-        // effect in provideContent reloads instead of trusting a seed that may predate it.
-        val seedGeneration = MonthWidgetCache.generation.value
-        // Read before provideContent so the first frame already has data.
-        val seed = loadDayGlance(context, LocalDate.now())
+        // No load before provideContent: the label row and the bare hour grid draw at once, and
+        // each day's data arrives afterwards in one assignment (the LaunchedEffect below), like
+        // MonthWidget.
+        val startGeneration = MonthWidgetCache.generation.value
 
         provideContent {
             val today = LocalDate.now()
             var offset by remember { mutableStateOf(0) }
             var offsetDay by remember { mutableStateOf(today.toEpochDay()) }
             val shown = DayWidgetPaging.dayFor(today, offset, offsetDay)
-            val loaded = remember {
-                mutableStateMapOf<LocalDate, DayGlanceData>().apply { put(seed.date, seed) }
-            }
-            var loadedGeneration by remember { mutableStateOf(seedGeneration) }
+            val loaded = remember { mutableStateMapOf<LocalDate, DayGlanceData>() }
+            var loadedGeneration by remember { mutableStateOf(startGeneration) }
             // Glance 1.1.1's update/updateAll don't restart provideGlance while a session is alive,
             // so a refresh bumps this and the live session reloads itself (same as MonthWidget).
             val generation by MonthWidgetCache.generation.collectAsState()
             LaunchedEffect(shown, generation) {
                 val stale = generation != loadedGeneration
+                // `shown` is loaded first so the day on screen fills before its neighbours are warmed.
                 for (day in listOf(shown, shown.plusDays(1), shown.minusDays(1))) {
                     if (stale || day !in loaded) loaded[day] = loadDayGlance(context, day)
                 }

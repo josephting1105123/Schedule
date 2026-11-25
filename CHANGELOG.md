@@ -2,6 +2,10 @@
 
 The newest version is at the top.
 
+## 1.4.21
+
+- Agenda and Day at a glance draw straight away when you tap ‹ or ›, like the Month widget: the empty day shows first and its events fill in together a moment later, instead of the widget freezing and then jumping.
+
 ## 1.4.20
 
 - Day at a glance and Agenda have ‹ › buttons to look at the day before or after, as the Month widget does for months. Tap the date (Day at a glance) or the day's name (Agenda) to go back to today. Another day shows all its events, not just the ones still to come.
