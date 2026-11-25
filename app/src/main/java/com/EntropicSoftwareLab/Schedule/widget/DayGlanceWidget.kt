@@ -78,6 +78,15 @@ private val BAR_EDGE_WIDTH = 3.dp
 private val MIN_BAR_WIDTH = 2.dp
 private val MIN_TITLED_BAR_WIDTH = 24.dp
 private val MIN_TITLED_BAR_HEIGHT = 12.dp
+/** A block this tall has room for a second title line. */
+private val TWO_LINE_TITLE_MIN_HEIGHT = 28.dp
+/**
+ * Conservative average advance of a 10sp sans-serif glyph at font scale 1. Measured against the
+ * emulator: "Meeting" (7 chars) did NOT fit a ~39dp line, so 5.5dp/char is too generous.
+ */
+private val TITLE_CHAR_WIDTH = 6.dp
+/** EventBar body padding: start 3dp + end 2dp. */
+private val TITLE_HORIZONTAL_PADDING = 5.dp
 private val TICK_WIDTH = 3.dp
 private val TICK_HALF_WIDTH = 1.5.dp
 
@@ -221,6 +230,7 @@ private fun DayGlanceBody(
     onBackToToday: () -> Unit,
 ) {
     val density = context.resources.displayMetrics.density
+    val fontScale = context.resources.configuration.fontScale
     val size = LocalSize.current
     val innerW = size.width - CARD_PADDING * 2
     val (cellW, gap) = snappedCellGeometry(innerW, CELL_GAP, density)
@@ -289,6 +299,7 @@ private fun DayGlanceBody(
                 cellW = cellW,
                 gap = gap,
                 density = density,
+                fontScale = fontScale,
                 halfH = halfH,
                 barH = barH,
             )
@@ -305,6 +316,7 @@ private fun DayGlanceBody(
             cellW = cellW,
             gap = gap,
             density = density,
+            fontScale = fontScale,
             halfH = halfH,
             barH = barH,
         )
@@ -328,6 +340,18 @@ internal fun hourOffsetX(t: Float, cellW: Dp, gap: Dp, isEnd: Boolean = false): 
 
 /** [x] rounded to the nearest whole device pixel, back in dp. */
 internal fun snapToPx(x: Dp, density: Float): Dp = (Math.round(x.value * density) / density).dp
+
+/**
+ * 2 when the title may wrap: the block is tall enough AND its longest word fits one line, so the
+ * TextView can only break at a space. Otherwise 1, and a long word is ellipsized ("Lect…") instead
+ * of split ("Lect" / "ure").
+ */
+internal fun titleMaxLines(title: String, textWidth: Dp, barH: Dp, fontScale: Float): Int {
+    if (barH < TWO_LINE_TITLE_MIN_HEIGHT) return 1
+    val longest = title.trim().split(Regex("\\s+")).maxOfOrNull { it.length } ?: 0
+    if (longest == 0) return 1
+    return if (TITLE_CHAR_WIDTH * longest * fontScale <= textWidth) 2 else 1
+}
 
 /**
  * [px] converted to dp with a +0.25px bias so Glance produces [px] whether it truncates (padding,
@@ -369,6 +393,7 @@ private fun Half(
     cellW: Dp,
     gap: Dp,
     density: Float,
+    fontScale: Float,
     halfH: Dp,
     barH: Dp,
 ) {
@@ -454,6 +479,7 @@ private fun Half(
                                     fill = segment.fill,
                                     title = segment.title,
                                     density = density,
+                                    fontScale = fontScale,
                                 )
                             }
                         }
@@ -495,7 +521,7 @@ private fun Half(
 }
 
 @Composable
-private fun EventBar(width: Dp, barH: Dp, fill: Color, title: String, density: Float) {
+private fun EventBar(width: Dp, barH: Dp, fill: Color, title: String, density: Float, fontScale: Float) {
     val widthPx = Math.round(width.value * density)
     val edgePx = Math.round(BAR_EDGE_WIDTH.value * density)
     val bodyPx = widthPx - edgePx
@@ -519,7 +545,12 @@ private fun EventBar(width: Dp, barH: Dp, fill: Color, title: String, density: F
                 if (width >= MIN_TITLED_BAR_WIDTH && barH >= MIN_TITLED_BAR_HEIGHT) {
                     Text(
                         text = title,
-                        maxLines = if (barH >= 28.dp) 2 else 1,
+                        maxLines = titleMaxLines(
+                            title = title,
+                            textWidth = (bodyPx / density).dp - TITLE_HORIZONTAL_PADDING,
+                            barH = barH,
+                            fontScale = fontScale,
+                        ),
                         style = TextStyle(
                             color = BAR_TITLE_INK,
                             fontSize = 10.sp,
