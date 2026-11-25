@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.ImageProvider
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -41,6 +42,7 @@ import androidx.glance.layout.width
 import androidx.glance.semantics.contentDescription
 import androidx.glance.semantics.semantics
 import androidx.glance.text.FontFamily
+import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.EntropicSoftwareLab.Schedule.R
@@ -72,21 +74,15 @@ private val CARD_RADIUS = 22.dp
 private val CARD_PADDING = 14.dp
 private val LABEL_HEIGHT = 24.dp
 private val SECTION_GAP = 6.dp
+private val HALF_HEIGHT = 40.dp
+private val HALF_GAP = 12.dp
 private val CELL_GAP = 2.dp
-private val HOUR_LABEL_CLEARANCE = 20.dp
+private val CELL_RADIUS = 6.dp
+private val BAR_HEIGHT = 16.dp
+private val BAR_RADIUS = 4.dp
 private val BAR_EDGE_WIDTH = 3.dp
 private val MIN_BAR_WIDTH = 2.dp
-private val MIN_TITLED_BAR_WIDTH = 24.dp
-private val MIN_TITLED_BAR_HEIGHT = 12.dp
-/** A block this tall has room for a second title line. */
-private val TWO_LINE_TITLE_MIN_HEIGHT = 28.dp
-/**
- * Conservative average advance of a 10sp sans-serif glyph at font scale 1. Measured against the
- * emulator: "Meeting" (7 chars) did NOT fit a ~39dp line, so 5.5dp/char is too generous.
- */
-private val TITLE_CHAR_WIDTH = 6.dp
-/** EventBar body padding: start 3dp + end 2dp. */
-private val TITLE_HORIZONTAL_PADDING = 5.dp
+private val MIN_TITLED_BAR_WIDTH = 14.dp
 private val TICK_WIDTH = 3.dp
 private val TICK_HALF_WIDTH = 1.5.dp
 
@@ -96,7 +92,13 @@ private const val GLANCE_MAX_CHILDREN = 10
 /** Outer Row (10 chunks) × inner Row (10 segments); runs/ticks beyond this cap are dropped. */
 private const val MAX_OVERLAY_SEGMENTS = GLANCE_MAX_CHILDREN * GLANCE_MAX_CHILDREN
 
-/** Fixed dark ink for bar titles: eventTint(..., 0.28f) is blended over white and is always pale. */
+private val CARD_BG = ColorProvider(day = Color(0xFFFFFFFF), night = Color(0xFFFFFFFF))
+private val CELL_BG = ColorProvider(day = Color(0xFFF7F8FC), night = Color(0xFFF7F8FC))
+private val NOW_CELL_BG = ColorProvider(day = Color(0xFFE6EDFF), night = Color(0xFFE6EDFF))
+private val INK_SECONDARY = ColorProvider(day = Color(0xFF4F5A6B), night = Color(0xFF4F5A6B))
+private val NOW_NUMBER = ColorProvider(day = Color(0xFF1F5AE6), night = Color(0xFF1F5AE6))
+
+/** Fixed dark ink for bar titles and unfinished ticks, matching the light-only Day page. */
 private val BAR_TITLE_INK = ColorProvider(day = Color(0xFF18202B), night = Color(0xFF18202B))
 
 /** Same order the picker shows — see [EventColorPalette.assignmentOrder]. */
@@ -230,14 +232,11 @@ private fun DayGlanceBody(
     onBackToToday: () -> Unit,
 ) {
     val density = context.resources.displayMetrics.density
-    val fontScale = context.resources.configuration.fontScale
     val size = LocalSize.current
     val innerW = size.width - CARD_PADDING * 2
     val (cellW, gap) = snappedCellGeometry(innerW, CELL_GAP, density)
-    val avail = size.height - CARD_PADDING * 2 - LABEL_HEIGHT - SECTION_GAP - SECTION_GAP
-    val halfH = (avail / 2).coerceIn(24.dp, 96.dp)
-    // 20dp = 17dp top clearance (2dp top padding + "%02d" hour number) + 3dp bottom inset.
-    val barH = (halfH - HOUR_LABEL_CLEARANCE).coerceAtLeast(6.dp)
+    val halfH = HALF_HEIGHT
+    val barH = BAR_HEIGHT
     val currentHour = if (shown == today) LocalTime.now().hour else -1
     val lane0 = data?.lane0
     val colors = data?.colors.orEmpty()
@@ -248,10 +247,11 @@ private fun DayGlanceBody(
         modifier = GlanceModifier
             .fillMaxSize()
             .appWidgetBackground()
-            .background(GlanceTheme.colors.widgetBackground)
+            .background(CARD_BG)
             .cornerRadius(CARD_RADIUS)
             .padding(CARD_PADDING)
             .clickable(actionStartActivity(WidgetLaunchIntents.openDay(context, shown))),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // 4 children (limit 10): widget title, date, previous day, next day.
         Row(
@@ -263,7 +263,7 @@ private fun DayGlanceBody(
                 modifier = GlanceModifier.defaultWeight(),
                 maxLines = 1,
                 style = TextStyle(
-                    color = GlanceTheme.colors.onSurfaceVariant,
+                    color = INK_SECONDARY,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.SansSerif,
                 ),
@@ -272,7 +272,7 @@ private fun DayGlanceBody(
                 text = shown.format(DAY_LABEL_FORMAT),
                 maxLines = 1,
                 style = TextStyle(
-                    color = GlanceTheme.colors.onSurfaceVariant,
+                    color = INK_SECONDARY,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.SansSerif,
                 ),
@@ -284,8 +284,8 @@ private fun DayGlanceBody(
                     GlanceModifier
                 },
             )
-            DayChevron(R.drawable.ic_widget_chevron_left, "Previous day") { onStep(-1) }
-            DayChevron(R.drawable.ic_widget_chevron_right, "Next day") { onStep(+1) }
+            DayChevron(R.drawable.ic_widget_chevron_left, "Previous day", tint = INK_SECONDARY) { onStep(-1) }
+            DayChevron(R.drawable.ic_widget_chevron_right, "Next day", tint = INK_SECONDARY) { onStep(+1) }
         }
 
         // Top padding sits on an outer wrapper so both halves keep the exact same halfH content box.
@@ -299,13 +299,12 @@ private fun DayGlanceBody(
                 cellW = cellW,
                 gap = gap,
                 density = density,
-                fontScale = fontScale,
                 halfH = halfH,
                 barH = barH,
             )
         }
 
-        Spacer(GlanceModifier.height(SECTION_GAP))
+        Spacer(GlanceModifier.height(HALF_GAP))
 
         Half(
             hours = 12 until 24,
@@ -316,7 +315,6 @@ private fun DayGlanceBody(
             cellW = cellW,
             gap = gap,
             density = density,
-            fontScale = fontScale,
             halfH = halfH,
             barH = barH,
         )
@@ -340,18 +338,6 @@ internal fun hourOffsetX(t: Float, cellW: Dp, gap: Dp, isEnd: Boolean = false): 
 
 /** [x] rounded to the nearest whole device pixel, back in dp. */
 internal fun snapToPx(x: Dp, density: Float): Dp = (Math.round(x.value * density) / density).dp
-
-/**
- * 2 when the title may wrap: the block is tall enough AND its longest word fits one line, so the
- * TextView can only break at a space. Otherwise 1, and a long word is ellipsized ("Lect…") instead
- * of split ("Lect" / "ure").
- */
-internal fun titleMaxLines(title: String, textWidth: Dp, barH: Dp, fontScale: Float): Int {
-    if (barH < TWO_LINE_TITLE_MIN_HEIGHT) return 1
-    val longest = title.trim().split(Regex("\\s+")).maxOfOrNull { it.length } ?: 0
-    if (longest == 0) return 1
-    return if (TITLE_CHAR_WIDTH * longest * fontScale <= textWidth) 2 else 1
-}
 
 /**
  * [px] converted to dp with a +0.25px bias so Glance produces [px] whether it truncates (padding,
@@ -393,7 +379,6 @@ private fun Half(
     cellW: Dp,
     gap: Dp,
     density: Float,
-    fontScale: Float,
     halfH: Dp,
     barH: Dp,
 ) {
@@ -404,7 +389,7 @@ private fun Half(
     val emittedGap = emitSnapped(gap, density)
     val tickW = emitPx(Math.round(TICK_WIDTH.value * density), density)
 
-    // Up to 3 stacked children (limit 10): cells (back), bars (middle), ticks (front).
+    // Up to 4 stacked children (limit 10): cells (back), bars, ticks, now outline (front).
     // Nothing inside is clickable, so taps pass through to the card's openDay action.
     Box(modifier = GlanceModifier.fillMaxWidth().height(halfH)) {
         // a. Cells (back): 2 inner Rows of 6 because Glance 1.1.1 silently drops children past 10.
@@ -417,16 +402,6 @@ private fun Half(
                     sixHours.forEach { hour ->
                         val isLast = hour == hours.last
                         val isCurrent = hour == currentHour
-                        val cellColour = if (isCurrent) {
-                            GlanceTheme.colors.primaryContainer
-                        } else {
-                            GlanceTheme.colors.surfaceVariant
-                        }
-                        val numberColour = if (isCurrent) {
-                            GlanceTheme.colors.onPrimaryContainer
-                        } else {
-                            GlanceTheme.colors.onSurfaceVariant
-                        }
                         // Gap is padding on the outer Box: Glance paints background across own padding.
                         Box(
                             modifier = GlanceModifier
@@ -437,16 +412,17 @@ private fun Half(
                                 modifier = GlanceModifier
                                     .width(emittedCellW)
                                     .fillMaxHeight()
-                                    .background(cellColour)
-                                    .cornerRadius(5.dp)
-                                    .padding(start = 3.dp, top = 2.dp),
+                                    .background(if (isCurrent) NOW_CELL_BG else CELL_BG)
+                                    .cornerRadius(CELL_RADIUS)
+                                    .padding(start = 3.dp, top = 3.dp),
                             ) {
                                 Text(
                                     text = "%02d".format(hour),
                                     maxLines = 1,
                                     style = TextStyle(
-                                        color = numberColour,
-                                        fontSize = 11.sp,
+                                        color = if (isCurrent) NOW_NUMBER else INK_SECONDARY,
+                                        fontSize = 9.5.sp,
+                                        fontWeight = if (isCurrent) FontWeight.Bold else null,
                                         fontFamily = FontFamily.SansSerif,
                                     ),
                                 )
@@ -479,7 +455,6 @@ private fun Half(
                                     fill = segment.fill,
                                     title = segment.title,
                                     density = density,
-                                    fontScale = fontScale,
                                 )
                             }
                         }
@@ -488,7 +463,7 @@ private fun Half(
             }
         }
 
-        // c. Ticks (front), only when this half has deadline marks.
+        // c. Ticks, only when this half has deadline marks.
         if (tickSegments.isNotEmpty()) {
             // At most 10 children (GLANCE_MAX_CHILDREN).
             Row(modifier = GlanceModifier.fillMaxSize()) {
@@ -502,13 +477,7 @@ private fun Half(
                                     modifier = GlanceModifier
                                         .width(tickW)
                                         .fillMaxHeight()
-                                        .background(
-                                            if (segment.done) {
-                                                GlanceTheme.colors.onSurfaceVariant
-                                            } else {
-                                                GlanceTheme.colors.onSurface
-                                            },
-                                        )
+                                        .background(if (segment.done) INK_SECONDARY else BAR_TITLE_INK)
                                         .cornerRadius(TICK_HALF_WIDTH),
                                 ) {}
                             }
@@ -517,44 +486,60 @@ private fun Half(
                 }
             }
         }
+
+        // d. Current-hour outline (front), over bars and ticks so bars don't hide its sides.
+        if (currentHour in hours) {
+            Row(modifier = GlanceModifier.fillMaxSize()) {
+                val index = currentHour - hours.first
+                if (index > 0) Spacer(GlanceModifier.width(emitSnapped(hourOffsetX(index.toFloat(), cellW, gap), density)))
+                Box(
+                    modifier = GlanceModifier
+                        .width(emittedCellW)
+                        .fillMaxHeight()
+                        .background(ImageProvider(R.drawable.widget_now_outline)),
+                ) {}
+            }
+        }
     }
 }
 
 @Composable
-private fun EventBar(width: Dp, barH: Dp, fill: Color, title: String, density: Float, fontScale: Float) {
+private fun EventBar(width: Dp, barH: Dp, fill: Color, title: String, density: Float) {
     val widthPx = Math.round(width.value * density)
     val edgePx = Math.round(BAR_EDGE_WIDTH.value * density)
     val bodyPx = widthPx - edgePx
-    // 1 or 2 children (limit 10): 3dp leading edge and optional tinted body.
-    Row(modifier = GlanceModifier.width(emitPx(widthPx, density)).height(barH)) {
-        Box(
-            modifier = GlanceModifier
-                .width(emitPx(minOf(widthPx, edgePx), density))
-                .fillMaxHeight()
-                .background(fill),
-        ) {}
-        if (bodyPx > 0) {
+    Box(
+        modifier = GlanceModifier
+            .width(emitPx(widthPx, density))
+            .height(barH)
+            .background(eventTint(fill, 0.28f))
+            .cornerRadius(BAR_RADIUS),
+    ) {
+        Row(
+            modifier = GlanceModifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Box(
-                modifier = GlanceModifier
-                    .width(emitPx(bodyPx, density))
+                GlanceModifier
+                    .width(emitPx(minOf(widthPx, edgePx), density))
                     .fillMaxHeight()
-                    .background(eventTint(fill, 0.28f))
-                    .padding(start = 3.dp, top = 2.dp, end = 2.dp),
-                contentAlignment = Alignment.TopStart,
-            ) {
-                if (width >= MIN_TITLED_BAR_WIDTH && barH >= MIN_TITLED_BAR_HEIGHT) {
+                    .background(fill),
+            ) {}
+            if (bodyPx > 0 && width >= MIN_TITLED_BAR_WIDTH) {
+                Box(
+                    GlanceModifier
+                        .width(emitPx(bodyPx, density))
+                        .fillMaxHeight()
+                        .padding(start = 2.dp, end = 1.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
                     Text(
                         text = title,
-                        maxLines = titleMaxLines(
-                            title = title,
-                            textWidth = (bodyPx / density).dp - TITLE_HORIZONTAL_PADDING,
-                            barH = barH,
-                            fontScale = fontScale,
-                        ),
+                        maxLines = 1,
                         style = TextStyle(
                             color = BAR_TITLE_INK,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.SansSerif,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Medium,
                         ),
                     )
                 }

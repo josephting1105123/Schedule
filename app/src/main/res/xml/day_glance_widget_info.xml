@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Day at a glance widget (DayGlanceWidget). updatePeriodMillis is 0 on purpose:
+<!-- Day at a glance widget (DayGlanceWidget). Fixed-size (resizeMode="none", 150dp tall) so its
+     40dp hour cells match the Day page instead of stretching. updatePeriodMillis is 0 on purpose:
      WidgetRefreshWorker (WorkManager) owns the periodic refresh, so a second system timer would
      only re-query the calendar twice per half hour. -->
 <!-- previewLayout is API 31+, like the month widget's; previewImage still covers 29 and 30. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="250dp"
-    android:minHeight="116dp"
+    android:minHeight="150dp"
     android:minResizeWidth="250dp"
-    android:minResizeHeight="116dp"
+    android:minResizeHeight="150dp"
     android:targetCellWidth="4"
     android:targetCellHeight="2"
-    android:resizeMode="horizontal|vertical"
+    android:resizeMode="none"
     android:widgetCategory="home_screen"
     android:description="@string/day_glance_widget_description"
     android:initialLayout="@layout/glance_default_loading_layout"

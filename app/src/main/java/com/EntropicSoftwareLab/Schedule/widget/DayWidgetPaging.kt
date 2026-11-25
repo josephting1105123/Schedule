@@ -15,6 +15,7 @@ import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.semantics.contentDescription
 import androidx.glance.semantics.semantics
+import androidx.glance.unit.ColorProvider
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -48,7 +49,12 @@ internal object DayWidgetPaging {
  * ink, so they MUST be tinted for the GlanceTheme card or they are near-invisible.
  */
 @Composable
-internal fun DayChevron(icon: Int, description: String, onClick: () -> Unit) {
+internal fun DayChevron(
+    icon: Int,
+    description: String,
+    tint: ColorProvider = GlanceTheme.colors.onSurfaceVariant,
+    onClick: () -> Unit,
+) {
     Box(
         modifier = GlanceModifier
             .width(28.dp)
@@ -61,7 +67,7 @@ internal fun DayChevron(icon: Int, description: String, onClick: () -> Unit) {
             provider = ImageProvider(icon),
             contentDescription = null,
             modifier = GlanceModifier.size(16.dp),
-            colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurfaceVariant),
+            colorFilter = ColorFilter.tint(tint),
         )
     }
 }

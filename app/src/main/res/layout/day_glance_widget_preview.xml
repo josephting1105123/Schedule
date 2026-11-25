@@ -10,7 +10,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#F1F4EC"
+    android:background="#FFFFFF"
     android:paddingStart="14dp"
     android:paddingEnd="14dp"
     android:paddingTop="14dp"
@@ -31,7 +31,7 @@
             android:fontFamily="sans-serif"
             android:textSize="12sp"
             android:maxLines="1"
-            android:textColor="#43483F"
+            android:textColor="#4F5A6B"
             android:text="Day at a glance" />
 
         <TextView
@@ -40,7 +40,7 @@
             android:fontFamily="sans-serif"
             android:textSize="12sp"
             android:maxLines="1"
-            android:textColor="#43483F"
+            android:textColor="#4F5A6B"
             android:text="Tue 24 Nov" />
 
         <FrameLayout
@@ -52,7 +52,7 @@
                 android:layout_height="16dp"
                 android:layout_gravity="center"
                 android:importantForAccessibility="no"
-                android:tint="#43483F"
+                android:tint="#4F5A6B"
                 android:src="@drawable/ic_widget_chevron_left" />
         </FrameLayout>
 
@@ -65,7 +65,7 @@
                 android:layout_height="16dp"
                 android:layout_gravity="center"
                 android:importantForAccessibility="no"
-                android:tint="#43483F"
+                android:tint="#4F5A6B"
                 android:src="@drawable/ic_widget_chevron_right" />
         </FrameLayout>
     </LinearLayout>
@@ -73,7 +73,7 @@
     <!-- Morning half: 00..11 -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="38dp"
+        android:layout_height="40dp"
         android:layout_marginTop="6dp"
         android:orientation="horizontal">
 
@@ -94,8 +94,8 @@
     <!-- Afternoon half: 12..23 -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="38dp"
-        android:layout_marginTop="6dp"
+        android:layout_height="40dp"
+        android:layout_marginTop="12dp"
         android:orientation="horizontal">
 
         <FrameLayout style="@style/WidgetPreview.GlanceCell"><TextView style="@style/WidgetPreview.GlanceHour" android:text="12" /></FrameLayout>

@@ -124,36 +124,4 @@ class DayGlanceGeometryTest {
             }
         }
     }
-
-    @Test
-    fun `titleMaxLines stays on one line when barH is below two-line minimum`() {
-        assertEquals(1, titleMaxLines("Hi", textWidth = 80.dp, barH = 20.dp, fontScale = 1f))
-        assertEquals(1, titleMaxLines("Team standup", textWidth = 80.dp, barH = 20.dp, fontScale = 1f))
-    }
-
-    @Test
-    fun `titleMaxLines keeps a single word wider than textWidth on one line`() {
-        assertEquals(1, titleMaxLines("Lecture", textWidth = 25.dp, barH = 60.dp, fontScale = 1f))
-    }
-
-    @Test
-    fun `titleMaxLines allows two lines when a word fits textWidth`() {
-        assertEquals(2, titleMaxLines("Lecture", textWidth = 42.dp, barH = 60.dp, fontScale = 1f))
-    }
-
-    @Test
-    fun `titleMaxLines wraps a multi-word title when its longest word fits one line`() {
-        assertEquals(2, titleMaxLines("Team standup", textWidth = 45.dp, barH = 60.dp, fontScale = 1f))
-    }
-
-    @Test
-    fun `titleMaxLines accounts for fontScale when checking longest word width`() {
-        assertEquals(1, titleMaxLines("Team standup", textWidth = 45.dp, barH = 60.dp, fontScale = 1.3f))
-    }
-
-    @Test
-    fun `titleMaxLines returns one line for empty and blank titles`() {
-        assertEquals(1, titleMaxLines("", textWidth = 80.dp, barH = 60.dp, fontScale = 1f))
-        assertEquals(1, titleMaxLines("   ", textWidth = 80.dp, barH = 60.dp, fontScale = 1f))
-    }
 }
