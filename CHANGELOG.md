@@ -2,6 +2,14 @@
 
 The newest version is at the top.
 
+## 1.4.22
+
+- Day at a glance's ‹ › buttons are bigger and sit a little apart from the date, so they're easier to hit.
+- Event titles on Day at a glance show as many letters as fit, as on the Today page, instead of stopping at the last whole word.
+- When events overlap, Day at a glance now shows them all, the way the Today page does: each clash gets its own band under the hour cells. If that makes the day taller than the widget, scroll it up and down.
+- Tapping ‹ or › on the Month widget shows the next month's empty grid straight away, and its events fill in a moment later, even when the month was already loaded. Before, the widget sat on the old month for about a second and then jumped to the new one complete.
+- The Month widget's preview in the widget list now looks like the widget: arrow and + icons, the grid's column lines, and coloured dots for timed events. On Android 10 and 11 the preview starts the week on Sunday, as the widget does.
+
 ## 1.4.21
 
 - Agenda and Day at a glance draw straight away when you tap ‹ or ›, like the Month widget: the empty day shows first and its events fill in together a moment later, instead of the widget freezing and then jumping.

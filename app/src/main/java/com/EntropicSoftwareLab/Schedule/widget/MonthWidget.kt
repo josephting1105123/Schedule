@@ -1,6 +1,7 @@
 package com.EntropicSoftwareLab.Schedule.widget
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,6 +66,7 @@ import com.EntropicSoftwareLab.Schedule.data.calendar.MonthGrid
 import com.EntropicSoftwareLab.Schedule.data.calendar.MonthWidgetState
 import com.EntropicSoftwareLab.Schedule.data.calendar.WeekPaging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -129,9 +131,10 @@ private val MONTH_AND_YEAR: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM
  * `‹`/`›` are lambda actions that change the shown month inside the running session — no broadcast,
  * no restart of [provideGlance] — and the session keeps the months either side loaded, re-warming
  * them in the background after every change, so a tap in either direction redraws from memory.
- * [MonthWidgetCache] sits underneath, so a session that has to start over still finds them. The
- * session no longer waits for the provider before its first frame, so a tap that has to restart the
- * session shows the new month's grid at once and its events when the query returns.
+ * [MonthWidgetCache] sits underneath, so a session that has to start over still finds them. Every
+ * tap draws the new month's bare grid first and its events about [SKELETON_HOLD_MS] later, even
+ * when they were preloaded: `revealed` gates them, so the header and grid always reach the launcher
+ * in a frame of their own. A reload of the month already on screen doesn't blink.
  */
 class MonthWidget : GlanceAppWidget() {
 
@@ -173,6 +176,11 @@ class MonthWidget : GlanceAppWidget() {
             // Starts empty on purpose: the grid draws at once and the month's events arrive afterwards,
             // in one assignment per month (see the LaunchedEffect below), never piecemeal.
             val loaded = remember { mutableStateMapOf<YearMonth, Map<LocalDate, List<EventInstance>>>() }
+            // The month whose events may be drawn. A tap changes only `shown`, so the next frame is the new
+            // month's bare grid; the effect below sets this once that month is loaded and the bare frame has
+            // had SKELETON_HOLD_MS to reach the launcher. Without it a preloaded neighbour arrived complete,
+            // header and events in one frame, and the tap looked like a freeze (reported 2026-11-25).
+            var revealed by remember { mutableStateOf<YearMonth?>(null) }
             val scope = rememberCoroutineScope()
             // A calendar write or periodic refresh clears the cache and bumps this; a live session
             // would otherwise keep drawing the months it loaded before the change.
@@ -182,12 +190,23 @@ class MonthWidget : GlanceAppWidget() {
             // in the background, so the *next* tap in either direction also lands on data that is
             // already here. Months more than two away are dropped to keep the session small.
             LaunchedEffect(shown, generation) {
+                val month = shown
+                val started = SystemClock.uptimeMillis()
                 // `shown` is loaded first so the month on screen fills before the warm-up of its neighbours.
-                for (month in listOf(shown, shown.plusMonths(1), shown.minusMonths(1))) {
-                    loadMonth(context, month, zone, firstDayOfWeek)?.let { loaded[month] = it }
+                loadMonth(context, month, zone, firstDayOfWeek)?.let { loaded[month] = it }
+                if (revealed != month) {
+                    // A new month: hold the bare grid on screen for its own frame, even when the events were
+                    // already in memory. A reload of the month already showing (generation bump) skips this,
+                    // so a calendar write never blinks the events off.
+                    val left = SKELETON_HOLD_MS - (SystemClock.uptimeMillis() - started)
+                    if (left > 0) delay(left)
+                    revealed = month
+                }
+                for (neighbour in listOf(month.plusMonths(1), month.minusMonths(1))) {
+                    loadMonth(context, neighbour, zone, firstDayOfWeek)?.let { loaded[neighbour] = it }
                 }
                 loaded.keys
-                    .filter { abs(ChronoUnit.MONTHS.between(shown, it)) > 2 }
+                    .filter { abs(ChronoUnit.MONTHS.between(month, it)) > 2 }
                     .forEach { loaded.remove(it) }
             }
 
@@ -225,7 +244,7 @@ class MonthWidget : GlanceAppWidget() {
                     today = today,
                     days = MonthGrid.days(shown, firstDayOfWeek),
                     firstDayOfWeek = firstDayOfWeek,
-                    eventsByDate = loaded[shown].orEmpty(),
+                    eventsByDate = if (revealed == shown) loaded[shown].orEmpty() else emptyMap(),
                     overrides = overrides,
                     zone = zone,
                     onStep = step,
@@ -794,6 +813,12 @@ private val DOT_GAP = 3.dp
 /** The rule across the top of each week: `widget_month_grid`, which the column rules are drawn in. */
 private val GRID_RULE = ColorProvider(day = Color(0xFF564D60), night = Color(0xFF564D60))
 private const val ALPHA_OPAQUE = 0xFF000000.toInt()
+/**
+ * How long a newly paged-to month shows its bare grid before its events are drawn. Long enough
+ * for Glance to send the bare frame as its own RemoteViews update rather than coalescing it with
+ * the next one; short enough that the events still feel like they follow the tap.
+ */
+private const val SKELETON_HOLD_MS = 300L
 
 class MonthWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = MonthWidget()

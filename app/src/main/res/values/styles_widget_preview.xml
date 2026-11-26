@@ -22,7 +22,7 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_weight">1</item>
         <item name="android:gravity">center</item>
-        <item name="android:textSize">14sp</item>
+        <item name="android:textSize">13sp</item>
         <item name="android:textColor">@color/widget_preview_text</item>
     </style>
 
@@ -44,12 +44,12 @@
     </style>
 
     <style name="WidgetPreview.Today">
-        <item name="android:layout_width">20dp</item>
-        <item name="android:layout_height">20dp</item>
+        <item name="android:layout_width">18dp</item>
+        <item name="android:layout_height">18dp</item>
         <item name="android:layout_gravity">center</item>
         <item name="android:gravity">center</item>
         <item name="android:background">@drawable/widget_month_today</item>
-        <item name="android:textSize">14sp</item>
+        <item name="android:textSize">13sp</item>
         <item name="android:textColor">@color/widget_month_on_pill</item>
     </style>
 
@@ -86,24 +86,40 @@
         <item name="android:background">@color/widget_preview_rule</item>
     </style>
 
-    <style name="WidgetPreview.HeaderButton">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:paddingStart">6dp</item>
-        <item name="android:paddingEnd">6dp</item>
-        <item name="android:textSize">22sp</item>
-        <item name="android:textColor">@color/widget_month_text</item>
+    <style name="WidgetPreview.Chevron">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:padding">7dp</item>
+        <item name="android:scaleType">fitCenter</item>
     </style>
 
-    <!-- The lavender "+" pill (month widget). -->
-    <style name="WidgetPreview.AddPill">
-        <item name="android:layout_width">52dp</item>
-        <item name="android:layout_height">30dp</item>
-        <item name="android:layout_marginStart">8dp</item>
+    <style name="WidgetPreview.Column">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+    </style>
+
+    <style name="WidgetPreview.ColumnRule">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:background">@drawable/widget_month_column_rule</item>
+    </style>
+
+    <style name="WidgetPreview.DotCell">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">13dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">horizontal</item>
         <item name="android:gravity">center</item>
-        <item name="android:background">@drawable/widget_month_add_pill</item>
-        <item name="android:textSize">22sp</item>
-        <item name="android:textColor">@color/widget_month_on_pill</item>
+    </style>
+
+    <style name="WidgetPreview.Dot">
+        <item name="android:layout_width">5dp</item>
+        <item name="android:layout_height">5dp</item>
+        <item name="android:layout_marginStart">1.5dp</item>
+        <item name="android:layout_marginEnd">1.5dp</item>
+        <item name="android:background">@drawable/widget_preview_dot</item>
     </style>
 
     <!-- layout/today_widget_preview.xml: Agenda rows (colour bar, start/end times, title). -->

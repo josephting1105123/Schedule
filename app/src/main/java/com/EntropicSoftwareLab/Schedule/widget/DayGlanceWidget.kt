@@ -25,6 +25,7 @@ import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
+import androidx.glance.appwidget.lazy.LazyColumn
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.color.ColorProvider
@@ -71,10 +72,12 @@ import kotlin.math.min
 private val DAY_LABEL_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM")
 
 private val CARD_RADIUS = 22.dp
-private val CARD_PADDING = 14.dp
-private val LABEL_HEIGHT = 24.dp
+private val CARD_PADDING_H = 14.dp
+private val CARD_PADDING_V = 10.dp
+private val LABEL_HEIGHT = 32.dp
 private val SECTION_GAP = 6.dp
-private val HALF_HEIGHT = 40.dp
+private val LANE0_HEIGHT = 40.dp
+private val EXTRA_LANE_HEIGHT = 22.dp
 private val HALF_GAP = 12.dp
 private val CELL_GAP = 2.dp
 private val CELL_RADIUS = 6.dp
@@ -104,10 +107,12 @@ private val BAR_TITLE_INK = ColorProvider(day = Color(0xFF18202B), night = Color
 /** Same order the picker shows — see [EventColorPalette.assignmentOrder]. */
 private val BRAND_PALETTE: List<Int> = EventColorPalette.assignmentOrder.map { it.argb }
 
+private val EMPTY_LANE: List<List<HourGrid.HourSlice>> = List(HourGrid.HOURS_PER_DAY) { emptyList() }
+
 /** Everything the widget draws for [date], read in one pass so every load agrees. */
 private data class DayGlanceData(
     val date: LocalDate,
-    val lane0: List<List<HourGrid.HourSlice>>?,
+    val lanes: List<List<List<HourGrid.HourSlice>>>,
     val colors: Map<Long, Int>,
     val taskMarks: List<List<TaskGrid.Mark>>,
 )
@@ -142,9 +147,7 @@ private suspend fun loadDayGlance(context: Context, date: LocalDate): DayGlanceD
     }
 
     val todays = byDate[date].orEmpty()
-    // Only lane 0 is drawn here. Clash lanes (index >= 1) are not drawn: a 4x2 widget has no
-    // vertical room to stack extra bands, and the Agenda widget and the app show the full detail.
-    val lane0 = HourGrid.lanes(todays, date, zone).getOrNull(0)
+    val lanes = HourGrid.lanes(todays, date, zone)
 
     val dueOnDate = try {
         TaskRepository(context).tasks.first().filter { it.due == date }
@@ -158,7 +161,7 @@ private suspend fun loadDayGlance(context: Context, date: LocalDate): DayGlanceD
 
     return DayGlanceData(
         date = date,
-        lane0 = lane0,
+        lanes = lanes,
         colors = colors,
         taskMarks = TaskGrid.byHour(dueOnDate),
     )
@@ -231,27 +234,26 @@ private fun DayGlanceBody(
 ) {
     val density = context.resources.displayMetrics.density
     val size = LocalSize.current
-    val innerW = size.width - CARD_PADDING * 2
+    val innerW = size.width - CARD_PADDING_H * 2
     val (cellW, gap) = snappedCellGeometry(innerW, CELL_GAP, density)
-    val halfH = HALF_HEIGHT
     val barH = BAR_HEIGHT
     val currentHour = if (shown == today) LocalTime.now().hour else -1
-    val lane0 = data?.lane0
+    val lanes = data?.lanes.orEmpty()
     val colors = data?.colors.orEmpty()
     val taskMarks = data?.taskMarks.orEmpty()
+    val openDay = actionStartActivity(WidgetLaunchIntents.openDay(context, shown))
 
-    // 4 children (limit 10): label row, morning half wrapper, spacer, afternoon half.
+    // 3 children (limit 10): label row, section gap, scrollable halves list.
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .appWidgetBackground()
             .background(CARD_BG)
             .cornerRadius(CARD_RADIUS)
-            .padding(CARD_PADDING)
-            .clickable(actionStartActivity(WidgetLaunchIntents.openDay(context, shown))),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = CARD_PADDING_H, vertical = CARD_PADDING_V)
+            .clickable(openDay),
     ) {
-        // 4 children (limit 10): widget title, date, previous day, next day.
+        // 5 children (limit 10): widget title, date, spacer, previous day, next day.
         Row(
             modifier = GlanceModifier.fillMaxWidth().height(LABEL_HEIGHT),
             verticalAlignment = Alignment.CenterVertically,
@@ -282,40 +284,64 @@ private fun DayGlanceBody(
                     GlanceModifier
                 },
             )
-            DayChevron(R.drawable.ic_widget_chevron_left, "Previous day", tint = INK_SECONDARY) { onStep(-1) }
-            DayChevron(R.drawable.ic_widget_chevron_right, "Next day", tint = INK_SECONDARY) { onStep(+1) }
+            Spacer(GlanceModifier.width(8.dp))
+            DayChevron(
+                icon = R.drawable.ic_widget_chevron_left,
+                description = "Previous day",
+                tint = INK_SECONDARY,
+                boxWidth = 44.dp,
+                boxHeight = 32.dp,
+                iconSize = 20.dp,
+            ) { onStep(-1) }
+            DayChevron(
+                icon = R.drawable.ic_widget_chevron_right,
+                description = "Next day",
+                tint = INK_SECONDARY,
+                boxWidth = 44.dp,
+                boxHeight = 32.dp,
+                iconSize = 20.dp,
+            ) { onStep(+1) }
         }
 
-        // Top padding sits on an outer wrapper so both halves keep the exact same halfH content box.
-        Box(modifier = GlanceModifier.fillMaxWidth().padding(top = SECTION_GAP)) {
-            Half(
-                hours = 0 until 12,
-                lane0 = lane0,
-                colors = colors,
-                taskMarks = taskMarks,
-                currentHour = currentHour,
-                cellW = cellW,
-                gap = gap,
-                density = density,
-                halfH = halfH,
-                barH = barH,
-            )
+        Spacer(GlanceModifier.height(SECTION_GAP))
+
+        LazyColumn(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
+            item(itemId = 0L) {
+                // Bottom padding sits on an outer wrapper so both halves keep their exact halfH content box.
+                Box(
+                    modifier = GlanceModifier
+                        .fillMaxWidth()
+                        .padding(bottom = HALF_GAP)
+                        .clickable(openDay),
+                ) {
+                    Half(
+                        hours = 0 until 12,
+                        lanes = lanes,
+                        colors = colors,
+                        taskMarks = taskMarks,
+                        currentHour = currentHour,
+                        cellW = cellW,
+                        gap = gap,
+                        density = density,
+                        barH = barH,
+                    )
+                }
+            }
+            item(itemId = 1L) {
+                Half(
+                    hours = 12 until 24,
+                    lanes = lanes,
+                    colors = colors,
+                    taskMarks = taskMarks,
+                    currentHour = currentHour,
+                    cellW = cellW,
+                    gap = gap,
+                    density = density,
+                    barH = barH,
+                    modifier = GlanceModifier.clickable(openDay),
+                )
+            }
         }
-
-        Spacer(GlanceModifier.height(HALF_GAP))
-
-        Half(
-            hours = 12 until 24,
-            lane0 = lane0,
-            colors = colors,
-            taskMarks = taskMarks,
-            currentHour = currentHour,
-            cellW = cellW,
-            gap = gap,
-            density = density,
-            halfH = halfH,
-            barH = barH,
-        )
     }
 }
 
@@ -357,6 +383,25 @@ internal fun snappedCellGeometry(innerW: Dp, gap: Dp, density: Float): Pair<Dp, 
     return (cellPx / density).dp to (gapPx / density).dp
 }
 
+/** Height of one 12-hour half with [visibleLanes] stacked lanes (lane 0 plus any clash bands). */
+internal fun halfHeight(visibleLanes: Int): Dp =
+    LANE0_HEIGHT + EXTRA_LANE_HEIGHT * (visibleLanes - 1).coerceAtLeast(0)
+
+/**
+ * Replaces spaces and control whitespace with U+00A0 so RemoteViews' `maxLines = 1` TextView clips
+ * mid-word at a character boundary (matching the Today page) instead of dropping the trailing word.
+ */
+internal fun noBreakTitle(title: String): String = buildString(title.length) {
+    for (ch in title) {
+        append(
+            when (ch) {
+                ' ', '\n', '\r', '\t' -> '\u00A0'
+                else -> ch
+            },
+        )
+    }
+}
+
 private sealed interface BarSegment {
     data class Gap(val width: Dp) : BarSegment
     data class Bar(val width: Dp, val fill: Color, val title: String) : BarSegment
@@ -367,29 +412,44 @@ private sealed interface TickSegment {
     data class Tick(val done: Boolean) : TickSegment
 }
 
+/**
+ * One 12-hour half of the day. Lane 0 is [LANE0_HEIGHT] tall with the hour number at top-left and
+ * its bar near the bottom; each clash lane active in [hours] adds an [EXTRA_LANE_HEIGHT] band to
+ * the cells' height with a vertically centred bar, matching `DayHourGrid`.
+ */
 @Composable
 private fun Half(
     hours: IntRange,
-    lane0: List<List<HourGrid.HourSlice>>?,
+    lanes: List<List<List<HourGrid.HourSlice>>>,
     colors: Map<Long, Int>,
     taskMarks: List<List<TaskGrid.Mark>>,
     currentHour: Int,
     cellW: Dp,
     gap: Dp,
     density: Float,
-    halfH: Dp,
     barH: Dp,
+    modifier: GlanceModifier = GlanceModifier,
 ) {
-    val runs = if (lane0 != null) HourGrid.runs(lane0, hours) else emptyList()
-    val barSegments = buildBarSegments(runs, colors, cellW, gap, density)
+    // Capped at GLANCE_MAX_CHILDREN (10): Glance 1.1.1 silently drops Column children past 10,
+    // so lanes beyond the 10th are not drawn.
+    val visible = lanes
+        .filterIndexed { i, lane ->
+            i == 0 || hours.any { lane.getOrElse(it) { emptyList() }.isNotEmpty() }
+        }
+        .ifEmpty { listOf(EMPTY_LANE) }
+        .take(GLANCE_MAX_CHILDREN)
+    val halfH = halfHeight(visible.size)
+    val laneBarSegments = visible.map { lane ->
+        buildBarSegments(HourGrid.runs(lane, hours), colors, cellW, gap, density)
+    }
     val tickSegments = buildTickSegments(hours, taskMarks, cellW, gap, density)
     val emittedCellW = emitSnapped(cellW, density)
     val emittedGap = emitSnapped(gap, density)
     val tickW = emitPx(Math.round(TICK_WIDTH.value * density), density)
 
     // Up to 4 stacked children (limit 10): cells (back), bars, ticks, now outline (front).
-    // Nothing inside is clickable, so taps pass through to the card's openDay action.
-    Box(modifier = GlanceModifier.fillMaxWidth().height(halfH)) {
+    // Nothing inside is clickable, so taps pass through to the list item's openDay action.
+    Box(modifier = modifier.fillMaxWidth().height(halfH)) {
         // a. Cells (back): 2 inner Rows of 6 because Glance 1.1.1 silently drops children past 10.
         val hourList = hours.toList()
         // 2 children (limit 10): first 6 hours, second 6 hours.
@@ -431,29 +491,45 @@ private fun Half(
             }
         }
 
-        // b. Bars (middle): at most 10 chunks of at most 10 segments each.
-        if (barSegments.isNotEmpty()) {
+        // b. Bars (middle): 1 Column of up to 10 visible lanes (limit 10); each lane has at most
+        // 10 chunks of at most 10 segments.
+        if (laneBarSegments.any { it.isNotEmpty() }) {
             // At most 10 children (GLANCE_MAX_CHILDREN).
-            Row(
-                modifier = GlanceModifier.fillMaxSize().padding(bottom = 3.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                barSegments.chunked(GLANCE_MAX_CHILDREN).take(GLANCE_MAX_CHILDREN).forEach { chunk ->
-                    // At most 10 children (GLANCE_MAX_CHILDREN).
-                    Row(
-                        modifier = GlanceModifier.fillMaxHeight(),
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
-                        chunk.forEach { segment ->
-                            when (segment) {
-                                is BarSegment.Gap -> Spacer(GlanceModifier.width(emitSnapped(segment.width, density)))
-                                is BarSegment.Bar -> EventBar(
-                                    width = segment.width,
-                                    barH = barH,
-                                    fill = segment.fill,
-                                    title = segment.title,
-                                    density = density,
-                                )
+            Column(modifier = GlanceModifier.fillMaxWidth()) {
+                laneBarSegments.forEachIndexed { laneIndex, segments ->
+                    val isTopLane = laneIndex == 0
+                    val laneHeight = if (isTopLane) LANE0_HEIGHT else EXTRA_LANE_HEIGHT
+                    if (segments.isEmpty()) {
+                        Spacer(GlanceModifier.height(laneHeight))
+                    } else {
+                        val vAlign = if (isTopLane) Alignment.Bottom else Alignment.CenterVertically
+                        // At most 10 children (GLANCE_MAX_CHILDREN).
+                        Row(
+                            modifier = GlanceModifier
+                                .fillMaxWidth()
+                                .height(laneHeight)
+                                .let { if (isTopLane) it.padding(bottom = 3.dp) else it },
+                            verticalAlignment = vAlign,
+                        ) {
+                            segments.chunked(GLANCE_MAX_CHILDREN).take(GLANCE_MAX_CHILDREN).forEach { chunk ->
+                                // At most 10 children (GLANCE_MAX_CHILDREN).
+                                Row(
+                                    modifier = GlanceModifier.fillMaxHeight(),
+                                    verticalAlignment = vAlign,
+                                ) {
+                                    chunk.forEach { segment ->
+                                        when (segment) {
+                                            is BarSegment.Gap -> Spacer(GlanceModifier.width(emitSnapped(segment.width, density)))
+                                            is BarSegment.Bar -> EventBar(
+                                                width = segment.width,
+                                                barH = barH,
+                                                fill = segment.fill,
+                                                title = segment.title,
+                                                density = density,
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -461,10 +537,10 @@ private fun Half(
             }
         }
 
-        // c. Ticks, only when this half has deadline marks.
+        // c. Ticks on lane 0 only, when this half has deadline marks.
         if (tickSegments.isNotEmpty()) {
             // At most 10 children (GLANCE_MAX_CHILDREN).
-            Row(modifier = GlanceModifier.fillMaxSize()) {
+            Row(modifier = GlanceModifier.fillMaxWidth().height(LANE0_HEIGHT)) {
                 tickSegments.chunked(GLANCE_MAX_CHILDREN).take(GLANCE_MAX_CHILDREN).forEach { chunk ->
                     // At most 10 children (GLANCE_MAX_CHILDREN).
                     Row(modifier = GlanceModifier.fillMaxHeight()) {
@@ -487,6 +563,7 @@ private fun Half(
 
         // d. Current-hour outline (front), over bars and ticks so bars don't hide its sides.
         if (currentHour in hours) {
+            // 1 or 2 children (limit 10): optional offset spacer, outline box.
             Row(modifier = GlanceModifier.fillMaxSize()) {
                 val index = currentHour - hours.first
                 if (index > 0) Spacer(GlanceModifier.width(emitSnapped(hourOffsetX(index.toFloat(), cellW, gap), density)))
@@ -532,7 +609,7 @@ private fun EventBar(width: Dp, barH: Dp, fill: Color, title: String, density: F
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     Text(
-                        text = title,
+                        text = noBreakTitle(title),
                         maxLines = 1,
                         style = TextStyle(
                             color = BAR_TITLE_INK,

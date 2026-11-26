@@ -13,14 +13,14 @@
     android:background="#FFFFFF"
     android:paddingStart="14dp"
     android:paddingEnd="14dp"
-    android:paddingTop="14dp"
-    android:paddingBottom="14dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
     tools:ignore="HardcodedText">
 
     <!-- Label row -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="24dp"
+        android:layout_height="32dp"
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
@@ -44,12 +44,16 @@
             android:text="Tue 24 Nov" />
 
         <FrameLayout
-            android:layout_width="28dp"
-            android:layout_height="24dp">
+            android:layout_width="8dp"
+            android:layout_height="1dp" />
+
+        <FrameLayout
+            android:layout_width="44dp"
+            android:layout_height="32dp">
 
             <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:layout_gravity="center"
                 android:importantForAccessibility="no"
                 android:tint="#4F5A6B"
@@ -57,12 +61,12 @@
         </FrameLayout>
 
         <FrameLayout
-            android:layout_width="28dp"
-            android:layout_height="24dp">
+            android:layout_width="44dp"
+            android:layout_height="32dp">
 
             <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:layout_gravity="center"
                 android:importantForAccessibility="no"
                 android:tint="#4F5A6B"

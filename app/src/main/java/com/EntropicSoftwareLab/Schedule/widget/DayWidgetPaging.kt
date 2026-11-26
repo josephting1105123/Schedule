@@ -1,6 +1,7 @@
 package com.EntropicSoftwareLab.Schedule.widget
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceModifier
@@ -53,12 +54,15 @@ internal fun DayChevron(
     icon: Int,
     description: String,
     tint: ColorProvider = GlanceTheme.colors.onSurfaceVariant,
+    boxWidth: Dp = 28.dp,
+    boxHeight: Dp = 24.dp,
+    iconSize: Dp = 16.dp,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = GlanceModifier
-            .width(28.dp)
-            .height(24.dp)
+            .width(boxWidth)
+            .height(boxHeight)
             .semantics { contentDescription = description }
             .clickable(onClick),
         contentAlignment = Alignment.Center,
@@ -66,7 +70,7 @@ internal fun DayChevron(
         Image(
             provider = ImageProvider(icon),
             contentDescription = null,
-            modifier = GlanceModifier.size(16.dp),
+            modifier = GlanceModifier.size(iconSize),
             colorFilter = ColorFilter.tint(tint),
         )
     }

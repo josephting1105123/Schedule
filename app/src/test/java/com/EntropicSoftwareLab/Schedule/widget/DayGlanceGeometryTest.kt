@@ -124,4 +124,22 @@ class DayGlanceGeometryTest {
             }
         }
     }
+
+    @Test
+    fun `noBreakTitle replaces spaces and line breaks with no-break spaces`() {
+        assertEquals("Team\u00A0meeting", noBreakTitle("Team meeting"))
+        assertEquals("a\u00A0\u00A0b", noBreakTitle("a  b"))
+        val converted = noBreakTitle("x\ny\tz")
+        assertEquals("x\u00A0y\u00A0z", converted)
+        assertTrue('\n' !in converted && '\t' !in converted)
+        assertEquals("x\u00A0y", noBreakTitle("x\ry"))
+        assertEquals("", noBreakTitle(""))
+    }
+
+    @Test
+    fun `halfHeight adds 22dp for each clash lane beyond lane 0`() {
+        assertDp(40f, halfHeight(1))
+        assertDp(62f, halfHeight(2))
+        assertDp(84f, halfHeight(3))
+    }
 }

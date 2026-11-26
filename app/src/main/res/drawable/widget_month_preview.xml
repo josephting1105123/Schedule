@@ -4,9 +4,10 @@
   from 31 up gets layout/month_widget_preview.xml instead, which has real numerals; this is the same
   grid reduced to blocks, because a vector has no text.
 
-  Coordinates are the widget's own: a 250×180 card with 12dp side padding, so the seven columns are
-  32.28dp wide and the six weeks are 21dp apart. Colours track the theme through @color, except the
-  four bands, which are event colours from EventColorPalette and belong to the event either way.
+  Coordinates are the widget's own: a 250×180 card with 12dp side padding, Sunday first, as the
+  widget is, so the seven columns are 32.28dp wide and the six weeks are 21dp apart. Colours track
+  the theme through @color, except the four bands, which are event colours from EventColorPalette
+  and belong to the event either way.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="250dp"
@@ -39,26 +40,31 @@
         android:fillColor="@color/widget_preview_rule"
         android:pathData="M12,52h226v1h-226z M12,73h226v1h-226z M12,94h226v1h-226z M12,115h226v1h-226z M12,136h226v1h-226z M12,157h226v1h-226z" />
 
+    <!-- Vertical rules between the seven columns -->
+    <path
+        android:fillColor="@color/widget_preview_rule"
+        android:pathData="M44,38h1v138h-1z M77,38h1v138h-1z M109,38h1v138h-1z M141,38h1v138h-1z M173,38h1v138h-1z M206,38h1v138h-1z" />
+
     <!-- The ring behind today, under its number -->
     <path
         android:fillColor="@color/widget_month_pill"
-        android:pathData="M100.7,81 a8,8 0 1 1 -16,0 a8,8 0 1 1 16,0 z" />
+        android:pathData="M133,81 a8,8 0 1 1 -16,0 a8,8 0 1 1 16,0 z" />
 
     <!-- Days of the month on show -->
     <path
         android:fillColor="@color/widget_preview_text"
-        android:pathData="M185,56h10v8h-10z M217,56h10v8h-10z
+        android:pathData="M217,56h10v8h-10z
                           M23,77h10v8h-10z M55,77h10v8h-10z M88,77h10v8h-10z M120,77h10v8h-10z M152,77h10v8h-10z M185,77h10v8h-10z M217,77h10v8h-10z
                           M23,98h10v8h-10z M55,98h10v8h-10z M88,98h10v8h-10z M120,98h10v8h-10z M152,98h10v8h-10z M185,98h10v8h-10z M217,98h10v8h-10z
                           M23,119h10v8h-10z M55,119h10v8h-10z M88,119h10v8h-10z M120,119h10v8h-10z M152,119h10v8h-10z M185,119h10v8h-10z M217,119h10v8h-10z
                           M23,140h10v8h-10z M55,140h10v8h-10z M88,140h10v8h-10z M120,140h10v8h-10z M152,140h10v8h-10z M185,140h10v8h-10z M217,140h10v8h-10z
-                          M23,161h10v8h-10z" />
+                          M23,161h10v8h-10z M55,161h10v8h-10z" />
 
     <!-- Days spilling in from the months either side -->
     <path
         android:fillColor="@color/widget_preview_muted"
-        android:pathData="M23,56h10v8h-10z M55,56h10v8h-10z M88,56h10v8h-10z M120,56h10v8h-10z M152,56h10v8h-10z
-                          M55,161h10v8h-10z M88,161h10v8h-10z M120,161h10v8h-10z M152,161h10v8h-10z M185,161h10v8h-10z M217,161h10v8h-10z" />
+        android:pathData="M23,56h10v8h-10z M55,56h10v8h-10z M88,56h10v8h-10z M120,56h10v8h-10z M152,56h10v8h-10z M185,56h10v8h-10z
+                          M88,161h10v8h-10z M120,161h10v8h-10z M152,161h10v8h-10z M185,161h10v8h-10z M217,161h10v8h-10z" />
 
     <!-- A three-day band, a fortnight-long one crossing the week boundary, and a single day -->
     <path android:fillColor="#1E88C7" android:pathData="M77,87h96v5h-96z" />
