@@ -2,7 +2,10 @@ package com.EntropicSoftwareLab.Schedule.widget
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.EntropicSoftwareLab.Schedule.data.calendar.EventInstance
+import com.EntropicSoftwareLab.Schedule.data.calendar.HourGrid
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -141,5 +144,76 @@ class DayGlanceGeometryTest {
         assertDp(40f, halfHeight(1))
         assertDp(62f, halfHeight(2))
         assertDp(84f, halfHeight(3))
+    }
+
+    @Test
+    fun `fitTitle returns longest character-boundary prefix that fits within maxWidthPx`() {
+        val measure: (String) -> Float = { it.length * 10f }
+        assertEquals("Team meeting", fitTitle("Team meeting", 1000f, measure))
+        assertEquals("Team m", fitTitle("Team meeting", 65f, measure))
+        assertEquals("", fitTitle("Dentist", 5f, measure))
+        assertEquals("", fitTitle("Dentist", 0f, measure))
+        assertEquals("", fitTitle("", 50f, measure))
+        assertEquals("Team\u00A0", fitTitle("Team\u00A0meeting", 55f, measure))
+    }
+
+    @Test
+    fun `fitTitle never splits an emoji surrogate pair`() {
+        val measure: (String) -> Float = { it.length * 10f }
+        // "Hi 😀 there": "Hi " is 3 UTF-16 code units (30f), "😀" is 2 surrogates at indices 3..4 (50f).
+        // Width 40f or 45f would cut between the high and low surrogate if slicing by UTF-16 index.
+        val beforeEmoji = fitTitle("Hi 😀 there", 40f, measure)
+        assertEquals("Hi ", beforeEmoji)
+        assertFalse(beforeEmoji.last().isHighSurrogate())
+
+        val midPairBudget = fitTitle("Hi 😀 there", 45f, measure)
+        assertEquals("Hi ", midPairBudget)
+        assertFalse(midPairBudget.last().isHighSurrogate())
+
+        val withEmoji = fitTitle("Hi 😀 there", 50f, measure)
+        assertEquals("Hi 😀", withEmoji)
+        assertFalse(withEmoji.last().isHighSurrogate())
+    }
+
+    @Test
+    fun `visibleLanes keeps lane 0 always, filters inactive clash lanes per half, and caps at 10`() {
+        val emptyMorning = visibleLanes(emptyList(), 0 until 12)
+        val emptyAfternoon = visibleLanes(emptyList(), 12 until 24)
+        assertEquals(1, emptyMorning.size)
+        assertTrue(emptyMorning.single().all { it.isEmpty() })
+        assertEquals(1, emptyAfternoon.size)
+
+        val morningClashOnly = listOf(
+            laneWithHours(9, 10, 14),
+            laneWithHours(9, 10),
+        )
+        assertEquals(2, visibleLanes(morningClashOnly, 0 until 12).size)
+        assertEquals(1, visibleLanes(morningClashOnly, 12 until 24).size)
+
+        val twelveActive = List(12) { laneWithHours(9, 15) }
+        assertEquals(10, visibleLanes(twelveActive, 0 until 12).size)
+        assertEquals(10, visibleLanes(twelveActive, 12 until 24).size)
+    }
+
+    private fun laneWithHours(vararg activeHours: Int): List<List<HourGrid.HourSlice>> {
+        val active = activeHours.toSet()
+        val slice = HourGrid.HourSlice(
+            event = EventInstance(
+                eventId = 1L,
+                instanceId = 1L,
+                title = "Event",
+                location = null,
+                startMillis = 0L,
+                endMillis = 3_600_000L,
+                allDay = false,
+                calendarId = 1L,
+                displayColor = 0,
+            ),
+            startFraction = 0f,
+            endFraction = 1f,
+        )
+        return List(HourGrid.HOURS_PER_DAY) { hour ->
+            if (hour in active) listOf(slice) else emptyList()
+        }
     }
 }

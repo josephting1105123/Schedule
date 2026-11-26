@@ -2,6 +2,11 @@
 
 The newest version is at the top.
 
+## 1.4.23
+
+- Event titles on Day at a glance no longer end in "…": each title shows every letter its bar has room for, as on the Today page.
+- Day at a glance sits in the middle of its space again when the home screen gives it more room than it needs. It only scrolls when overlapping events make it too tall to fit.
+
 ## 1.4.22
 
 - Day at a glance's ‹ › buttons are bigger and sit a little apart from the date, so they're easier to hit.

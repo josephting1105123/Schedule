@@ -1,6 +1,9 @@
 package com.EntropicSoftwareLab.Schedule.widget
 
 import android.content.Context
+import android.graphics.Typeface
+import android.text.TextPaint
+import android.util.TypedValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -59,6 +62,7 @@ import com.EntropicSoftwareLab.Schedule.ui.components.eventTint
 import com.EntropicSoftwareLab.Schedule.ui.theme.EventColorPalette
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import java.text.BreakIterator
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
@@ -232,7 +236,19 @@ private fun DayGlanceBody(
     onStep: (Int) -> Unit,
     onBackToToday: () -> Unit,
 ) {
-    val density = context.resources.displayMetrics.density
+    val metrics = context.resources.displayMetrics
+    val density = metrics.density
+    val titlePaint = TextPaint().apply {
+        isAntiAlias = true
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 10.5f, metrics)
+        // Glance's FontWeight.Medium span inherits TextAppearance.DeviceDefault, which uses the
+        // device's config_bodyFontFamily (e.g. Google Sans Text on Pixel), not Typeface.DEFAULT.
+        val bodyFamily = context.obtainStyledAttributes(
+            android.R.style.TextAppearance_DeviceDefault, intArrayOf(android.R.attr.fontFamily),
+        ).run { try { getString(0) } finally { recycle() } }
+        typeface = Typeface.create(Typeface.create(bodyFamily, Typeface.NORMAL), 500, false)
+    }
+    val measureTitle: (String) -> Float = titlePaint::measureText
     val size = LocalSize.current
     val innerW = size.width - CARD_PADDING_H * 2
     val (cellW, gap) = snappedCellGeometry(innerW, CELL_GAP, density)
@@ -242,8 +258,13 @@ private fun DayGlanceBody(
     val colors = data?.colors.orEmpty()
     val taskMarks = data?.taskMarks.orEmpty()
     val openDay = actionStartActivity(WidgetLaunchIntents.openDay(context, shown))
+    val contentH = halfHeight(visibleLanes(lanes, 0 until 12).size) +
+        HALF_GAP +
+        halfHeight(visibleLanes(lanes, 12 until 24).size)
+    val availableH = size.height - CARD_PADDING_V * 2 - LABEL_HEIGHT - SECTION_GAP
 
-    // 3 children (limit 10): label row, section gap, scrollable halves list.
+    // 3 or 4 children (limit 10): label row, section gap, then either the two halves directly
+    // (centred when they fit) or a scrollable halves list when clash lanes overflow the card.
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -252,6 +273,7 @@ private fun DayGlanceBody(
             .cornerRadius(CARD_RADIUS)
             .padding(horizontal = CARD_PADDING_H, vertical = CARD_PADDING_V)
             .clickable(openDay),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // 5 children (limit 10): widget title, date, spacer, previous day, next day.
         Row(
@@ -305,31 +327,15 @@ private fun DayGlanceBody(
 
         Spacer(GlanceModifier.height(SECTION_GAP))
 
-        LazyColumn(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
-            item(itemId = 0L) {
-                // Bottom padding sits on an outer wrapper so both halves keep their exact halfH content box.
-                Box(
-                    modifier = GlanceModifier
-                        .fillMaxWidth()
-                        .padding(bottom = HALF_GAP)
-                        .clickable(openDay),
-                ) {
-                    Half(
-                        hours = 0 until 12,
-                        lanes = lanes,
-                        colors = colors,
-                        taskMarks = taskMarks,
-                        currentHour = currentHour,
-                        cellW = cellW,
-                        gap = gap,
-                        density = density,
-                        barH = barH,
-                    )
-                }
-            }
-            item(itemId = 1L) {
+        if (contentH <= availableH) {
+            // Bottom padding sits on an outer wrapper so both halves keep their exact halfH content box.
+            Box(
+                modifier = GlanceModifier
+                    .fillMaxWidth()
+                    .padding(bottom = HALF_GAP),
+            ) {
                 Half(
-                    hours = 12 until 24,
+                    hours = 0 until 12,
                     lanes = lanes,
                     colors = colors,
                     taskMarks = taskMarks,
@@ -338,8 +344,60 @@ private fun DayGlanceBody(
                     gap = gap,
                     density = density,
                     barH = barH,
-                    modifier = GlanceModifier.clickable(openDay),
+                    measureTitle = measureTitle,
                 )
+            }
+            Half(
+                hours = 12 until 24,
+                lanes = lanes,
+                colors = colors,
+                taskMarks = taskMarks,
+                currentHour = currentHour,
+                cellW = cellW,
+                gap = gap,
+                density = density,
+                barH = barH,
+                measureTitle = measureTitle,
+            )
+        } else {
+            LazyColumn(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
+                item(itemId = 0L) {
+                    // Bottom padding sits on an outer wrapper so both halves keep their exact halfH content box.
+                    Box(
+                        modifier = GlanceModifier
+                            .fillMaxWidth()
+                            .padding(bottom = HALF_GAP)
+                            .clickable(openDay),
+                    ) {
+                        Half(
+                            hours = 0 until 12,
+                            lanes = lanes,
+                            colors = colors,
+                            taskMarks = taskMarks,
+                            currentHour = currentHour,
+                            cellW = cellW,
+                            gap = gap,
+                            density = density,
+                            barH = barH,
+                            measureTitle = measureTitle,
+                        )
+                    }
+                }
+                item(itemId = 1L) {
+                    Half(
+                        hours = 12 until 24,
+                        lanes = lanes,
+                        colors = colors,
+                        taskMarks = taskMarks,
+                        currentHour = currentHour,
+                        cellW = cellW,
+                        gap = gap,
+                        density = density,
+                        barH = barH,
+                        measureTitle = measureTitle,
+                        modifier = GlanceModifier.clickable(openDay),
+                    )
+                }
             }
         }
     }
@@ -388,6 +446,21 @@ internal fun halfHeight(visibleLanes: Int): Dp =
     LANE0_HEIGHT + EXTRA_LANE_HEIGHT * (visibleLanes - 1).coerceAtLeast(0)
 
 /**
+ * Lanes drawn for [hours]: lane 0 always (an empty lane when [lanes] is empty), plus any clash
+ * lanes active in [hours], capped at [GLANCE_MAX_CHILDREN] because Glance 1.1.1 silently drops
+ * Column children past 10.
+ */
+internal fun visibleLanes(
+    lanes: List<List<List<HourGrid.HourSlice>>>,
+    hours: IntRange,
+): List<List<List<HourGrid.HourSlice>>> = lanes
+    .filterIndexed { i, lane ->
+        i == 0 || hours.any { lane.getOrElse(it) { emptyList() }.isNotEmpty() }
+    }
+    .ifEmpty { listOf(EMPTY_LANE) }
+    .take(GLANCE_MAX_CHILDREN)
+
+/**
  * Replaces spaces and control whitespace with U+00A0 so RemoteViews' `maxLines = 1` TextView clips
  * mid-word at a character boundary (matching the Today page) instead of dropping the trailing word.
  */
@@ -400,6 +473,39 @@ internal fun noBreakTitle(title: String): String = buildString(title.length) {
             },
         )
     }
+}
+
+/**
+ * Longest prefix of [title] ending on a character boundary whose [measure] is at most [maxWidthPx],
+ * so Glance's forced `ellipsize=end` TextView never triggers and trades letters for "…".
+ */
+internal fun fitTitle(title: String, maxWidthPx: Float, measure: (String) -> Float): String {
+    if (maxWidthPx <= 0f || maxWidthPx.isNaN() || title.isEmpty()) return ""
+    if (measure(title) <= maxWidthPx) return title
+
+    val boundaries = mutableListOf<Int>()
+    val iter = BreakIterator.getCharacterInstance()
+    iter.setText(title)
+    var end = iter.next()
+    while (end != BreakIterator.DONE) {
+        if (end < title.length) boundaries += end
+        end = iter.next()
+    }
+
+    var lo = 0
+    var hi = boundaries.size - 1
+    var best = 0
+    while (lo <= hi) {
+        val mid = (lo + hi) ushr 1
+        val candidate = boundaries[mid]
+        if (measure(title.substring(0, candidate)) <= maxWidthPx) {
+            best = candidate
+            lo = mid + 1
+        } else {
+            hi = mid - 1
+        }
+    }
+    return if (best == 0) "" else title.substring(0, best)
 }
 
 private sealed interface BarSegment {
@@ -428,16 +534,10 @@ private fun Half(
     gap: Dp,
     density: Float,
     barH: Dp,
+    measureTitle: (String) -> Float,
     modifier: GlanceModifier = GlanceModifier,
 ) {
-    // Capped at GLANCE_MAX_CHILDREN (10): Glance 1.1.1 silently drops Column children past 10,
-    // so lanes beyond the 10th are not drawn.
-    val visible = lanes
-        .filterIndexed { i, lane ->
-            i == 0 || hours.any { lane.getOrElse(it) { emptyList() }.isNotEmpty() }
-        }
-        .ifEmpty { listOf(EMPTY_LANE) }
-        .take(GLANCE_MAX_CHILDREN)
+    val visible = visibleLanes(lanes, hours)
     val halfH = halfHeight(visible.size)
     val laneBarSegments = visible.map { lane ->
         buildBarSegments(HourGrid.runs(lane, hours), colors, cellW, gap, density)
@@ -448,7 +548,8 @@ private fun Half(
     val tickW = emitPx(Math.round(TICK_WIDTH.value * density), density)
 
     // Up to 4 stacked children (limit 10): cells (back), bars, ticks, now outline (front).
-    // Nothing inside is clickable, so taps pass through to the list item's openDay action.
+    // Nothing inside is clickable, so taps pass through to openDay on the card (when centred) or
+    // the list item (when scrolling).
     Box(modifier = modifier.fillMaxWidth().height(halfH)) {
         // a. Cells (back): 2 inner Rows of 6 because Glance 1.1.1 silently drops children past 10.
         val hourList = hours.toList()
@@ -526,6 +627,7 @@ private fun Half(
                                                 fill = segment.fill,
                                                 title = segment.title,
                                                 density = density,
+                                                measureTitle = measureTitle,
                                             )
                                         }
                                     }
@@ -579,7 +681,14 @@ private fun Half(
 }
 
 @Composable
-private fun EventBar(width: Dp, barH: Dp, fill: Color, title: String, density: Float) {
+private fun EventBar(
+    width: Dp,
+    barH: Dp,
+    fill: Color,
+    title: String,
+    density: Float,
+    measureTitle: (String) -> Float,
+) {
     val widthPx = Math.round(width.value * density)
     val edgePx = Math.round(BAR_EDGE_WIDTH.value * density)
     val bodyPx = widthPx - edgePx
@@ -601,22 +710,26 @@ private fun EventBar(width: Dp, barH: Dp, fill: Color, title: String, density: F
                     .background(fill),
             ) {}
             if (bodyPx > 0 && width >= MIN_TITLED_BAR_WIDTH) {
-                Box(
-                    GlanceModifier
-                        .width(emitPx(bodyPx, density))
-                        .fillMaxHeight()
-                        .padding(start = 2.dp, end = 1.dp),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    Text(
-                        text = noBreakTitle(title),
-                        maxLines = 1,
-                        style = TextStyle(
-                            color = BAR_TITLE_INK,
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.Medium,
-                        ),
-                    )
+                val textPx = bodyPx - Math.round(2.dp.value * density) - Math.round(1.dp.value * density) - 1
+                val fitted = fitTitle(noBreakTitle(title), textPx.toFloat(), measureTitle)
+                if (fitted.isNotEmpty()) {
+                    Box(
+                        GlanceModifier
+                            .width(emitPx(bodyPx, density))
+                            .fillMaxHeight()
+                            .padding(start = 2.dp, end = 1.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Text(
+                            text = fitted,
+                            maxLines = 1,
+                            style = TextStyle(
+                                color = BAR_TITLE_INK,
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Medium,
+                            ),
+                        )
+                    }
                 }
             }
         }
