@@ -20,7 +20,7 @@
     <!-- Header -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="24dp"
+        android:layout_height="32dp"
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
@@ -29,36 +29,11 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:fontFamily="sans-serif"
-            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textSize="20sp"
             android:maxLines="1"
             android:textColor="#43483F"
             android:text="Agenda" />
-
-        <FrameLayout
-            android:layout_width="28dp"
-            android:layout_height="24dp">
-
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_gravity="center"
-                android:importantForAccessibility="no"
-                android:tint="#43483F"
-                android:src="@drawable/ic_widget_chevron_left" />
-        </FrameLayout>
-
-        <FrameLayout
-            android:layout_width="28dp"
-            android:layout_height="24dp">
-
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_gravity="center"
-                android:importantForAccessibility="no"
-                android:tint="#43483F"
-                android:src="@drawable/ic_widget_chevron_right" />
-        </FrameLayout>
 
         <FrameLayout
             android:layout_width="28dp"
@@ -77,6 +52,19 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="6dp" />
+
+    <!-- Day header -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:gravity="bottom|start"
+        android:paddingBottom="4dp"
+        android:fontFamily="sans-serif"
+        android:textStyle="bold"
+        android:textSize="17sp"
+        android:maxLines="1"
+        android:textColor="#3F6837"
+        android:text="Today · 26 Nov" />
 
     <!-- Rows -->
     <LinearLayout style="@style/WidgetPreview.TodayRow">

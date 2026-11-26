@@ -3,7 +3,6 @@ package com.EntropicSoftwareLab.Schedule.widget
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 class DayWidgetPagingTest {
@@ -55,24 +54,24 @@ class DayWidgetPagingTest {
     }
 
     @Test
-    fun `agendaTitle names today, tomorrow, yesterday, and formats farther days`() {
+    fun `agendaDayHeader labels today and tomorrow, then plain dates`() {
         val saved = Locale.getDefault()
         try {
             Locale.setDefault(Locale.UK)
-            assertEquals("Agenda", DayWidgetPaging.agendaTitle(today, today))
-            assertEquals("Tomorrow", DayWidgetPaging.agendaTitle(today.plusDays(1), today))
-            assertEquals("Yesterday", DayWidgetPaging.agendaTitle(today.minusDays(1), today))
-
-            val farFuture = LocalDate.of(2026, 11, 27)
-            assertEquals("Fri 27 Nov", DayWidgetPaging.agendaTitle(farFuture, today))
-
-            val farPast = LocalDate.of(2026, 11, 20)
-            assertEquals(
-                farPast.format(DateTimeFormatter.ofPattern("EEE d MMM")),
-                DayWidgetPaging.agendaTitle(farPast, today),
-            )
+            val t = LocalDate.of(2026, 11, 26)
+            assertEquals("Today · 26 Nov", DayWidgetPaging.agendaDayHeader(t, t))
+            assertEquals("Tomorrow · 27 Nov", DayWidgetPaging.agendaDayHeader(t.plusDays(1), t))
+            assertEquals("Sat 28 Nov", DayWidgetPaging.agendaDayHeader(t.plusDays(2), t))
+            assertEquals("Wed 25 Nov", DayWidgetPaging.agendaDayHeader(t.minusDays(1), t))
         } finally {
             Locale.setDefault(saved)
         }
+    }
+
+    @Test
+    fun `fillerHeight pads short days and never goes negative`() {
+        assertEquals(88f, DayWidgetPaging.fillerHeight(200f, 28f, 42f, 2), 0.001f)
+        assertEquals(172f, DayWidgetPaging.fillerHeight(200f, 28f, 42f, 0), 0.001f)
+        assertEquals(0f, DayWidgetPaging.fillerHeight(200f, 28f, 42f, 10), 0.001f)
     }
 }

@@ -2,6 +2,11 @@
 
 The newest version is at the top.
 
+## 1.4.24
+
+- The Agenda widget no longer has ‹ › buttons. Swipe up and down instead: it lists today and the next 13 days, each under its own date, and each day fills the widget so you read one day at a time.
+- Tap a day's date in the Agenda widget to open that day.
+
 ## 1.4.23
 
 - Event titles on Day at a glance no longer end in "…": each title shows every letter its bar has room for, as on the Today page.
