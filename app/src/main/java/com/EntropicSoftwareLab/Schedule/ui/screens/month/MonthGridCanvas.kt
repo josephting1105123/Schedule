@@ -16,10 +16,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -46,7 +46,7 @@ import com.EntropicSoftwareLab.Schedule.data.calendar.MonthChip
 import com.EntropicSoftwareLab.Schedule.data.calendar.MonthChips
 import com.EntropicSoftwareLab.Schedule.data.calendar.WeekChips
 import com.EntropicSoftwareLab.Schedule.ui.components.asCalendarColor
-import com.EntropicSoftwareLab.Schedule.ui.components.EVENT_EDGE_WIDTH
+import com.EntropicSoftwareLab.Schedule.ui.components.EVENT_OUTLINE_WIDTH
 import com.EntropicSoftwareLab.Schedule.ui.components.eventInk
 import com.EntropicSoftwareLab.Schedule.ui.components.eventTint
 import com.EntropicSoftwareLab.Schedule.ui.theme.AppThemeTokens
@@ -157,7 +157,7 @@ internal fun MonthGridCanvas(
     val dotTopPaddingPx = with(density) { DOT_TOP_PADDING.toPx() }
     val chipCornerPx = with(density) { CHIP_CORNER.toPx() }
     val chipTextPaddingPx = with(density) { CHIP_TEXT_PADDING.toPx() }
-    val edgeWidthPx = with(density) { EVENT_EDGE_WIDTH.toPx() }
+    val outlineWidthPx = with(density) { EVENT_OUTLINE_WIDTH.toPx() }
     val todayCircleTopPaddingPx = with(density) { TODAY_CIRCLE_TOP_PADDING.toPx() }
     val hairlineWidthPx = with(density) { HAIRLINE_WIDTH.toPx() }
 
@@ -179,8 +179,7 @@ internal fun MonthGridCanvas(
                     val startInset = if (chip.continuesBefore) 0f else chipInsetPx
                     val endInset = if (chip.continuesAfter) 0f else chipInsetPx
                     val bandWidthPx = cellWidthPx * chip.span - startInset - endInset
-                    val edgePx = if (chip.continuesBefore) 0f else edgeWidthPx
-                    val constraintWidth = (bandWidthPx - chipTextPaddingPx * 2 - edgePx).coerceAtLeast(0f).toInt()
+                    val constraintWidth = (bandWidthPx - chipTextPaddingPx * 2).coerceAtLeast(0f).toInt()
                     textMeasurer.measure(
                         text = chip.event.title,
                         style = chipTextStyle,
@@ -211,8 +210,7 @@ internal fun MonthGridCanvas(
                 val startInset = if (chip.continuesBefore) 0f else chipInsetPx
                 val endInset = if (chip.continuesAfter) 0f else chipInsetPx
                 val bandWidthPx = cellWidthPx * chip.span - startInset - endInset
-                val edgePx = if (chip.continuesBefore) 0f else edgeWidthPx
-                val constraintWidth = (bandWidthPx - chipTextPaddingPx * 2 - edgePx).coerceAtLeast(0f).toInt()
+                val constraintWidth = (bandWidthPx - chipTextPaddingPx * 2).coerceAtLeast(0f).toInt()
                 textMeasurer.measure(
                     text = chip.event.title,
                     style = chipTextStyle,
@@ -346,12 +344,12 @@ internal fun MonthGridCanvas(
                 }
 
                 weekDraw.layout.chips.forEach { chip ->
-                    // A run entirely outside the month is a neighbour's event: its fill and edge fade, its name doesn't.
+                    // A run entirely outside the month is a neighbour's event: its fill and outline fade, its name doesn't.
                     val outside = (chip.startColumn until chip.startColumn + chip.span)
                         .none { YearMonth.from(weekDraw.week[it]) == month }
                     val base = (EventColorResolver.argbFor(chip.event, colorOverrides) ?: 0)
                         .asCalendarColor(colors.green)
-                    // A neighbouring month's event recedes: tint and edge fade onto the card. The name stays
+                    // A neighbouring month's event recedes: tint and outline fade onto the card. The name stays
                     // at full ink (secondary text outside the month) so it keeps reading at AA.
                     fun quiet(c: Color): Color =
                         if (outside) c.copy(alpha = 0.35f).compositeOver(colors.card) else c
@@ -379,25 +377,33 @@ internal fun MonthGridCanvas(
                     val chipPath = Path().apply { addRoundRect(roundRect) }
                     drawPath(chipPath, color = fill)
 
-                    // The solid leading edge, clipped to the chip's own outline so its outer corners
-                    // stay round. Only where the chip really begins: a band continued from last week
-                    // has no left edge to mark.
-                    val edgeDrawnPx = if (chip.continuesBefore) 0f else edgeWidthPx
-                    if (!chip.continuesBefore) {
-                        clipPath(chipPath) {
-                            drawRect(
-                                color = edge,
-                                topLeft = Offset(left, top),
-                                size = Size(edgeWidthPx, chipHeightPx),
-                            )
-                        }
+                    // The outline, clipped to the chip's own shape so it never spills into the next cell. A
+                    // side where the band continues into another week stays open, so Sunday-to-Monday still
+                    // reads as one event: the stroke's rect is pushed out past that side, beyond the clip.
+                    val open = outlineWidthPx * 2
+                    val strokeRect = RoundRect(
+                        left = left - if (chip.continuesBefore) open else 0f,
+                        top = top,
+                        right = left + width + if (chip.continuesAfter) open else 0f,
+                        bottom = top + chipHeightPx,
+                        topLeftCornerRadius = roundRect.topLeftCornerRadius,
+                        topRightCornerRadius = roundRect.topRightCornerRadius,
+                        bottomRightCornerRadius = roundRect.bottomRightCornerRadius,
+                        bottomLeftCornerRadius = roundRect.bottomLeftCornerRadius,
+                    )
+                    clipPath(chipPath) {
+                        drawPath(
+                            Path().apply { addRoundRect(strokeRect) },
+                            color = edge,
+                            style = Stroke(width = outlineWidthPx * 2),
+                        )
                     }
 
                     val label = weekDraw.chipLabels.getValue(chip)
                     drawText(
                         textLayoutResult = label,
                         topLeft = Offset(
-                            left + chipTextPaddingPx + edgeDrawnPx,
+                            left + chipTextPaddingPx,
                             top + (chipHeightPx - label.size.height) / 2f,
                         ),
                         color = if (outside) colors.textSecondary else colors.textPrimary,

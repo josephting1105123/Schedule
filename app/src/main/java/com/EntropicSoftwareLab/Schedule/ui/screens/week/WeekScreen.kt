@@ -43,8 +43,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
@@ -56,6 +54,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
@@ -81,7 +80,7 @@ import com.EntropicSoftwareLab.Schedule.ui.components.ScreenHeader
 import com.EntropicSoftwareLab.Schedule.ui.components.SectionCard
 import com.EntropicSoftwareLab.Schedule.ui.components.TodayPill
 import com.EntropicSoftwareLab.Schedule.ui.components.asCalendarColor
-import com.EntropicSoftwareLab.Schedule.ui.components.EVENT_EDGE_WIDTH
+import com.EntropicSoftwareLab.Schedule.ui.components.EVENT_OUTLINE_WIDTH
 import com.EntropicSoftwareLab.Schedule.ui.components.eventInk
 import com.EntropicSoftwareLab.Schedule.ui.components.eventTint
 import com.EntropicSoftwareLab.Schedule.ui.components.rememberLiveNow
@@ -624,8 +623,8 @@ private fun TimetableGrid(
  * breaks as "Orien- / tation" rather than mid-syllable without a mark.
  *
  * Times read "1300 / - / 1400" on three lines: a column is too narrow for "13:00–14:00", and wrapped
- * it read as "13:00–14" over ":00". The block is a pale tint of the event colour with a solid edge bar
- * on its left; the title is in ink, the times and place in the event's own hue darkened toward ink
+ * it read as "13:00–14" over ":00". The block is a pale tint of the event colour with a 1dp outline in
+ * the colour itself ([EVENT_OUTLINE_WIDTH]); the title is in ink, the times and place in the event's own hue darkened toward ink
  * ([eventInk]).
  */
 @Composable
@@ -645,27 +644,30 @@ private fun EventBlock(
         .copy(hyphens = Hyphens.Auto, lineBreak = LineBreak.Paragraph)
     val textStyle = MaterialTheme.typography.bodySmall.merge(BLOCK_TEXT_STYLE)
     val timeStyle = textStyle.merge(TabularFigures)
+    val shape = RoundedCornerShape(6.dp)
     BoxWithConstraints(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(shape)
             .background(eventTint(fill, 0.18f))
-            // The solid edge, drawn inside the clip so its outer corners follow the block's.
-            .drawBehind {
-                drawRect(fill, size = Size(EVENT_EDGE_WIDTH.toPx(), size.height))
-            }
+            .border(EVENT_OUTLINE_WIDTH, fill, shape)
             .clickable(onClickLabel = stringResource(R.string.week_show_event, event.title), onClick = onClick)
             .semantics { contentDescription = eventDescription }
-            .padding(
-                start = EVENT_EDGE_WIDTH + 2.dp,
-                end = 2.dp,
-                top = BLOCK_VERTICAL_PADDING,
-                bottom = BLOCK_VERTICAL_PADDING,
-            ),
+            .padding(horizontal = 2.dp, vertical = BLOCK_VERTICAL_PADDING),
     ) {
         val density = LocalDensity.current
         val titleLine = with(density) { BLOCK_TITLE_STYLE.lineHeight.toDp() }
         val textLine = with(density) { BLOCK_TEXT_STYLE.lineHeight.toDp() }
         val room = maxHeight
+        // A narrow block clips "1000" to "100", which reads as one o'clock. When four digits don't fit, a
+        // time on the hour shows as the hour alone ("10"); a time with minutes is left out, because
+        // "10" for 10:30 would be wrong.
+        val textMeasurer = rememberTextMeasurer()
+        val maxWidthPx = with(density) { maxWidth.roundToPx() }
+        val fullTimeFits = remember(textMeasurer, timeStyle, maxWidthPx) {
+            textMeasurer.measure("0000", timeStyle).size.width <= maxWidthPx
+        }
+        val startLabel: String? = if (fullTimeFits) start else start.takeIf { it.endsWith("00") }?.take(2)
+        val endLabel: String? = if (fullTimeFits) end else end.takeIf { it.endsWith("00") }?.take(2)
         // Lines of title that fit once [reserved] is set aside for what follows it — at least one.
         fun titleLines(reserved: Dp): Int = ((room - reserved) / titleLine).toInt().coerceAtLeast(1)
         val showFullTimes = room >= titleLine + textLine * 3
@@ -688,8 +690,8 @@ private fun EventBlock(
                 overflow = TextOverflow.Ellipsis,
             )
             val times = when {
-                showFullTimes -> listOf(start, "-", end)
-                showStart -> listOf(start)
+                showFullTimes && startLabel != null && endLabel != null -> listOf(startLabel, "-", endLabel)
+                (showFullTimes || showStart) && startLabel != null -> listOf(startLabel)
                 else -> emptyList()
             }
             times.forEach { line ->

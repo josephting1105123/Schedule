@@ -2,6 +2,11 @@
 
 The newest version is at the top.
 
+## 1.4.25
+
+- Events on the Week and Month pages no longer have a coloured bar down their left side. Each one has a thin outline in its colour instead. A Month event that runs into the next week stays open on that side, so it still reads as one event.
+- In a narrow Week column, an event's times no longer read as "100 - 120" for 10:00 to 12:00. A time on the hour shows as "10", and a time with minutes that doesn't fit is left out.
+
 ## 1.4.24
 
 - The Agenda widget no longer has ‹ › buttons. Swipe up and down instead: it lists today and the next 13 days, each under its own date, and each day fills the widget so you read one day at a time.

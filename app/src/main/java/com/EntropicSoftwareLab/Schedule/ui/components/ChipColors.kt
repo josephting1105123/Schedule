@@ -28,5 +28,8 @@ fun eventTint(color: Color, fraction: Float = 0.28f): Color =
  */
 fun eventInk(color: Color): Color = lerp(color.copy(alpha = 1f), Color(0xFF18202B), 0.60f)
 
-/** Width of the solid colour bar on an event's leading edge. */
+/** Width of the solid colour bar on the leading edge of the Today grid's events only. */
 val EVENT_EDGE_WIDTH = 3.dp
+
+/** Width of the outline drawn round Week blocks and Month chips, in the event's own colour. */
+val EVENT_OUTLINE_WIDTH = 1.dp
