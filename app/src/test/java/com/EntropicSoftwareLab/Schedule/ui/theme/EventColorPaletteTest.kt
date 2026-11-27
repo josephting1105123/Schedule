@@ -87,7 +87,7 @@ class EventColorPaletteTest {
 
     @Test
     fun `event ink on its own tint reads at AA`() {
-        // Chips draw eventTint(c, 0.22f), the Week/Today blocks 0.18f; the label is eventInk(c).
+        // Week blocks draw eventTint(c, 0.18f) with times in eventInk(c); 0.22f is checked as headroom.
         // Colours checked: the palette, every one of Google's 24 (by name, via the public
         // PALETTE_ORDER/argbForName, since DRAWN_RGB itself is private) and each of those after
         // displayShade, which is what EventColorResolver actually hands the drawing code (the

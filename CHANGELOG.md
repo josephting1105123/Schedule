@@ -2,6 +2,10 @@
 
 The newest version is at the top.
 
+## 1.4.26
+
+- Events on the Month page no longer have an outline. Each one is filled with a stronger shade of its colour instead. Week keeps its outlines.
+
 ## 1.4.25
 
 - Events on the Week and Month pages no longer have a coloured bar down their left side. Each one has a thin outline in its colour instead. A Month event that runs into the next week stays open on that side, so it still reads as one event.
